@@ -247,9 +247,11 @@
                 android:resource="@xml/provider_paths" />
         </provider>
 
+        <!-- Fork: unique authority (not the upstream org.fossify.commons.contactsprovider)
+             so this app installs side-by-side with upstream Fossify Contacts. -->
         <provider
             android:name=".contentproviders.MyContactsContentProvider"
-            android:authorities="org.fossify.commons.contactsprovider"
+            android:authorities="${applicationId}.contactsprovider"
             android:exported="true" />
 
         <activity-alias
