@@ -5,6 +5,11 @@ description: Build the signed foss release APK with the buildFoss Gradle task, t
 
 # Build the foss release APK and optionally push to phone
 
+> **Never run `adb install` (or `pm install`).** The build step may copy the APK
+> to the phone with `adb push` — and only after confirming with the user — but
+> **the user installs the APK themselves** from the phone's file manager. Do not
+> install it for them under any circumstances.
+
 ## Steps
 
 1. **Note the output filename.** Read the current version and build number:
@@ -17,13 +22,14 @@ description: Build the signed foss release APK with the buildFoss Gradle task, t
    - This runs `assembleFossRelease`, copies the signed APK to `~/tmp/<apk name>`, and auto-increments `BUILD_NUMBER` in `gradle.properties`.
    - The task prints `>>> ~/tmp/<apk name>`; use that line to confirm the exact filename, and confirm `BUILD SUCCESSFUL`.
 
-3. **Always ask** (via AskUserQuestion) whether to push the APK to the phone — every build, no assuming. Options: "Yes, push via adb" / "No, just build".
+3. **Always ask** (via AskUserQuestion) whether to push the APK to the phone — every build, no assuming. Options: "Yes, push via adb" / "No, just build". This is a **push** (file copy), never an install.
 
-4. **If yes, push directly yourself** (do NOT rely on the buildFoss task's own prompt — see caveat):
+4. **If yes, push the file directly yourself** (do NOT rely on the buildFoss task's own prompt — see caveat). Push only — **never `adb install`**:
    - `adb devices` — confirm a device is connected.
    - `adb shell mkdir -p /sdcard/tmp`
    - `adb push ~/tmp/<apk name> /sdcard/tmp/<apk name>`
    - Verify: `adb shell ls -l /sdcard/tmp/<apk name>` (size should match the local file in `~/tmp`).
+   - Then tell the user it's at `/sdcard/tmp/<apk name>` and stop — they install it themselves.
 
 ## Caveat — why push directly instead of via the task
 
