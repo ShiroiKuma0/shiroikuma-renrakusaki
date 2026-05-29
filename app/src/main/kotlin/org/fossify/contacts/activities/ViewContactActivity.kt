@@ -50,10 +50,6 @@ class ViewContactActivity : ContactActivity() {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
 
-        if (checkAppSideloading()) {
-            return
-        }
-
         setupEdgeToEdge(padBottomSystem = listOf(binding.contactScrollview))
 
         showFields = config.showContactFields
