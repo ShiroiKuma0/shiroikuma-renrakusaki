@@ -15,7 +15,7 @@ This repo is a fork. Read this section before building, branching, or rebasing.
 - `origin` → `git@github.com:ShiroiKuma0/shiroikuma-renrakusaki` (my fork)
 - `upstream` → `https://github.com/FossifyOrg/Contacts.git` (the original)
 - `main` — tracks upstream, kept clean (no fork changes land here directly).
-- `custom` — **our development branch.** All fork changes live here. We develop, test, build, then push `custom` to `origin`.
+- `custom` — **our development branch.** All fork changes live here. The cycle is: develop → build → the user tests → and only when the user says **"Push"** do we commit and push `custom` to `origin` (see *Committing & pushing* below).
 
 ### Rebranding (already applied on `custom`)
 
@@ -46,6 +46,10 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew buildFoss < /dev/null
 
 **JDK note:** AGP 9.x requires JDK 17+, but the default `java` on this machine is 11 — always prefix Gradle invocations with `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`.
 
+### Committing & pushing (only when the user says "Push")
+
+**Never `git commit` or `git push` on your own.** Make the changes and build them; then the user tests the build. Only when the user explicitly says **"Push"** do you then `git commit` and `git push origin custom`. The user's "Push" means *commit-and-push-to-the-fork* — it is not the same as the `adb push` that copies the APK to the phone.
+
 ### Rebasing onto a new upstream release
 
 When instructed to update to a new upstream version:
@@ -53,8 +57,8 @@ When instructed to update to a new upstream version:
 1. `git fetch upstream && git checkout main && git merge --ff-only upstream/main` (keep `main` tracking upstream).
 2. `git checkout custom && git rebase main` — replay our fork commits onto the new upstream. Resolve conflicts (rebrand commits and any feature commits).
 3. Update `gradle.properties`: set `VERSION_NAME` / `VERSION_CODE` to the **new upstream** values, and **reset `BUILD_NUMBER` to `1`** (first build of the new upstream version).
-4. Build `+1` with `buildFoss`, test, then continue with `+2`, `+3`, … as further changes are developed.
-5. `git push origin custom` (force-push if the rebase rewrote history).
+4. Build `+1` with `buildFoss`, let the user test, then continue with `+2`, `+3`, … as further changes are developed.
+5. Only on the user's **"Push"**: `git push origin custom` (force-push if the rebase rewrote history).
 
 ## Build Commands
 

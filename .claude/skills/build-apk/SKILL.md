@@ -10,6 +10,13 @@ description: Build the signed foss release APK with the buildFoss Gradle task, t
 > **the user installs the APK themselves** from the phone's file manager. Do not
 > install it for them under any circumstances.
 
+> **Never `git commit` or `git push` on your own.** Building does not include
+> committing. After building (and the optional `adb push`), the user tests the
+> build themselves. **Only when the user explicitly says "Push"** do you then
+> `git commit` the changes and `git push origin custom`. Note: the user's
+> **"Push"** means *commit-and-push-to-the-fork* — it is unrelated to the
+> `adb push` file copy in step 4.
+
 ## Steps
 
 1. **Note the output filename.** Read the current version and build number:
