@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">連絡先</string>
+    <string name="app_launcher_name">白い熊 連絡先</string>
     <string name="address">住所</string>
     <string name="inserting">挿入しています…</string>
     <string name="updating">更新しています…</string>
