@@ -22,7 +22,9 @@ import org.fossify.contacts.R
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.databinding.ItemAddFavoriteWithNumberBinding
 import org.fossify.contacts.databinding.ItemAddFavoriteWithoutNumberBinding
+import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.config
+import org.fossify.contacts.extensions.themeColor
 
 class SelectContactsAdapter(
     val activity: SimpleActivity, var contacts: ArrayList<Contact>, private val selectedContacts: ArrayList<Contact>, private val allowPickMultiple: Boolean,
@@ -118,7 +120,9 @@ class SelectContactsAdapter(
 
                     val numberText = phoneNumberToUse?.value ?: ""
                     text = if (textToHighlight.isEmpty()) numberText else numberText.highlightTextPart(textToHighlight, adjustedPrimaryColor, false, true)
-                    setTextColor(textColor)
+                    // Layout dims this row (android:alpha 0.6); reset so the slot color shows exactly.
+                    alpha = 1f
+                    setTextColor(root.context.themeColor(ThemeSlot.CONTACT_NUMBER))
                     setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
                 }
 

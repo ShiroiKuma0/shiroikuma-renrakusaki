@@ -131,6 +131,7 @@
     <string name="theme_tab_unselected">Unselected tab</string>
     <!-- List slots (shown under a Contacts/Favorites/Groups subgroup) -->
     <string name="theme_slot_name">Name</string>
+    <string name="theme_slot_number">Phone number</string>
     <string name="theme_slot_fastscroller">Fast-scroller</string>
 
     <!-- FAQ -->
