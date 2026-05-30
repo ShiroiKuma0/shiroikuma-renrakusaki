@@ -5,6 +5,11 @@ description: Build the signed foss release APK with the buildFoss Gradle task, t
 
 # Build the foss release APK and optionally push to phone
 
+> **The push destination is ALWAYS `/sdcard/tmp/`.** Every `adb push` of the APK
+> goes to `/sdcard/tmp/<apk name>` — **never** `/sdcard/Download/` or anywhere
+> else. This holds even when pushing outside this skill's normal flow (e.g. a
+> bare "push it to the phone"): create `/sdcard/tmp` if needed and push there.
+
 > **Never run `adb install` (or `pm install`).** The build step may copy the APK
 > to the phone with `adb push` — and only after confirming with the user — but
 > **the user installs the APK themselves** from the phone's file manager. Do not
