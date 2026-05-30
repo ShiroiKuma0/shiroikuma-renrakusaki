@@ -1,22 +1,11 @@
 package org.fossify.contacts.activities
 
 import android.content.Intent
-import android.os.Bundle
 import org.fossify.commons.activities.BaseSplashActivity
-import org.fossify.commons.extensions.baseConfig
-import org.fossify.commons.helpers.SIDELOADING_FALSE
 
+// Commons' sideloading detection is neutralised app-wide in App.onCreate, plus a resource keep
+// rule (res/raw/keep.xml) keeps the drawable it probes, so there is nothing to handle here.
 class SplashActivity : BaseSplashActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        // Custom-signed builds trip Fossify Commons' sideloading detection: it probes for a
-        // Commons drawable that resource shrinking can strip, then persists a "sideloaded"
-        // verdict and shows a blocking "fake version" dialog on every launch. Mark the app as
-        // not sideloaded before BaseSplashActivity.onCreate reads the stored status, neutralising
-        // the check (and clearing any previously persisted verdict).
-        baseConfig.appSideloadingStatus = SIDELOADING_FALSE
-        super.onCreate(savedInstanceState)
-    }
-
     override fun initActivity() {
         startActivity(Intent(this, MainActivity::class.java))
         finish()
