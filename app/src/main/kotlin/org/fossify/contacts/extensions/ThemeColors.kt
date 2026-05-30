@@ -34,6 +34,8 @@ enum class ThemeSlot(
     // Optional subgroup header (accent text + short underline) the slot sits under; null = directly under the section.
     @StringRes val subgroupLabelRes: Int? = null,
     val isFoundation: Boolean = false,
+    // hasFont = true for concrete text views (family / weight / size are configurable per element)
+    val hasFont: Boolean = false,
 ) {
     // Foundation — reuse the stock commons colors (editing these repaints the whole app)
     BACKGROUND("theme_background", ThemeGroup.FOUNDATION, R.string.theme_background, isFoundation = true),
@@ -43,7 +45,7 @@ enum class ThemeSlot(
 
     // Search bar
     SEARCH_FILL("theme_search_fill", ThemeGroup.SEARCH, R.string.theme_search_fill),
-    SEARCH_TEXT("theme_search_text", ThemeGroup.SEARCH, R.string.theme_search_text),
+    SEARCH_TEXT("theme_search_text", ThemeGroup.SEARCH, R.string.theme_search_text, hasFont = true),
     SEARCH_HINT("theme_search_hint", ThemeGroup.SEARCH, R.string.theme_search_hint),
     SEARCH_ICON("theme_search_icon", ThemeGroup.SEARCH, R.string.theme_search_icon),
     SEARCH_BORDER("theme_search_border", ThemeGroup.SEARCH, R.string.theme_search_border),
@@ -56,11 +58,11 @@ enum class ThemeSlot(
     // Contact lists — one subgroup per tab (name + phone number + fast-scroller)
     CONTACT_NAME(
         "theme_contact_name", ThemeGroup.LISTS, R.string.theme_slot_name,
-        subgroupLabelRes = R.string.theme_group_contacts,
+        subgroupLabelRes = R.string.theme_group_contacts, hasFont = true,
     ),
     CONTACT_NUMBER(
         "theme_contact_number", ThemeGroup.LISTS, R.string.theme_slot_number,
-        subgroupLabelRes = R.string.theme_group_contacts,
+        subgroupLabelRes = R.string.theme_group_contacts, hasFont = true,
     ),
     CONTACT_FASTSCROLLER(
         "theme_contact_fastscroller", ThemeGroup.LISTS, R.string.theme_slot_fastscroller,
@@ -68,11 +70,11 @@ enum class ThemeSlot(
     ),
     FAVORITE_NAME(
         "theme_favorite_name", ThemeGroup.LISTS, R.string.theme_slot_name,
-        subgroupLabelRes = R.string.theme_group_favorites,
+        subgroupLabelRes = R.string.theme_group_favorites, hasFont = true,
     ),
     FAVORITE_NUMBER(
         "theme_favorite_number", ThemeGroup.LISTS, R.string.theme_slot_number,
-        subgroupLabelRes = R.string.theme_group_favorites,
+        subgroupLabelRes = R.string.theme_group_favorites, hasFont = true,
     ),
     FAVORITE_FASTSCROLLER(
         "theme_favorite_fastscroller", ThemeGroup.LISTS, R.string.theme_slot_fastscroller,
@@ -80,7 +82,7 @@ enum class ThemeSlot(
     ),
     GROUP_NAME(
         "theme_group_name", ThemeGroup.LISTS, R.string.theme_slot_name,
-        subgroupLabelRes = R.string.theme_group_groups,
+        subgroupLabelRes = R.string.theme_group_groups, hasFont = true,
     ),
     GROUP_FASTSCROLLER(
         "theme_group_fastscroller", ThemeGroup.LISTS, R.string.theme_slot_fastscroller,

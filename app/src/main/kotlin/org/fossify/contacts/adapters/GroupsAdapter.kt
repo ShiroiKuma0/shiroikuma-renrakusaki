@@ -21,6 +21,8 @@ import org.fossify.contacts.R
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.databinding.ItemGroupBinding
 import org.fossify.contacts.dialogs.RenameGroupDialog
+import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.extensions.applyThemeFont
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.interfaces.RefreshContactsListener
 
@@ -165,6 +167,7 @@ class GroupsAdapter(
             groupName.apply {
                 setTextColor(textColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+                applyThemeFont(ThemeSlot.GROUP_NAME)
                 text = groupTitle
             }
 

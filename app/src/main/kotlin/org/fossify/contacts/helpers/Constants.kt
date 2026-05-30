@@ -19,6 +19,12 @@ const val THEME_UNSET = Int.MIN_VALUE // a slot with this stored value follows i
 const val PALETTE_BLACK = 0xFF000000.toInt()
 const val PALETTE_YELLOW = 0xFFFFEB3B.toInt()
 
+// Per-element fonts: one entry per text slot, keyed by the slot key.
+const val FONT_FAMILY_PREFIX = "font_family_" // String, "" = system/global default
+const val FONT_WEIGHT_PREFIX = "font_weight_" // Int, 0 = default, else 100..900
+const val FONT_SIZE_PREFIX = "font_size_"     // Int sp, 0 = default
+const val MAX_FONT_SIZE_SP = 40
+
 const val AUTOMATIC_BACKUP_REQUEST_CODE = 10001
 const val AUTO_BACKUP_INTERVAL_IN_DAYS = 1
 
