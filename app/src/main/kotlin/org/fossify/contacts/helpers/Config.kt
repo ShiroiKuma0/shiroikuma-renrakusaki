@@ -18,4 +18,14 @@ class Config(context: Context) : BaseConfig(context) {
         set(autoBackupContactSources) = prefs.edit().remove(AUTO_BACKUP_CONTACT_SOURCES).putStringSet(AUTO_BACKUP_CONTACT_SOURCES, autoBackupContactSources)
             .apply()
 
+    // Granular theming: one Int override per color slot, THEME_UNSET means "follow the default".
+    var themeV1Seeded: Boolean
+        get() = prefs.getBoolean(THEME_V1_SEEDED, false)
+        set(value) = prefs.edit().putBoolean(THEME_V1_SEEDED, value).apply()
+
+    fun getThemeOverride(key: String): Int = prefs.getInt(key, THEME_UNSET)
+
+    fun setThemeOverride(key: String, color: Int) = prefs.edit().putInt(key, color).apply()
+
+    fun clearThemeOverride(key: String) = prefs.edit().remove(key).apply()
 }

@@ -103,6 +103,34 @@
         <item quantity="other">%d groups</item>
     </plurals>
 
+    <!-- Theme &amp; colors -->
+    <string name="shiroikuma_ui_category">白い熊 連絡先 UI</string>
+    <string name="theme_and_colors">Theme &amp; colors</string>
+    <string name="theme_group_foundation">Foundation</string>
+    <string name="theme_group_search">Search bar</string>
+    <string name="theme_group_tabs">Tabs</string>
+    <string name="theme_group_contacts">Contacts</string>
+    <string name="theme_group_favorites">Favorites</string>
+    <string name="theme_group_groups">Groups</string>
+    <string name="theme_background">Background</string>
+    <string name="theme_primary">Primary / accent</string>
+    <string name="theme_text">Text</string>
+    <string name="theme_text_secondary">Secondary text</string>
+    <string name="theme_search_fill">Search bar fill</string>
+    <string name="theme_search_text">Search bar text</string>
+    <string name="theme_search_hint">Search bar hint</string>
+    <string name="theme_search_icon">Search bar icon</string>
+    <string name="theme_search_border">Search bar border</string>
+    <string name="theme_tab_background">Tab bar background</string>
+    <string name="theme_tab_selected">Selected tab</string>
+    <string name="theme_tab_unselected">Unselected tab</string>
+    <string name="theme_contact_name">Contact name</string>
+    <string name="theme_contact_fastscroller">Fast-scroller</string>
+    <string name="theme_favorite_name">Favorite name</string>
+    <string name="theme_favorite_fastscroller">Fast-scroller</string>
+    <string name="theme_group_name">Group name</string>
+    <string name="theme_group_fastscroller">Fast-scroller</string>
+
     <!-- FAQ -->
     <string name="faq_1_title">I want to change what fields are visible at contacts. Can I do it?</string>
     <string name="faq_1_text">Yes, all you have to do is go in Settings -> Manage shown contact fields. There you can select what fields should be visible. Some of them are even disabled by default, so you might find some new ones there.</string>

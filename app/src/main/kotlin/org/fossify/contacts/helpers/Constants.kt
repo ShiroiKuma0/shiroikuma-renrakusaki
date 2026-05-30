@@ -13,6 +13,12 @@ const val AVOID_CHANGING_TEXT_TAG = "avoid_changing_text_tag"
 const val AVOID_CHANGING_VISIBILITY_TAG = "avoid_changing_visibility_tag"
 const val FORMAT_PHONE_NUMBERS = "format_phone_numbers"
 
+// Granular theming
+const val THEME_V1_SEEDED = "theme_v1_seeded"
+const val THEME_UNSET = Int.MIN_VALUE // a slot with this stored value follows its inherited default
+const val PALETTE_BLACK = 0xFF000000.toInt()
+const val PALETTE_YELLOW = 0xFFFFEB3B.toInt()
+
 const val AUTOMATIC_BACKUP_REQUEST_CODE = 10001
 const val AUTO_BACKUP_INTERVAL_IN_DAYS = 1
 

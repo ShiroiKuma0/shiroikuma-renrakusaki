@@ -5,9 +5,14 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
+import android.view.View
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.viewpager.widget.ViewPager
 import me.grantland.widget.AutofitHelper
 import org.fossify.commons.databases.ContactsDatabase
@@ -26,8 +31,10 @@ import org.fossify.contacts.adapters.ViewPagerAdapter
 import org.fossify.contacts.databinding.ActivityMainBinding
 import org.fossify.contacts.dialogs.ChangeSortingDialog
 import org.fossify.contacts.dialogs.FilterContactSourcesDialog
+import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.handleGenericContactClick
+import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.extensions.tryImportContactsFromFile
 import org.fossify.contacts.fragments.FavoritesFragment
 import org.fossify.contacts.fragments.MyViewPagerFragment
@@ -35,6 +42,10 @@ import org.fossify.contacts.helpers.ALL_TABS_MASK
 import org.fossify.contacts.helpers.tabsList
 import org.fossify.contacts.interfaces.RefreshContactsListener
 import java.util.Arrays
+
+// Search-bar chrome dimensions (dp), scaled by display density at use.
+private const val SEARCH_BAR_CORNER_RADIUS_DP = 16f
+private const val SEARCH_BAR_STROKE_DP = 2
 
 class MainActivity : SimpleActivity(), RefreshContactsListener {
     private var werePermissionsHandled = false
@@ -184,10 +195,15 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         binding.mainMenu.toggleHideOnScroll(false)
         binding.mainMenu.setupMenu()
 
+        binding.mainMenu.onSearchOpenListener = {
+            binding.mainMenu.post { styleSearchBar() }
+        }
+
         binding.mainMenu.onSearchClosedListener = {
             getAllFragments().forEach {
                 it?.onSearchClosed()
             }
+            binding.mainMenu.post { styleSearchBar() }
         }
 
         binding.mainMenu.onSearchTextChangedListener = { text ->
@@ -235,6 +251,30 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
     private fun updateMenuColors() {
         binding.mainMenu.updateColors()
+        styleSearchBar()
+    }
+
+    // Apply the granular search-bar theme on top of the commons defaults (must run after updateColors).
+    private fun styleSearchBar() {
+        val menu = binding.mainMenu
+        val radiusPx = SEARCH_BAR_CORNER_RADIUS_DP * resources.displayMetrics.density
+        val strokePx = (SEARCH_BAR_STROKE_DP * resources.displayMetrics.density).toInt()
+
+        menu.findViewById<View>(org.fossify.commons.R.id.toolbar_container)?.background =
+            GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = radiusPx
+                setColor(themeColor(ThemeSlot.SEARCH_FILL))
+                setStroke(strokePx, themeColor(ThemeSlot.SEARCH_BORDER))
+            }
+
+        menu.findViewById<EditText>(org.fossify.commons.R.id.top_toolbar_search)?.apply {
+            setTextColor(themeColor(ThemeSlot.SEARCH_TEXT))
+            setHintTextColor(themeColor(ThemeSlot.SEARCH_HINT))
+        }
+
+        menu.findViewById<ImageView>(org.fossify.commons.R.id.top_toolbar_search_icon)
+            ?.applyColorFilter(themeColor(ThemeSlot.SEARCH_ICON))
     }
 
     private fun storeStateVariables() {
@@ -299,14 +339,20 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
     private fun setupTabColors() {
         val activeView = binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.customView
         updateBottomTabItemColors(activeView, true, getSelectedTabDrawableIds()[binding.viewPager.currentItem])
+        colorTabItem(activeView, themeColor(ThemeSlot.TAB_SELECTED))
 
         getInactiveTabIndexes(binding.viewPager.currentItem).forEach { index ->
             val inactiveView = binding.mainTabsHolder.getTabAt(index)?.customView
             updateBottomTabItemColors(inactiveView, false, getDeselectedTabDrawableIds()[index])
+            colorTabItem(inactiveView, themeColor(ThemeSlot.TAB_UNSELECTED))
         }
 
-        val bottomBarColor = getBottomNavigationBackgroundColor()
-        binding.mainTabsHolder.setBackgroundColor(bottomBarColor)
+        binding.mainTabsHolder.setBackgroundColor(themeColor(ThemeSlot.TAB_BACKGROUND))
+    }
+
+    private fun colorTabItem(view: View?, color: Int) {
+        view?.findViewById<ImageView>(org.fossify.commons.R.id.tab_item_icon)?.applyColorFilter(color)
+        view?.findViewById<TextView>(org.fossify.commons.R.id.tab_item_label)?.setTextColor(color)
     }
 
     private fun getInactiveTabIndexes(activeIndex: Int) = (0 until binding.mainTabsHolder.tabCount).filter { it != activeIndex }
