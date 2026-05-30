@@ -108,6 +108,7 @@ class SelectContactsAdapter(
                     }
                 }
 
+                contactName.alpha = 1f
                 contactName.setTextColor(textColor)
                 contactName.setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
 
