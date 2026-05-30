@@ -27,7 +27,9 @@ import org.fossify.contacts.adapters.ContactsAdapter
 import org.fossify.contacts.adapters.GroupsAdapter
 import org.fossify.contacts.databinding.FragmentLayoutBinding
 import org.fossify.contacts.databinding.FragmentLettersLayoutBinding
+import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.config
+import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.helpers.AVOID_CHANGING_TEXT_TAG
 import org.fossify.contacts.helpers.AVOID_CHANGING_VISIBILITY_TAG
 import org.fossify.contacts.helpers.Config
@@ -85,22 +87,34 @@ abstract class MyViewPagerFragment<Binding : MyViewPagerFragment.InnerBinding>(c
     }
 
     fun setupColors(textColor: Int, adjustedPrimaryColor: Int) {
+        // Each tab has its own name / fast-scroller slot; defaults inherit the foundation text / primary.
+        val nameColor = when (this) {
+            is FavoritesFragment -> context.themeColor(ThemeSlot.FAVORITE_NAME)
+            is GroupsFragment -> context.themeColor(ThemeSlot.GROUP_NAME)
+            else -> context.themeColor(ThemeSlot.CONTACT_NAME)
+        }
+        val fastscrollerColor = when (this) {
+            is FavoritesFragment -> context.themeColor(ThemeSlot.FAVORITE_FASTSCROLLER)
+            is GroupsFragment -> context.themeColor(ThemeSlot.GROUP_FASTSCROLLER)
+            else -> context.themeColor(ThemeSlot.CONTACT_FASTSCROLLER)
+        }
+
         when (this) {
-            is GroupsFragment -> (innerBinding.fragmentList.adapter as? GroupsAdapter)?.updateTextColor(textColor)
+            is GroupsFragment -> (innerBinding.fragmentList.adapter as? GroupsAdapter)?.updateTextColor(nameColor)
             else -> (innerBinding.fragmentList.adapter as? ContactsAdapter)?.apply {
-                updateTextColor(textColor)
+                updateTextColor(nameColor)
             }
         }
 
         context.updateTextColors(innerBinding.fragmentWrapper.parent as ViewGroup)
-        innerBinding.fragmentFastscroller?.updateColors(adjustedPrimaryColor)
+        innerBinding.fragmentFastscroller?.updateColors(fastscrollerColor)
         innerBinding.fragmentPlaceholder2.setTextColor(adjustedPrimaryColor)
 
         innerBinding.letterFastscroller?.textColor = textColor.getColorStateList()
-        innerBinding.letterFastscroller?.pressedTextColor = adjustedPrimaryColor
+        innerBinding.letterFastscroller?.pressedTextColor = fastscrollerColor
         innerBinding.letterFastscrollerThumb?.fontSize = context.getTextSize()
-        innerBinding.letterFastscrollerThumb?.textColor = adjustedPrimaryColor.getContrastColor()
-        innerBinding.letterFastscrollerThumb?.thumbColor = adjustedPrimaryColor.getColorStateList()
+        innerBinding.letterFastscrollerThumb?.textColor = fastscrollerColor.getContrastColor()
+        innerBinding.letterFastscrollerThumb?.thumbColor = fastscrollerColor.getColorStateList()
     }
 
     fun startNameWithSurnameChanged(startNameWithSurname: Boolean) {

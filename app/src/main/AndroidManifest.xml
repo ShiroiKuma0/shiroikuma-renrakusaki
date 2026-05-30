@@ -34,7 +34,7 @@
     </queries>
 
     <application
-        android:name="org.fossify.commons.FossifyApp"
+        android:name=".App"
         android:allowBackup="true"
         android:appCategory="social"
         android:icon="@mipmap/ic_launcher"
@@ -86,6 +86,13 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".activities.ThemeActivity"
+            android:configChanges="orientation"
+            android:exported="false"
+            android:label="@string/theme_and_colors"
+            android:parentActivityName=".activities.SettingsActivity" />
 
         <activity
             android:name=".activities.GroupContactsActivity"
