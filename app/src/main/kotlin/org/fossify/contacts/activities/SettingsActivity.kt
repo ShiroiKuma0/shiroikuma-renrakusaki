@@ -5,7 +5,6 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
-import org.fossify.commons.dialogs.ColorPickerDialog
 import org.fossify.commons.dialogs.FilePickerDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.*
@@ -46,7 +45,6 @@ class SettingsActivity : SimpleActivity() {
 
         setupThemeAndColors()
         setupCustomizeColors()
-        setupPrimaryColor()
         setupManageShownContactFields()
         setupManageShownTabs()
         setupFontSize()
@@ -70,7 +68,6 @@ class SettingsActivity : SimpleActivity() {
         updateTextColors(binding.settingsHolder)
 
         arrayOf(
-            binding.settingsShiroikumaUiLabel,
             binding.settingsColorCustomizationSectionLabel,
             binding.settingsGeneralSettingsLabel,
             binding.settingsMainScreenLabel,
@@ -92,26 +89,6 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsColorCustomizationHolder.setOnClickListener {
             startCustomizationActivity()
         }
-    }
-
-    private fun setupPrimaryColor() {
-        binding.settingsPrimaryColorPreview.background.setTint(getProperPrimaryColor())
-        binding.settingsPrimaryColorHolder.setOnClickListener {
-            ColorPickerDialog(this, getProperPrimaryColor()) { wasPositive, color ->
-                if (wasPositive) {
-                    applyPrimaryColor(color)
-                }
-            }
-        }
-    }
-
-    private fun applyPrimaryColor(color: Int) {
-        // A custom primary color is incompatible with Material You, so leave the system theme –
-        // otherwise getProperPrimaryColor() keeps returning the dynamic color and the pick is ignored.
-        config.isSystemThemeEnabled = false
-        config.primaryColor = color
-        // re-theme Settings immediately; other screens re-read the color on their next launch
-        recreate()
     }
 
     private fun setupManageShownContactFields() {
