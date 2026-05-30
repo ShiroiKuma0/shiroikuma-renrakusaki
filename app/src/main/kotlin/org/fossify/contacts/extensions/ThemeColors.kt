@@ -19,19 +19,20 @@ import org.fossify.contacts.helpers.THEME_UNSET
 // only diverges once the user gives it an explicit override (stored as an Int; THEME_UNSET means
 // "follow the default"). The default look is seeded to black background + yellow text/accents.
 
+// A top-level section in the Theme screen (large accent header + full-width rule).
 enum class ThemeGroup(@StringRes val labelRes: Int) {
     FOUNDATION(R.string.theme_group_foundation),
     SEARCH(R.string.theme_group_search),
     TABS(R.string.theme_group_tabs),
-    CONTACTS(R.string.theme_group_contacts),
-    FAVORITES(R.string.theme_group_favorites),
-    GROUPS(R.string.theme_group_groups),
+    LISTS(R.string.theme_group_lists),
 }
 
 enum class ThemeSlot(
     val key: String,
     val group: ThemeGroup,
     @StringRes val labelRes: Int,
+    // Optional subgroup header (accent text + short underline) the slot sits under; null = directly under the section.
+    @StringRes val subgroupLabelRes: Int? = null,
     val isFoundation: Boolean = false,
 ) {
     // Foundation — reuse the stock commons colors (editing these repaints the whole app)
@@ -52,17 +53,31 @@ enum class ThemeSlot(
     TAB_SELECTED("theme_tab_selected", ThemeGroup.TABS, R.string.theme_tab_selected),
     TAB_UNSELECTED("theme_tab_unselected", ThemeGroup.TABS, R.string.theme_tab_unselected),
 
-    // Contacts
-    CONTACT_NAME("theme_contact_name", ThemeGroup.CONTACTS, R.string.theme_contact_name),
-    CONTACT_FASTSCROLLER("theme_contact_fastscroller", ThemeGroup.CONTACTS, R.string.theme_contact_fastscroller),
-
-    // Favorites
-    FAVORITE_NAME("theme_favorite_name", ThemeGroup.FAVORITES, R.string.theme_favorite_name),
-    FAVORITE_FASTSCROLLER("theme_favorite_fastscroller", ThemeGroup.FAVORITES, R.string.theme_favorite_fastscroller),
-
-    // Groups
-    GROUP_NAME("theme_group_name", ThemeGroup.GROUPS, R.string.theme_group_name),
-    GROUP_FASTSCROLLER("theme_group_fastscroller", ThemeGroup.GROUPS, R.string.theme_group_fastscroller),
+    // Contact lists — one subgroup per tab, each with a name + fast-scroller slot
+    CONTACT_NAME(
+        "theme_contact_name", ThemeGroup.LISTS, R.string.theme_slot_name,
+        subgroupLabelRes = R.string.theme_group_contacts,
+    ),
+    CONTACT_FASTSCROLLER(
+        "theme_contact_fastscroller", ThemeGroup.LISTS, R.string.theme_slot_fastscroller,
+        subgroupLabelRes = R.string.theme_group_contacts,
+    ),
+    FAVORITE_NAME(
+        "theme_favorite_name", ThemeGroup.LISTS, R.string.theme_slot_name,
+        subgroupLabelRes = R.string.theme_group_favorites,
+    ),
+    FAVORITE_FASTSCROLLER(
+        "theme_favorite_fastscroller", ThemeGroup.LISTS, R.string.theme_slot_fastscroller,
+        subgroupLabelRes = R.string.theme_group_favorites,
+    ),
+    GROUP_NAME(
+        "theme_group_name", ThemeGroup.LISTS, R.string.theme_slot_name,
+        subgroupLabelRes = R.string.theme_group_groups,
+    ),
+    GROUP_FASTSCROLLER(
+        "theme_group_fastscroller", ThemeGroup.LISTS, R.string.theme_slot_fastscroller,
+        subgroupLabelRes = R.string.theme_group_groups,
+    ),
 }
 
 // Alpha factors for the muted (inherited) defaults.
