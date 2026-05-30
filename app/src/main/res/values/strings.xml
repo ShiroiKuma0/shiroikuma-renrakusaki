@@ -109,6 +109,7 @@
     <string name="theme_group_foundation">Foundation</string>
     <string name="theme_group_search">Search bar</string>
     <string name="theme_group_tabs">Tabs</string>
+    <string name="theme_group_topbar">Top bar</string>
     <string name="theme_group_lists">Contact lists</string>
     <!-- Subgroups (also reused as list-tab names) -->
     <string name="theme_group_contacts">Contacts</string>
@@ -124,11 +125,16 @@
     <string name="theme_search_text">Search bar text</string>
     <string name="theme_search_hint">Search bar hint</string>
     <string name="theme_search_icon">Search bar icon</string>
+    <string name="theme_search_action_icon">Action icons</string>
+    <string name="theme_search_menu_text">Menu text</string>
     <string name="theme_search_border">Search bar border</string>
     <!-- Tab slots -->
     <string name="theme_tab_background">Tab bar background</string>
     <string name="theme_tab_selected">Selected tab</string>
     <string name="theme_tab_unselected">Unselected tab</string>
+    <!-- Top bar slots (Settings / this page / group contacts toolbars) -->
+    <string name="theme_topbar_title">Title</string>
+    <string name="theme_topbar_nav">Back arrow</string>
     <!-- List slots (shown under a Contacts/Favorites/Groups subgroup) -->
     <string name="theme_slot_name">Name</string>
     <string name="theme_slot_number">Phone number</string>

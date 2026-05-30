@@ -9,11 +9,15 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.viewpager.widget.ViewPager
+import com.google.android.material.appbar.MaterialToolbar
 import me.grantland.widget.AutofitHelper
 import org.fossify.commons.databases.ContactsDatabase
 import org.fossify.commons.databinding.BottomTablayoutItemBinding
@@ -277,6 +281,27 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
         menu.findViewById<ImageView>(org.fossify.commons.R.id.top_toolbar_search_icon)
             ?.applyColorFilter(themeColor(ThemeSlot.SEARCH_ICON))
+
+        // the toolbar's action icons (sort/filter/…), the overflow "⋮" and the overflow popup's text
+        menu.findViewById<MaterialToolbar>(org.fossify.commons.R.id.top_toolbar)?.let {
+            styleToolbarMenu(it, themeColor(ThemeSlot.SEARCH_ACTION_ICON), themeColor(ThemeSlot.SEARCH_MENU_TEXT))
+        }
+    }
+
+    private fun styleToolbarMenu(toolbar: MaterialToolbar, iconColor: Int, textColor: Int) {
+        toolbar.overflowIcon?.applyColorFilter(iconColor)
+        val toolbarMenu = toolbar.menu
+        for (i in 0 until toolbarMenu.size()) {
+            val item = toolbarMenu.getItem(i)
+            item.icon?.applyColorFilter(iconColor)
+            // colour the overflow popup's item text (bar items show as icons, so this only shows in the popup);
+            // start from the plain text so re-styling on each resume doesn't stack spans
+            item.title = item.title?.toString()?.let { coloredText(it, textColor) }
+        }
+    }
+
+    private fun coloredText(text: String, color: Int) = SpannableString(text).apply {
+        setSpan(ForegroundColorSpan(color), 0, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
     private fun storeStateVariables() {
