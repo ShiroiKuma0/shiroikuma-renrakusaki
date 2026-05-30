@@ -53,9 +53,13 @@ enum class ThemeSlot(
     TAB_SELECTED("theme_tab_selected", ThemeGroup.TABS, R.string.theme_tab_selected),
     TAB_UNSELECTED("theme_tab_unselected", ThemeGroup.TABS, R.string.theme_tab_unselected),
 
-    // Contact lists — one subgroup per tab, each with a name + fast-scroller slot
+    // Contact lists — one subgroup per tab (name + phone number + fast-scroller)
     CONTACT_NAME(
         "theme_contact_name", ThemeGroup.LISTS, R.string.theme_slot_name,
+        subgroupLabelRes = R.string.theme_group_contacts,
+    ),
+    CONTACT_NUMBER(
+        "theme_contact_number", ThemeGroup.LISTS, R.string.theme_slot_number,
         subgroupLabelRes = R.string.theme_group_contacts,
     ),
     CONTACT_FASTSCROLLER(
@@ -64,6 +68,10 @@ enum class ThemeSlot(
     ),
     FAVORITE_NAME(
         "theme_favorite_name", ThemeGroup.LISTS, R.string.theme_slot_name,
+        subgroupLabelRes = R.string.theme_group_favorites,
+    ),
+    FAVORITE_NUMBER(
+        "theme_favorite_number", ThemeGroup.LISTS, R.string.theme_slot_number,
         subgroupLabelRes = R.string.theme_group_favorites,
     ),
     FAVORITE_FASTSCROLLER(
@@ -112,10 +120,14 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.TAB_SELECTED -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.TAB_UNSELECTED -> themeColor(ThemeSlot.TEXT).adjustAlpha(ALPHA_UNSELECTED_TAB)
 
-    // Per-tab list colors all inherit from the foundation text / primary by default
+    // Per-tab list colors all inherit from the foundation text / primary by default.
+    // Numbers inherit the muted secondary text (the rows render at full opacity, so the slot
+    // color is exactly what shows — see the alpha = 1f reset in the adapters).
     ThemeSlot.CONTACT_NAME -> themeColor(ThemeSlot.TEXT)
+    ThemeSlot.CONTACT_NUMBER -> themeColor(ThemeSlot.TEXT_SECONDARY)
     ThemeSlot.CONTACT_FASTSCROLLER -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.FAVORITE_NAME -> themeColor(ThemeSlot.TEXT)
+    ThemeSlot.FAVORITE_NUMBER -> themeColor(ThemeSlot.TEXT_SECONDARY)
     ThemeSlot.FAVORITE_FASTSCROLLER -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.GROUP_NAME -> themeColor(ThemeSlot.TEXT)
     ThemeSlot.GROUP_FASTSCROLLER -> themeColor(ThemeSlot.PRIMARY)

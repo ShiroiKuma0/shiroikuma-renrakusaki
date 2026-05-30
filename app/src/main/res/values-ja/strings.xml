@@ -109,5 +109,6 @@
     <string name="theme_tab_unselected">非選択のタブ</string>
     <!-- リストの項目（連絡先・お気に入り・グループの各サブグループに表示） -->
     <string name="theme_slot_name">名前</string>
+    <string name="theme_slot_number">電話番号</string>
     <string name="theme_slot_fastscroller">索引バー</string>
 </resources>
