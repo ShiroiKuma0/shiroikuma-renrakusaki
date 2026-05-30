@@ -87,6 +87,7 @@
     <string name="theme_group_foundation">基本</string>
     <string name="theme_group_search">検索バー</string>
     <string name="theme_group_tabs">タブ</string>
+    <string name="theme_group_topbar">上部バー</string>
     <string name="theme_group_lists">連絡先リスト</string>
     <!-- サブグループ（リストのタブ名としても使用） -->
     <string name="theme_group_contacts">連絡先</string>
@@ -102,11 +103,16 @@
     <string name="theme_search_text">検索バーの文字</string>
     <string name="theme_search_hint">検索バーのヒント</string>
     <string name="theme_search_icon">検索バーのアイコン</string>
+    <string name="theme_search_action_icon">操作アイコン</string>
+    <string name="theme_search_menu_text">メニューの文字</string>
     <string name="theme_search_border">検索バーの枠線</string>
     <!-- タブの項目 -->
     <string name="theme_tab_background">タブバーの背景</string>
     <string name="theme_tab_selected">選択中のタブ</string>
     <string name="theme_tab_unselected">非選択のタブ</string>
+    <!-- 上部バーの項目（設定・本ページ・グループ連絡先のツールバー） -->
+    <string name="theme_topbar_title">タイトル</string>
+    <string name="theme_topbar_nav">戻る矢印</string>
     <!-- リストの項目（連絡先・お気に入り・グループの各サブグループに表示） -->
     <string name="theme_slot_name">名前</string>
     <string name="theme_slot_number">電話番号</string>

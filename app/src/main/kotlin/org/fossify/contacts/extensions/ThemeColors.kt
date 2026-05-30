@@ -3,6 +3,7 @@ package org.fossify.contacts.extensions
 import android.content.Context
 import androidx.annotation.StringRes
 import org.fossify.commons.extensions.adjustAlpha
+import org.fossify.commons.extensions.getContrastColor
 import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
@@ -24,6 +25,7 @@ enum class ThemeGroup(@StringRes val labelRes: Int) {
     FOUNDATION(R.string.theme_group_foundation),
     SEARCH(R.string.theme_group_search),
     TABS(R.string.theme_group_tabs),
+    TOPBAR(R.string.theme_group_topbar),
     LISTS(R.string.theme_group_lists),
 }
 
@@ -48,12 +50,18 @@ enum class ThemeSlot(
     SEARCH_TEXT("theme_search_text", ThemeGroup.SEARCH, R.string.theme_search_text, hasFont = true),
     SEARCH_HINT("theme_search_hint", ThemeGroup.SEARCH, R.string.theme_search_hint),
     SEARCH_ICON("theme_search_icon", ThemeGroup.SEARCH, R.string.theme_search_icon),
+    SEARCH_ACTION_ICON("theme_search_action_icon", ThemeGroup.SEARCH, R.string.theme_search_action_icon),
+    SEARCH_MENU_TEXT("theme_search_menu_text", ThemeGroup.SEARCH, R.string.theme_search_menu_text),
     SEARCH_BORDER("theme_search_border", ThemeGroup.SEARCH, R.string.theme_search_border),
 
     // Tabs
     TAB_BACKGROUND("theme_tab_background", ThemeGroup.TABS, R.string.theme_tab_background),
     TAB_SELECTED("theme_tab_selected", ThemeGroup.TABS, R.string.theme_tab_selected),
     TAB_UNSELECTED("theme_tab_unselected", ThemeGroup.TABS, R.string.theme_tab_unselected),
+
+    // Top bar (secondary screens: Settings, this page, group contacts…)
+    TOPBAR_TITLE("theme_topbar_title", ThemeGroup.TOPBAR, R.string.theme_topbar_title),
+    TOPBAR_NAV("theme_topbar_nav", ThemeGroup.TOPBAR, R.string.theme_topbar_nav),
 
     // Contact lists — one subgroup per tab (name + phone number + fast-scroller)
     CONTACT_NAME(
@@ -115,12 +123,19 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.SEARCH_TEXT -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.SEARCH_HINT -> themeColor(ThemeSlot.PRIMARY).adjustAlpha(ALPHA_SEARCH_HINT)
     ThemeSlot.SEARCH_ICON -> themeColor(ThemeSlot.PRIMARY)
+    ThemeSlot.SEARCH_ACTION_ICON -> themeColor(ThemeSlot.PRIMARY)
+    // overflow ("⋮") popup item text — its background keeps following the foundation background
+    ThemeSlot.SEARCH_MENU_TEXT -> themeColor(ThemeSlot.TEXT)
     ThemeSlot.SEARCH_BORDER -> themeColor(ThemeSlot.PRIMARY)
 
     // Tabs
     ThemeSlot.TAB_BACKGROUND -> themeColor(ThemeSlot.BACKGROUND)
     ThemeSlot.TAB_SELECTED -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.TAB_UNSELECTED -> themeColor(ThemeSlot.TEXT).adjustAlpha(ALPHA_UNSELECTED_TAB)
+
+    // Top bar: title + back arrow contrast the primary-coloured toolbar by default
+    ThemeSlot.TOPBAR_TITLE -> themeColor(ThemeSlot.PRIMARY).getContrastColor()
+    ThemeSlot.TOPBAR_NAV -> themeColor(ThemeSlot.PRIMARY).getContrastColor()
 
     // Per-tab list colors all inherit from the foundation text / primary by default.
     // Numbers inherit the muted secondary text (the rows render at full opacity, so the slot

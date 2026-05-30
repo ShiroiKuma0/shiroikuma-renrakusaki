@@ -42,6 +42,7 @@ class SettingsActivity : SimpleActivity() {
     override fun onResume() {
         super.onResume()
         setupTopAppBar(binding.settingsAppbar, NavigationIcon.Arrow)
+        applyTopBarColors(binding.settingsAppbar)
 
         setupThemeAndColors()
         setupCustomizeColors()
