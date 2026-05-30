@@ -1,10 +1,10 @@
 package org.fossify.contacts.adapters
 
-import android.graphics.drawable.BitmapDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Filter
+import androidx.appcompat.content.res.AppCompatResources
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
@@ -13,8 +13,8 @@ import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.normalizeString
-import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.commons.models.contacts.Contact
+import org.fossify.contacts.R
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.databinding.ItemAutocompleteNameNumberBinding
 
@@ -33,7 +33,7 @@ class AutoCompleteTextViewAdapter(
             listItem = ItemAutocompleteNameNumberBinding.inflate(activity.layoutInflater, parent, false).root
         }
 
-        val placeholder = BitmapDrawable(activity.resources, SimpleContactsHelper(context).getContactLetterIcon(nameToUse))
+        val placeholder = AppCompatResources.getDrawable(context, R.drawable.ic_unknown_contact)
         ItemAutocompleteNameNumberBinding.bind(listItem).apply {
             root.setBackgroundColor(context.getProperBackgroundColor())
             itemAutocompleteName.setTextColor(context.getProperTextColor())

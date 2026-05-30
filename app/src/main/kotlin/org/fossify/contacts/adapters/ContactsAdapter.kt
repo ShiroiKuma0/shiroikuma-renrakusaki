@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
@@ -17,6 +16,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
@@ -47,7 +47,6 @@ import org.fossify.contacts.helpers.*
 import org.fossify.contacts.interfaces.RefreshContactsListener
 import org.fossify.contacts.interfaces.RemoveFromGroupListener
 import java.util.Collections
-import androidx.core.graphics.drawable.toDrawable
 
 class ContactsAdapter(
     activity: SimpleActivity,
@@ -340,7 +339,7 @@ class ContactsAdapter(
     private fun getShortcutImage(contact: Contact, drawable: Drawable, callback: () -> Unit) {
         val appIconColor = baseConfig.appIconColor
         (drawable as LayerDrawable).findDrawableByLayerId(R.id.shortcut_contact_background).applyColorFilter(appIconColor)
-        val placeholderImage = BitmapDrawable(resources, SimpleContactsHelper(activity).getContactLetterIcon(contact.getNameToDisplay()))
+        val placeholderImage = AppCompatResources.getDrawable(activity, R.drawable.ic_unknown_contact)
         if (contact.photoUri.isEmpty() && contact.photo == null) {
             drawable.setDrawableByLayerId(R.id.shortcut_contact_image, placeholderImage)
             callback()
@@ -441,8 +440,7 @@ class ContactsAdapter(
             }
 
             if (showContactThumbnails) {
-                val placeholderImage =
-                    SimpleContactsHelper(context).getContactLetterIcon(fullName).toDrawable(resources)
+                val placeholderImage = AppCompatResources.getDrawable(context, R.drawable.ic_unknown_contact)
                 if (contact.photoUri.isEmpty() && contact.photo == null) {
                     findViewById<ImageView>(org.fossify.commons.R.id.item_contact_image).setImageDrawable(placeholderImage)
                 } else {
