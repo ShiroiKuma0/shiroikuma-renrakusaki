@@ -32,8 +32,8 @@ import org.fossify.contacts.extensions.showFontSample
 import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.helpers.MAX_FONT_SIZE_SP
 
-// How much further each subgroup's controls are indented past the section's controls.
-private const val SUBGROUP_INDENT_DP = 24
+// Each cascade level is indented one more step: section contents one step in, subgroup contents two.
+private const val INDENT_STEP_DP = 72
 
 @Suppress("TooManyFunctions")
 class ThemeActivity : SimpleActivity() {
@@ -66,12 +66,12 @@ class ThemeActivity : SimpleActivity() {
         previews.clear()
 
         val primaryColor = getProperPrimaryColor()
-        val indentPx = (SUBGROUP_INDENT_DP * resources.displayMetrics.density).toInt()
+        val stepPx = (INDENT_STEP_DP * resources.displayMetrics.density).toInt()
 
-        ThemeGroup.entries.forEach { addGroup(it, primaryColor, indentPx) }
+        ThemeGroup.entries.forEach { addGroup(it, primaryColor, stepPx) }
     }
 
-    private fun addGroup(group: ThemeGroup, primaryColor: Int, indentPx: Int) {
+    private fun addGroup(group: ThemeGroup, primaryColor: Int, stepPx: Int) {
         addSectionHeader(getString(group.labelRes), primaryColor)
 
         var sawAny = false
@@ -81,10 +81,12 @@ class ThemeActivity : SimpleActivity() {
             if (!sawAny || subgroup != lastSubgroup) {
                 sawAny = true
                 lastSubgroup = subgroup
-                subgroup?.let { addSubgroupHeader(getString(it), primaryColor) }
+                // a subgroup header is part of the section's contents → one step in
+                subgroup?.let { addSubgroupHeader(getString(it), primaryColor, stepPx) }
             }
-            val indent = if (subgroup != null) indentPx else 0
-            if (slot.hasFont) addTextSlot(slot, indent) else addColorRow(slot, indent)
+            // section's direct controls indent one step; a subgroup's controls indent two
+            val indent = if (subgroup != null) stepPx * 2 else stepPx
+            if (slot.hasFont) addTextSlot(slot, indent, stepPx) else addColorRow(slot, indent)
         }
     }
 
@@ -96,11 +98,12 @@ class ThemeActivity : SimpleActivity() {
         binding.themeHolder.addView(section.root)
     }
 
-    private fun addSubgroupHeader(title: String, primaryColor: Int) {
+    private fun addSubgroupHeader(title: String, primaryColor: Int, indent: Int) {
         val subgroup = ItemThemeSubgroupBinding.inflate(layoutInflater, binding.themeHolder, false)
         subgroup.themeSubgroupLabel.text = title
         subgroup.themeSubgroupLabel.setTextColor(primaryColor)
         subgroup.themeSubgroupRule.setBackgroundColor(primaryColor)
+        indentRow(subgroup.root, indent)
         binding.themeHolder.addView(subgroup.root)
     }
 
@@ -116,7 +119,7 @@ class ThemeActivity : SimpleActivity() {
     }
 
     @Suppress("EmptyFunctionBlock") // SeekBar's start/stop-tracking callbacks are intentionally no-ops
-    private fun addTextSlot(slot: ThemeSlot, indent: Int) {
+    private fun addTextSlot(slot: ThemeSlot, indent: Int, stepPx: Int) {
         val textColor = getProperTextColor()
         val b = ItemThemeTextBinding.inflate(layoutInflater, binding.themeHolder, false)
         b.themeTextLabel.text = getString(slot.labelRes)
@@ -148,6 +151,11 @@ class ThemeActivity : SimpleActivity() {
         })
 
         indentRow(b.root, indent)
+        // the element's font / weight / size / sample sit one full step deeper than its label row
+        indentRow(b.themeTextFontRow, stepPx)
+        indentRow(b.themeTextWeightRow, stepPx)
+        indentRow(b.themeTextSizeRow, stepPx)
+        indentRow(b.themeTextSample, stepPx)
         binding.themeHolder.addView(b.root)
     }
 
