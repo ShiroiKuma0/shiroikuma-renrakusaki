@@ -32,6 +32,7 @@ import org.fossify.contacts.databinding.ActivityMainBinding
 import org.fossify.contacts.dialogs.ChangeSortingDialog
 import org.fossify.contacts.dialogs.FilterContactSourcesDialog
 import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.extensions.applyThemeFont
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.handleGenericContactClick
 import org.fossify.contacts.extensions.themeColor
@@ -271,6 +272,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         menu.findViewById<EditText>(org.fossify.commons.R.id.top_toolbar_search)?.apply {
             setTextColor(themeColor(ThemeSlot.SEARCH_TEXT))
             setHintTextColor(themeColor(ThemeSlot.SEARCH_HINT))
+            applyThemeFont(ThemeSlot.SEARCH_TEXT)
         }
 
         menu.findViewById<ImageView>(org.fossify.commons.R.id.top_toolbar_search_icon)

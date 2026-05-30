@@ -23,6 +23,7 @@ import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.databinding.ItemAddFavoriteWithNumberBinding
 import org.fossify.contacts.databinding.ItemAddFavoriteWithoutNumberBinding
 import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.extensions.applyThemeFont
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.themeColor
 
@@ -111,6 +112,7 @@ class SelectContactsAdapter(
                 contactName.alpha = 1f
                 contactName.setTextColor(textColor)
                 contactName.setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+                contactName.applyThemeFont(ThemeSlot.CONTACT_NAME)
 
                 contactNumber?.apply {
                     val phoneNumberToUse = if (textToHighlight.isEmpty()) {
@@ -125,6 +127,7 @@ class SelectContactsAdapter(
                     alpha = 1f
                     setTextColor(root.context.themeColor(ThemeSlot.CONTACT_NUMBER))
                     setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+                    applyThemeFont(ThemeSlot.CONTACT_NUMBER)
                 }
 
                 root.setOnClickListener {

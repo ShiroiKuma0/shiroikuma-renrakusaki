@@ -28,4 +28,20 @@ class Config(context: Context) : BaseConfig(context) {
     fun setThemeOverride(key: String, color: Int) = prefs.edit().putInt(key, color).apply()
 
     fun clearThemeOverride(key: String) = prefs.edit().remove(key).apply()
+
+    // Per-element fonts: family (filename, "" = default), weight (0 = default), size (sp, 0 = default).
+    fun getFontFamily(slotKey: String): String = prefs.getString(FONT_FAMILY_PREFIX + slotKey, "")!!
+
+    fun setFontFamily(slotKey: String, value: String) =
+        prefs.edit().putString(FONT_FAMILY_PREFIX + slotKey, value).apply()
+
+    fun getFontWeight(slotKey: String): Int = prefs.getInt(FONT_WEIGHT_PREFIX + slotKey, 0)
+
+    fun setFontWeight(slotKey: String, value: Int) =
+        prefs.edit().putInt(FONT_WEIGHT_PREFIX + slotKey, value).apply()
+
+    fun getFontSize(slotKey: String): Int = prefs.getInt(FONT_SIZE_PREFIX + slotKey, 0)
+
+    fun setFontSize(slotKey: String, value: Int) =
+        prefs.edit().putInt(FONT_SIZE_PREFIX + slotKey, value).apply()
 }
