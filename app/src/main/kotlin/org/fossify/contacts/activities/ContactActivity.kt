@@ -3,9 +3,6 @@ package org.fossify.contacts.activities
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.media.RingtoneManager
@@ -16,7 +13,6 @@ import android.provider.ContactsContract.CommonDataKinds.Event
 import android.provider.ContactsContract.CommonDataKinds.Im
 import android.provider.ContactsContract.CommonDataKinds.StructuredPostal
 import android.widget.ImageView
-import android.widget.TextView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.DiskCacheStrategy
@@ -29,8 +25,6 @@ import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.beVisible
-import org.fossify.commons.extensions.getContrastColor
-import org.fossify.commons.extensions.getNameLetter
 import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.insetsController
 import org.fossify.commons.extensions.launchSendSMSIntent
@@ -39,7 +33,6 @@ import org.fossify.commons.extensions.sendEmailIntent
 import org.fossify.commons.extensions.setNavigationBarAppearance
 import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.helpers.ContactsHelper
-import org.fossify.commons.helpers.letterBackgroundColors
 import org.fossify.commons.models.RadioItem
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.contacts.R
@@ -83,8 +76,7 @@ abstract class ContactActivity : SimpleActivity() {
     abstract fun systemRingtoneSelected(uri: Uri?)
 
     fun showPhotoPlaceholder(photoView: ImageView) {
-        val placeholder = BitmapDrawable(resources, getBigLetterPlaceholder(contact?.getNameToDisplay() ?: "A"))
-        photoView.setImageDrawable(placeholder)
+        photoView.setImageResource(R.drawable.ic_unknown_contact)
         currentContactPhotoPath = ""
         contact?.photo = null
     }
@@ -232,38 +224,6 @@ abstract class ContactActivity : SimpleActivity() {
         Event.TYPE_ANNIVERSARY -> org.fossify.commons.R.string.anniversary
         Event.TYPE_BIRTHDAY -> org.fossify.commons.R.string.birthday
         else -> org.fossify.commons.R.string.other
-    }
-
-    private fun getBigLetterPlaceholder(name: String): Bitmap {
-        val letter = name.getNameLetter()
-        val height = resources.getDimension(R.dimen.top_contact_image_height).toInt()
-        val bitmap = Bitmap.createBitmap(realScreenSize.x, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        val view = TextView(this)
-        view.layout(0, 0, bitmap.width, bitmap.height)
-
-        val circlePaint = Paint().apply {
-            color = letterBackgroundColors[Math.abs(name.hashCode()) % letterBackgroundColors.size].toInt()
-            isAntiAlias = true
-            style = Paint.Style.FILL
-        }
-
-        val wantedTextSize = bitmap.height / 2f
-        val textPaint = Paint().apply {
-            color = circlePaint.color.getContrastColor()
-            isAntiAlias = true
-            textAlign = Paint.Align.CENTER
-            textSize = wantedTextSize
-            style = Paint.Style.FILL
-        }
-
-        canvas.drawPaint(circlePaint)
-
-        val xPos = canvas.width / 2f
-        val yPos = canvas.height / 2 - (textPaint.descent() + textPaint.ascent()) / 2
-        canvas.drawText(letter, xPos, yPos, textPaint)
-        view.draw(canvas)
-        return bitmap
     }
 
     protected fun getDefaultRingtoneUri() = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
