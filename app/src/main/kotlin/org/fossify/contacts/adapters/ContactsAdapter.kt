@@ -400,6 +400,8 @@ class ContactsAdapter(
             }
 
             findViewById<TextView>(org.fossify.commons.R.id.item_contact_name).apply {
+                // Keep full opacity so the slot color shows exactly (WYSIWYG), matching the number row.
+                alpha = 1f
                 setTextColor(textColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
             }

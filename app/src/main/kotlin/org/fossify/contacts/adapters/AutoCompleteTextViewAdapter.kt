@@ -38,6 +38,7 @@ class AutoCompleteTextViewAdapter(
         val placeholder = AppCompatResources.getDrawable(context, R.drawable.ic_unknown_contact)
         ItemAutocompleteNameNumberBinding.bind(listItem).apply {
             root.setBackgroundColor(context.getProperBackgroundColor())
+            itemAutocompleteName.alpha = 1f
             itemAutocompleteName.setTextColor(context.getProperTextColor())
             // Layout dims this row (android:alpha 0.8); reset so the slot color shows exactly.
             itemAutocompleteNumber.alpha = 1f
