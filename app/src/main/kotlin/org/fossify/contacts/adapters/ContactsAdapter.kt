@@ -40,9 +40,11 @@ import org.fossify.contacts.R
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.activities.ViewContactActivity
 import org.fossify.contacts.dialogs.CreateNewGroupDialog
+import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.editContact
 import org.fossify.contacts.extensions.shareContacts
+import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.helpers.*
 import org.fossify.contacts.interfaces.RefreshContactsListener
 import org.fossify.contacts.interfaces.RemoveFromGroupListener
@@ -414,9 +416,16 @@ class ContactsAdapter(
                 } else {
                     phoneNumberToUse?.value ?: ""
                 }
+                val numberSlot = if (location == LOCATION_FAVORITES_TAB) {
+                    ThemeSlot.FAVORITE_NUMBER
+                } else {
+                    ThemeSlot.CONTACT_NUMBER
+                }
                 findViewById<TextView>(org.fossify.commons.R.id.item_contact_number).apply {
                     text = if (textToHighlight.isEmpty()) numberText else numberText.highlightTextPart(textToHighlight, properPrimaryColor, false, true)
-                    setTextColor(textColor)
+                    // The commons layout dims this row (android:alpha 0.6); reset so the slot color shows exactly.
+                    alpha = 1f
+                    setTextColor(activity.themeColor(numberSlot))
                     setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
                 }
             }
