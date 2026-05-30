@@ -3,7 +3,10 @@ package org.fossify.contacts.extensions
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import androidx.core.view.children
+import com.google.android.material.appbar.MaterialToolbar
 import org.fossify.commons.activities.BaseSimpleActivity
+import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.getFileOutputStream
 import org.fossify.commons.extensions.getPublicContactSourceSync
@@ -27,6 +30,7 @@ import org.fossify.commons.helpers.SMT_PRIVATE
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.models.RadioItem
 import org.fossify.commons.models.contacts.Contact
+import org.fossify.commons.views.MyAppBarLayout
 import org.fossify.contacts.BuildConfig
 import org.fossify.contacts.R
 import org.fossify.contacts.activities.EditContactActivity
@@ -208,4 +212,12 @@ fun SimpleActivity.tryImportContactsFromFile(uri: Uri, callback: (Boolean) -> Un
 
 fun SimpleActivity.showImportContactsDialog(path: String, callback: (Boolean) -> Unit) {
     ImportContactsDialog(this, path, callback)
+}
+
+// Recolor a secondary screen's top bar title + back arrow from their theme slots, after setupTopAppBar.
+fun BaseSimpleActivity.applyTopBarColors(appbar: MyAppBarLayout) {
+    val toolbar = appbar.children.filterIsInstance<MaterialToolbar>().firstOrNull() ?: return
+    toolbar.setTitleTextColor(themeColor(ThemeSlot.TOPBAR_TITLE))
+    toolbar.navigationIcon?.applyColorFilter(themeColor(ThemeSlot.TOPBAR_NAV))
+    toolbar.overflowIcon?.applyColorFilter(themeColor(ThemeSlot.TOPBAR_TITLE))
 }

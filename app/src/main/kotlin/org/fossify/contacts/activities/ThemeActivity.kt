@@ -23,6 +23,7 @@ import org.fossify.contacts.dialogs.FontPickerDialog
 import org.fossify.contacts.extensions.FontWeightOption
 import org.fossify.contacts.extensions.ThemeGroup
 import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.extensions.applyTopBarColors
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.fontDisplayName
 import org.fossify.contacts.extensions.importFont
@@ -57,6 +58,7 @@ class ThemeActivity : SimpleActivity() {
     override fun onResume() {
         super.onResume()
         setupTopAppBar(binding.themeAppbar, NavigationIcon.Arrow)
+        applyTopBarColors(binding.themeAppbar)
         buildRows()
     }
 
