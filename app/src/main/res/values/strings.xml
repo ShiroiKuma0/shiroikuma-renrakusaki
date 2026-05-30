@@ -134,6 +134,26 @@
     <string name="theme_slot_number">Phone number</string>
     <string name="theme_slot_fastscroller">Fast-scroller</string>
 
+    <!-- Per-element fonts + alpha -->
+    <string name="theme_font">Font</string>
+    <string name="theme_weight">Weight</string>
+    <string name="theme_size">Size</string>
+    <string name="theme_size_default">Default</string>
+    <string name="theme_add_font">Add font…</string>
+    <string name="theme_alpha">Alpha</string>
+    <string name="font_system_default">System default</string>
+    <string name="font_monospace">Monospace</string>
+    <string name="font_invalid">Please pick a .ttf or .otf font file</string>
+    <string name="font_sample_text">AaIiMmOoQqWw 012 白い熊相撲道 áÁčČďĎéÉěĚíÍňŇóÓřŘšŠťŤúÚůŮýÝžŽ</string>
+    <string name="font_weight_default">Default</string>
+    <string name="font_weight_thin">Thin (100)</string>
+    <string name="font_weight_light">Light (300)</string>
+    <string name="font_weight_regular">Regular (400)</string>
+    <string name="font_weight_medium">Medium (500)</string>
+    <string name="font_weight_semibold">SemiBold (600)</string>
+    <string name="font_weight_bold">Bold (700)</string>
+    <string name="font_weight_black">Black (900)</string>
+
     <!-- FAQ -->
     <string name="faq_1_title">I want to change what fields are visible at contacts. Can I do it?</string>
     <string name="faq_1_text">Yes, all you have to do is go in Settings -> Manage shown contact fields. There you can select what fields should be visible. Some of them are even disabled by default, so you might find some new ones there.</string>

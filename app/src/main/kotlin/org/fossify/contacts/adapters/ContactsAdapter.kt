@@ -41,6 +41,7 @@ import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.activities.ViewContactActivity
 import org.fossify.contacts.dialogs.CreateNewGroupDialog
 import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.extensions.applyThemeFont
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.editContact
 import org.fossify.contacts.extensions.shareContacts
@@ -399,11 +400,13 @@ class ContactsAdapter(
                 }
             }
 
+            val nameSlot = if (location == LOCATION_FAVORITES_TAB) ThemeSlot.FAVORITE_NAME else ThemeSlot.CONTACT_NAME
             findViewById<TextView>(org.fossify.commons.R.id.item_contact_name).apply {
                 // Keep full opacity so the slot color shows exactly (WYSIWYG), matching the number row.
                 alpha = 1f
                 setTextColor(textColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+                applyThemeFont(nameSlot)
             }
 
             if (findViewById<TextView>(org.fossify.commons.R.id.item_contact_number) != null) {
@@ -429,6 +432,7 @@ class ContactsAdapter(
                     alpha = 1f
                     setTextColor(activity.themeColor(numberSlot))
                     setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+                    applyThemeFont(numberSlot)
                 }
             }
 

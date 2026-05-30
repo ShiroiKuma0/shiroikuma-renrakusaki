@@ -18,6 +18,7 @@ import org.fossify.contacts.R
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.databinding.ItemAutocompleteNameNumberBinding
 import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.extensions.applyThemeFont
 import org.fossify.contacts.extensions.themeColor
 
 class AutoCompleteTextViewAdapter(
@@ -40,9 +41,11 @@ class AutoCompleteTextViewAdapter(
             root.setBackgroundColor(context.getProperBackgroundColor())
             itemAutocompleteName.alpha = 1f
             itemAutocompleteName.setTextColor(context.getProperTextColor())
+            itemAutocompleteName.applyThemeFont(ThemeSlot.CONTACT_NAME)
             // Layout dims this row (android:alpha 0.8); reset so the slot color shows exactly.
             itemAutocompleteNumber.alpha = 1f
             itemAutocompleteNumber.setTextColor(context.themeColor(ThemeSlot.CONTACT_NUMBER))
+            itemAutocompleteNumber.applyThemeFont(ThemeSlot.CONTACT_NUMBER)
 
             root.tag = nameToUse.isNotEmpty()
             itemAutocompleteName.text = nameToUse
