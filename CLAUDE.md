@@ -106,3 +106,26 @@ Contact reading/writing goes through `org.fossify:commons` (`ContactsHelper` and
 - `gradle/libs.versions.toml` — single source of truth for all dependency versions
 - `keystore.properties` — release signing (gitignored)
 - `detekt.yml` / `lint.xml` — static-analysis config (at project root)
+
+## Patched Fossify Commons (anti-tamper removed)
+
+This fork builds against **our patched Fossify Commons**, not the upstream binary. Upstream Commons
+6.1.x shows a "You are using a fake version of the app…" dialog (and silently breaks "Customize
+colors") whenever the installed app id is not `org.fossify.*` — always the case for us (`shiroikuma.*`).
+
+- **Source:** the `shiroikuma-commons` fork (`~/git/shiroikuma-commons`, branch `custom`), which strips
+  Commons' anti-tamper "fake version" / sideloading checks out entirely.
+- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk1"` in
+  `gradle/libs.versions.toml` (`mavenLocal()` is already a repository in `settings.gradle.kts`).
+- Because Commons itself no longer nags, this app carries **no** in-app workaround — no `getPackageName`
+  spoof, no `SIDELOADING_FALSE`, no `res/raw/keep.xml`.
+
+**On a fresh machine, or after an upstream bump changes the Commons version — republish before building:**
+
+```bash
+cd ~/git/shiroikuma-commons
+git checkout <new-commons-tag>     # then re-apply the strip patch (remove the modded-app/sideloading checks)
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew :commons:publishToMavenLocal -PVERSION=<ver>-sk1
+```
+
+Then set this app's `commons` pin to `<ver>-sk1`. The patched AAR lives only in `~/.m2`, not in the repo.
