@@ -1,9 +1,15 @@
 ---
 name: build-apk
-description: Build the signed foss release APK with the buildFoss Gradle task, then always ask whether to push it to the connected phone via adb. Use whenever the user asks to build the app, build the APK, make a release build, or build and push to the phone.
+description: Build the signed foss release APK with the buildFoss Gradle task, then always ask whether to push it to the connected phone via adb. ALWAYS build automatically after applying any change to the app (UI, code, or resources) — don't wait to be asked. Use whenever the user asks to build the app, build the APK, make a release build, or build and push to the phone, AND as the final step immediately after you finish making any app change.
 ---
 
 # Build the foss release APK and optionally push to phone
+
+> **Always build after changes.** Whenever you finish applying a change to the
+> app — UI, code, or resources — run this build automatically as the final step,
+> **without waiting to be asked**. Then follow the push flow below (which always
+> asks before pushing). The only exception is when the user explicitly says not
+> to build, or the change is purely to non-app files (docs, skills, memory).
 
 > **The push destination is ALWAYS `/sdcard/tmp/`.** Every `adb push` of the APK
 > goes to `/sdcard/tmp/<apk name>` — **never** `/sdcard/Download/` or anywhere
