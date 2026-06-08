@@ -54,6 +54,7 @@ enum class ThemeSlot(
     SEARCH_ACTION_ICON("theme_search_action_icon", ThemeGroup.SEARCH, R.string.theme_search_action_icon),
     SEARCH_MENU_TEXT("theme_search_menu_text", ThemeGroup.SEARCH, R.string.theme_search_menu_text),
     SEARCH_BORDER("theme_search_border", ThemeGroup.SEARCH, R.string.theme_search_border),
+    COLUMN_BUTTONS("theme_column_buttons", ThemeGroup.SEARCH, R.string.theme_slot_column_buttons, hasFont = true),
 
     // Tabs
     TAB_BACKGROUND("theme_tab_background", ThemeGroup.TABS, R.string.theme_tab_background),
@@ -125,8 +126,9 @@ enum class ThemeSlot(
     ROW_GROUPS("row_groups", ThemeGroup.ROWS, R.string.field_groups, hasFont = true),
     ROW_CONTACT_SOURCE("row_contact_source", ThemeGroup.ROWS, R.string.field_contact_source, hasFont = true),
 
-    // Color of the optional divider line drawn between contact rows (thickness set via a slider).
+    // Color of the optional horizontal divider between rows / vertical divider between columns (thickness via sliders).
     CONTACT_DIVIDER("contacts_list_divider", ThemeGroup.ROWS, R.string.theme_slot_divider),
+    CONTACT_VDIVIDER("contacts_list_vdivider", ThemeGroup.ROWS, R.string.theme_slot_vdivider),
 
     // The separator text shown between two fields that share a line (a moved-right column).
     COLUMN_SPACER("contacts_list_column_spacer", ThemeGroup.ROWS, R.string.theme_rows_spacer, hasFont = true),
@@ -161,6 +163,7 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     // overflow ("⋮") popup item text — its background keeps following the foundation background
     ThemeSlot.SEARCH_MENU_TEXT -> themeColor(ThemeSlot.TEXT)
     ThemeSlot.SEARCH_BORDER -> themeColor(ThemeSlot.PRIMARY)
+    ThemeSlot.COLUMN_BUTTONS -> themeColor(ThemeSlot.PRIMARY)
 
     // Tabs
     ThemeSlot.TAB_BACKGROUND -> themeColor(ThemeSlot.BACKGROUND)
@@ -194,6 +197,7 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.ROW_GROUPS, ThemeSlot.ROW_CONTACT_SOURCE -> themeColor(ThemeSlot.TEXT_SECONDARY)
 
     ThemeSlot.CONTACT_DIVIDER -> themeColor(ThemeSlot.TEXT_SECONDARY)
+    ThemeSlot.CONTACT_VDIVIDER -> themeColor(ThemeSlot.TEXT_SECONDARY)
     ThemeSlot.COLUMN_SPACER -> themeColor(ThemeSlot.TEXT_SECONDARY)
 }
 

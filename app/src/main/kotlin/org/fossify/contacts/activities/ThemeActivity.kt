@@ -147,6 +147,16 @@ class ThemeActivity : SimpleActivity() {
             config.contactsListRevision += 1
         }
         addColorRow(ThemeSlot.CONTACT_DIVIDER, stepPx * 2)
+        addSlider(
+            getString(R.string.theme_rows_vdivider_thickness),
+            config.contactsListVerticalDividerThickness,
+            MAX_CONTACTS_LIST_DIVIDER_DP,
+            stepPx * 2,
+        ) {
+            config.contactsListVerticalDividerThickness = it
+            config.contactsListRevision += 1
+        }
+        addColorRow(ThemeSlot.CONTACT_VDIVIDER, stepPx * 2)
 
         addSubgroupHeader(getString(R.string.theme_rows_spacer_group), primaryColor, stepPx)
         addValueRow(getString(R.string.theme_rows_spacer_text), config.contactsListColumnSpacer, stepPx * 2) {
