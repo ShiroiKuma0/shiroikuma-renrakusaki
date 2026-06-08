@@ -141,11 +141,14 @@
 
     <!-- 白い熊 連絡先 UI: 設定可能な連絡先リストの行 -->
     <string name="ui_settings_title">白い熊 連絡先 UI</string>
+    <string name="theme_slot_column_buttons">列数ボタン (一 二 三 四)</string>
     <string name="theme_group_rows">連絡先リスト</string>
     <string name="theme_rows_layout">間隔と区切り線</string>
     <string name="theme_rows_spacing">連絡先の間隔</string>
-    <string name="theme_rows_divider_thickness">区切り線の太さ</string>
-    <string name="theme_slot_divider">区切り線の色</string>
+    <string name="theme_rows_divider_thickness">横の区切り線の太さ</string>
+    <string name="theme_slot_divider">横の区切り線の色</string>
+    <string name="theme_rows_vdivider_thickness">縦の区切り線の太さ</string>
+    <string name="theme_slot_vdivider">縦の区切り線の色</string>
     <string name="theme_rows_spacer_group">列の区切り</string>
     <string name="theme_rows_spacer_text">区切り文字</string>
     <string name="theme_rows_spacer">区切り</string>

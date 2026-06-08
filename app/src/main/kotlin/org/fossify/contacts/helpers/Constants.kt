@@ -42,12 +42,19 @@ const val CONTACTS_LIST_FIELDS = "contacts_list_fields"
 // Bumped on any contacts-list field/styling edit so MainActivity knows to rebuild the list.
 const val CONTACTS_LIST_REVISION = "contacts_list_revision"
 
-// Main contacts list: vertical gap between rows (dp) and the divider line drawn between them (dp, 0 = off).
+// Main contacts list: gap between rows (dp), the horizontal divider between rows and the vertical divider
+// between columns (dp, 0 = off). All three apply to both the single-column list and the 2–4 column grid.
 const val CONTACTS_LIST_SPACING = "contacts_list_spacing"
 const val CONTACTS_LIST_DIVIDER_THICKNESS = "contacts_list_divider_thickness"
+const val CONTACTS_LIST_VDIVIDER_THICKNESS = "contacts_list_vdivider_thickness"
 const val DEFAULT_CONTACTS_LIST_SPACING_DP = 2 // matches the stock tiny_margin row gap
 const val MAX_CONTACTS_LIST_SPACING_DP = 40
 const val MAX_CONTACTS_LIST_DIVIDER_DP = 12
+
+// Number of contacts shown per row in the main Contacts list (1 = list, 2–4 = grid). Set via the toolbar buttons.
+const val CONTACTS_LIST_COLUMNS = "contacts_list_columns"
+const val DEFAULT_CONTACTS_LIST_COLUMNS = 1
+const val MAX_CONTACTS_LIST_COLUMNS = 4
 
 // Text placed between two fields that share a line (a "moved-right" column). Default: a comma.
 // NOTE: this must NOT match ThemeSlot.COLUMN_SPACER.key ("contacts_list_column_spacer", which stores the

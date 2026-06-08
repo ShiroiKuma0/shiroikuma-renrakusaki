@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Toolbar text button for "contacts per row" (一/二/三/四). Text, font and color are set at runtime. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:background="?attr/selectableItemBackgroundBorderless"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center"
+    android:minWidth="@dimen/list_touch_target_min"
+    android:paddingHorizontal="@dimen/small_margin"
+    android:textSize="@dimen/bigger_text_size" />
