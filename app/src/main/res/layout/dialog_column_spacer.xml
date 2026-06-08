@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Single text field for editing the contacts-list column spacer. -->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="@dimen/activity_margin"
+    android:paddingTop="@dimen/activity_margin">
+
+    <org.fossify.commons.views.MyEditText
+        android:id="@+id/column_spacer_edittext"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="text"
+        android:maxLines="1" />
+
+</RelativeLayout>

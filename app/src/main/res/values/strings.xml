@@ -167,6 +167,13 @@
     <!-- 白い熊 連絡先 UI: configurable contacts-list rows -->
     <string name="ui_settings_title">白い熊 連絡先 UI</string>
     <string name="theme_group_rows">Contacts\' list</string>
+    <string name="theme_rows_layout">Spacing &amp; divider</string>
+    <string name="theme_rows_spacing">Spacing between contacts</string>
+    <string name="theme_rows_divider_thickness">Divider thickness</string>
+    <string name="theme_slot_divider">Divider color</string>
+    <string name="theme_rows_spacer_group">Column spacer</string>
+    <string name="theme_rows_spacer_text">Spacer text</string>
+    <string name="theme_rows_spacer">Spacer</string>
     <string name="theme_rows_order">Displayed fields &amp; order</string>
     <string name="theme_rows_styling">Field styling</string>
     <string name="move_field_left">Move left</string>

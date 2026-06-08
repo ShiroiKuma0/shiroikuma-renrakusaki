@@ -41,6 +41,19 @@ const val CONTACTS_LIST_FIELDS = "contacts_list_fields"
 
 // Bumped on any contacts-list field/styling edit so MainActivity knows to rebuild the list.
 const val CONTACTS_LIST_REVISION = "contacts_list_revision"
+
+// Main contacts list: vertical gap between rows (dp) and the divider line drawn between them (dp, 0 = off).
+const val CONTACTS_LIST_SPACING = "contacts_list_spacing"
+const val CONTACTS_LIST_DIVIDER_THICKNESS = "contacts_list_divider_thickness"
+const val DEFAULT_CONTACTS_LIST_SPACING_DP = 2 // matches the stock tiny_margin row gap
+const val MAX_CONTACTS_LIST_SPACING_DP = 40
+const val MAX_CONTACTS_LIST_DIVIDER_DP = 12
+
+// Text placed between two fields that share a line (a "moved-right" column). Default: a comma.
+// NOTE: this must NOT match ThemeSlot.COLUMN_SPACER.key ("contacts_list_column_spacer", which stores the
+// spacer's color as an Int) — sharing one key makes getString()/getInt() collide and crash on read.
+const val CONTACTS_LIST_COLUMN_SPACER = "contacts_list_spacer_text"
+const val DEFAULT_CONTACTS_LIST_COLUMN_SPACER = ","
 const val ALL_CONTACT_FIELDS = SHOW_PREFIX_FIELD or SHOW_FIRST_NAME_FIELD or SHOW_MIDDLE_NAME_FIELD or
     SHOW_SURNAME_FIELD or SHOW_SUFFIX_FIELD or SHOW_NICKNAME_FIELD or SHOW_PHONE_NUMBERS_FIELD or
     SHOW_EMAILS_FIELD or SHOW_ADDRESSES_FIELD or SHOW_IMS_FIELD or SHOW_STRUCTURED_ADDRESSES_FIELD or

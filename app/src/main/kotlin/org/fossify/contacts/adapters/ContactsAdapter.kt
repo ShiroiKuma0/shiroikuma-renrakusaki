@@ -87,6 +87,7 @@ class ContactsAdapter(
 
     init {
         setupDragListener(true)
+        setupRowDecoration()
 
         if (enableDrag) {
             touchHelper = ItemTouchHelper(ItemMoveCallback(this, viewType == VIEW_TYPE_GRID))
@@ -529,18 +530,25 @@ class ContactsAdapter(
                 )
             }
             columns.forEachIndexed { index, (field, text) ->
+                if (index > 0) {
+                    lineView.addView(buildSpacerView())
+                }
                 lineView.addView(buildFieldView(field, text, isLast = index == columns.lastIndex))
             }
             fieldsHolder.addView(lineView)
         }
     }
 
+    // Columns flow left-to-right: every column is wrap_content except the last, which takes the remaining
+    // width (so it ellipsizes rather than overflowing). Separation between columns is the spacer view.
     private fun buildFieldView(field: RowField, text: String, isLast: Boolean): TextView {
         return TextView(activity).apply {
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                if (!isLast) {
-                    marginEnd = activity.resources.getDimensionPixelSize(org.fossify.commons.R.dimen.small_margin)
-                }
+            layoutParams = if (isLast) {
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            } else {
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                )
             }
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
@@ -553,6 +561,40 @@ class ContactsAdapter(
             setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
             applyThemeFont(field.slot)
         }
+    }
+
+    // The configurable separator drawn between two columns on the same line (default: a comma).
+    private fun buildSpacerView(): TextView {
+        return TextView(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                marginEnd = activity.resources.getDimensionPixelSize(org.fossify.commons.R.dimen.small_margin)
+            }
+            maxLines = 1
+            text = config.contactsListColumnSpacer
+            setTextColor(activity.themeColor(ThemeSlot.COLUMN_SPACER))
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+            applyThemeFont(ThemeSlot.COLUMN_SPACER)
+        }
+    }
+
+    // Apply the configurable row spacing + divider to the list (idempotent: drop any prior instance first).
+    // List view only — grid keeps its own cell spacing.
+    private fun setupRowDecoration() {
+        for (i in recyclerView.itemDecorationCount - 1 downTo 0) {
+            if (recyclerView.getItemDecorationAt(i) is ContactsRowDecoration) {
+                recyclerView.removeItemDecorationAt(i)
+            }
+        }
+        if (viewType != VIEW_TYPE_LIST) {
+            return
+        }
+        val density = activity.resources.displayMetrics.density
+        val spacingPx = (config.contactsListSpacing * density).toInt()
+        val dividerPx = (config.contactsListDividerThickness * density).toInt()
+        val dividerColor = activity.themeColor(ThemeSlot.CONTACT_DIVIDER)
+        recyclerView.addItemDecoration(ContactsRowDecoration(spacingPx, dividerPx, dividerColor))
     }
 
     private fun buildContactRowLines(): List<List<RowField>> {

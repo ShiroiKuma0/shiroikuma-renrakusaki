@@ -28,6 +28,21 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(CONTACTS_LIST_REVISION, 0)
         set(value) = prefs.edit().putInt(CONTACTS_LIST_REVISION, value).apply()
 
+    // Vertical gap between contact rows, in dp (0 = rows touch).
+    var contactsListSpacing: Int
+        get() = prefs.getInt(CONTACTS_LIST_SPACING, DEFAULT_CONTACTS_LIST_SPACING_DP)
+        set(value) = prefs.edit().putInt(CONTACTS_LIST_SPACING, value).apply()
+
+    // Divider line drawn between contact rows, in dp (0 = no divider).
+    var contactsListDividerThickness: Int
+        get() = prefs.getInt(CONTACTS_LIST_DIVIDER_THICKNESS, 0)
+        set(value) = prefs.edit().putInt(CONTACTS_LIST_DIVIDER_THICKNESS, value).apply()
+
+    // Separator shown between two fields sharing a line (a moved-right column). Default: a comma.
+    var contactsListColumnSpacer: String
+        get() = prefs.getString(CONTACTS_LIST_COLUMN_SPACER, DEFAULT_CONTACTS_LIST_COLUMN_SPACER)!!
+        set(value) = prefs.edit().putString(CONTACTS_LIST_COLUMN_SPACER, value).apply()
+
     var autoBackupContactSources: Set<String>
         get() = prefs.getStringSet(AUTO_BACKUP_CONTACT_SOURCES, setOf())!!
         set(autoBackupContactSources) = prefs.edit().remove(AUTO_BACKUP_CONTACT_SOURCES).putStringSet(AUTO_BACKUP_CONTACT_SOURCES, autoBackupContactSources)
