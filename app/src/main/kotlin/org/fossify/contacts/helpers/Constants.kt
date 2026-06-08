@@ -1,8 +1,6 @@
 package org.fossify.contacts.helpers
 
-import org.fossify.commons.helpers.TAB_CONTACTS
-import org.fossify.commons.helpers.TAB_FAVORITES
-import org.fossify.commons.helpers.TAB_GROUPS
+import org.fossify.commons.helpers.*
 import org.joda.time.DateTime
 
 const val GROUP = "group"
@@ -12,6 +10,15 @@ const val DEFAULT_FILE_NAME = "contacts.vcf"
 const val AVOID_CHANGING_TEXT_TAG = "avoid_changing_text_tag"
 const val AVOID_CHANGING_VISIBILITY_TAG = "avoid_changing_visibility_tag"
 const val FORMAT_PHONE_NUMBERS = "format_phone_numbers"
+
+// When on, ViewContactActivity ignores the per-field "Manage shown contact fields" mask and
+// shows every field a contact actually has. Configurable from Settings.
+const val SHOW_ALL_FIELDS_WHEN_VIEWING = "show_all_fields_when_viewing"
+const val ALL_CONTACT_FIELDS = SHOW_PREFIX_FIELD or SHOW_FIRST_NAME_FIELD or SHOW_MIDDLE_NAME_FIELD or
+    SHOW_SURNAME_FIELD or SHOW_SUFFIX_FIELD or SHOW_NICKNAME_FIELD or SHOW_PHONE_NUMBERS_FIELD or
+    SHOW_EMAILS_FIELD or SHOW_ADDRESSES_FIELD or SHOW_IMS_FIELD or SHOW_STRUCTURED_ADDRESSES_FIELD or
+    SHOW_EVENTS_FIELD or SHOW_NOTES_FIELD or SHOW_ORGANIZATION_FIELD or SHOW_WEBSITES_FIELD or
+    SHOW_GROUPS_FIELD or SHOW_CONTACT_SOURCE_FIELD or SHOW_RINGTONE_FIELD
 
 // Granular theming
 const val THEME_V1_SEEDED = "theme_v1_seeded"

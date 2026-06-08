@@ -47,6 +47,7 @@ class SettingsActivity : SimpleActivity() {
         setupThemeAndColors()
         setupCustomizeColors()
         setupManageShownContactFields()
+        setupShowAllFieldsWhenViewing()
         setupManageShownTabs()
         setupFontSize()
         setupUseEnglish()
@@ -95,6 +96,14 @@ class SettingsActivity : SimpleActivity() {
     private fun setupManageShownContactFields() {
         binding.settingsManageContactFieldsHolder.setOnClickListener {
             ManageVisibleFieldsDialog(this) {}
+        }
+    }
+
+    private fun setupShowAllFieldsWhenViewing() {
+        binding.settingsShowAllFieldsWhenViewing.isChecked = config.showAllFieldsWhenViewing
+        binding.settingsShowAllFieldsWhenViewingHolder.setOnClickListener {
+            binding.settingsShowAllFieldsWhenViewing.toggle()
+            config.showAllFieldsWhenViewing = binding.settingsShowAllFieldsWhenViewing.isChecked
         }
     }
 

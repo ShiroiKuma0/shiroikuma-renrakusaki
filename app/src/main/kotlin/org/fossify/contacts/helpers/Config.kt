@@ -13,6 +13,11 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(SHOW_TABS, ALL_TABS_MASK)
         set(showTabs) = prefs.edit().putInt(SHOW_TABS, showTabs).apply()
 
+    // When on, viewing a contact shows every saved field, ignoring the "Manage shown contact fields" mask.
+    var showAllFieldsWhenViewing: Boolean
+        get() = prefs.getBoolean(SHOW_ALL_FIELDS_WHEN_VIEWING, true)
+        set(value) = prefs.edit().putBoolean(SHOW_ALL_FIELDS_WHEN_VIEWING, value).apply()
+
     var autoBackupContactSources: Set<String>
         get() = prefs.getStringSet(AUTO_BACKUP_CONTACT_SOURCES, setOf())!!
         set(autoBackupContactSources) = prefs.edit().remove(AUTO_BACKUP_CONTACT_SOURCES).putStringSet(AUTO_BACKUP_CONTACT_SOURCES, autoBackupContactSources)
