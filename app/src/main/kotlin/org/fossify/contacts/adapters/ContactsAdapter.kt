@@ -591,10 +591,20 @@ class ContactsAdapter(
             return
         }
         val density = activity.resources.displayMetrics.density
+        val columns = if (location == LOCATION_CONTACTS_TAB) config.contactsListColumns else 1
         val spacingPx = (config.contactsListSpacing * density).toInt()
-        val dividerPx = (config.contactsListDividerThickness * density).toInt()
-        val dividerColor = activity.themeColor(ThemeSlot.CONTACT_DIVIDER)
-        recyclerView.addItemDecoration(ContactsRowDecoration(spacingPx, dividerPx, dividerColor))
+        val hDividerPx = (config.contactsListDividerThickness * density).toInt()
+        val vDividerPx = (config.contactsListVerticalDividerThickness * density).toInt()
+        recyclerView.addItemDecoration(
+            ContactsRowDecoration(
+                columns,
+                spacingPx,
+                hDividerPx,
+                activity.themeColor(ThemeSlot.CONTACT_DIVIDER),
+                vDividerPx,
+                activity.themeColor(ThemeSlot.CONTACT_VDIVIDER),
+            )
+        )
     }
 
     private fun buildContactRowLines(): List<List<RowField>> {

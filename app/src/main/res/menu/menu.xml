@@ -4,6 +4,26 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="AppCompatResource,AlwaysShowAction">
     <item
+        android:id="@+id/col_1"
+        android:title="1"
+        app:actionLayout="@layout/menu_action_column_button"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/col_2"
+        android:title="2"
+        app:actionLayout="@layout/menu_action_column_button"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/col_3"
+        android:title="3"
+        app:actionLayout="@layout/menu_action_column_button"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/col_4"
+        android:title="4"
+        app:actionLayout="@layout/menu_action_column_button"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/ui_settings"
         android:title="@string/ui_settings_title"
         app:showAsAction="never" />

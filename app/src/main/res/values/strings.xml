@@ -166,11 +166,14 @@
     <string name="faq_1_text">Yes, all you have to do is go in Settings -> Manage shown contact fields. There you can select what fields should be visible. Some of them are even disabled by default, so you might find some new ones there.</string>
     <!-- 白い熊 連絡先 UI: configurable contacts-list rows -->
     <string name="ui_settings_title">白い熊 連絡先 UI</string>
+    <string name="theme_slot_column_buttons">Per-row buttons (一 二 三 四)</string>
     <string name="theme_group_rows">Contacts\' list</string>
     <string name="theme_rows_layout">Spacing &amp; divider</string>
     <string name="theme_rows_spacing">Spacing between contacts</string>
-    <string name="theme_rows_divider_thickness">Divider thickness</string>
-    <string name="theme_slot_divider">Divider color</string>
+    <string name="theme_rows_divider_thickness">Horizontal divider thickness</string>
+    <string name="theme_slot_divider">Horizontal divider color</string>
+    <string name="theme_rows_vdivider_thickness">Vertical divider thickness</string>
+    <string name="theme_slot_vdivider">Vertical divider color</string>
     <string name="theme_rows_spacer_group">Column spacer</string>
     <string name="theme_rows_spacer_text">Spacer text</string>
     <string name="theme_rows_spacer">Spacer</string>

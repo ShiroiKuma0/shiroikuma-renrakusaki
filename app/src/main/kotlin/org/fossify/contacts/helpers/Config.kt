@@ -33,15 +33,27 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(CONTACTS_LIST_SPACING, DEFAULT_CONTACTS_LIST_SPACING_DP)
         set(value) = prefs.edit().putInt(CONTACTS_LIST_SPACING, value).apply()
 
-    // Divider line drawn between contact rows, in dp (0 = no divider).
+    // Horizontal divider line drawn between contact rows, in dp (0 = no divider).
     var contactsListDividerThickness: Int
         get() = prefs.getInt(CONTACTS_LIST_DIVIDER_THICKNESS, 0)
         set(value) = prefs.edit().putInt(CONTACTS_LIST_DIVIDER_THICKNESS, value).apply()
+
+    // Vertical divider line drawn between columns in multi-column mode, in dp (0 = no divider).
+    var contactsListVerticalDividerThickness: Int
+        get() = prefs.getInt(CONTACTS_LIST_VDIVIDER_THICKNESS, 0)
+        set(value) = prefs.edit().putInt(CONTACTS_LIST_VDIVIDER_THICKNESS, value).apply()
 
     // Separator shown between two fields sharing a line (a moved-right column). Default: a comma.
     var contactsListColumnSpacer: String
         get() = prefs.getString(CONTACTS_LIST_COLUMN_SPACER, DEFAULT_CONTACTS_LIST_COLUMN_SPACER)!!
         set(value) = prefs.edit().putString(CONTACTS_LIST_COLUMN_SPACER, value).apply()
+
+    // Contacts shown per row in the main Contacts list (1 = list view, 2–4 = grid).
+    var contactsListColumns: Int
+        get() = prefs.getInt(CONTACTS_LIST_COLUMNS, DEFAULT_CONTACTS_LIST_COLUMNS)
+            .coerceIn(1, MAX_CONTACTS_LIST_COLUMNS)
+        set(value) = prefs.edit()
+            .putInt(CONTACTS_LIST_COLUMNS, value.coerceIn(1, MAX_CONTACTS_LIST_COLUMNS)).apply()
 
     var autoBackupContactSources: Set<String>
         get() = prefs.getStringSet(AUTO_BACKUP_CONTACT_SOURCES, setOf())!!

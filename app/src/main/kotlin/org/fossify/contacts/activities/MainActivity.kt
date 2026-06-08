@@ -42,6 +42,7 @@ import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.handleGenericContactClick
 import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.extensions.tryImportContactsFromFile
+import org.fossify.contacts.fragments.ContactsFragment
 import org.fossify.contacts.fragments.FavoritesFragment
 import org.fossify.contacts.fragments.MyViewPagerFragment
 import org.fossify.contacts.helpers.ALL_TABS_MASK
@@ -51,6 +52,7 @@ import java.util.Arrays
 
 // Search-bar chrome dimensions (dp), scaled by display density at use.
 private const val SEARCH_BAR_CORNER_RADIUS_DP = 16f
+private const val INACTIVE_COLUMN_BUTTON_ALPHA = 0.35f
 private const val SEARCH_BAR_STROKE_DP = 2
 
 class MainActivity : SimpleActivity(), RefreshContactsListener {
@@ -64,6 +66,10 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
     private var storedFontSize = 0
     private var storedShowTabs = 0
     private var storedContactsListRevision = 0
+
+    // The "contacts per row" toolbar buttons (一 二 三 四 → 1–4 columns), left of the sort/filter/overflow icons.
+    private val columnButtonIds = listOf(R.id.col_1, R.id.col_2, R.id.col_3, R.id.col_4)
+    private val columnButtonLabels = listOf("一", "二", "三", "四")
 
     override var isSearchBarEnabled = true
 
@@ -200,6 +206,8 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             findItem(R.id.change_view_type).isVisible = currentFragment == findViewById(R.id.favorites_fragment)
             findItem(R.id.column_count).isVisible = currentFragment == findViewById(R.id.favorites_fragment) && config.viewType == VIEW_TYPE_GRID
             findItem(R.id.more_apps_from_us).isVisible = !resources.getBoolean(org.fossify.commons.R.bool.hide_google_relations)
+            val onContactsTab = currentFragment == findViewById(R.id.contacts_fragment)
+            columnButtonIds.forEach { findItem(it).isVisible = onContactsTab }
         }
     }
 
@@ -240,6 +248,31 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         }
 
         setupOverflowLongPress()
+        binding.mainMenu.requireToolbar().post { applyColumnButtons() }
+    }
+
+    // The 一 二 三 四 buttons: set their text, styling (font/color via COLUMN_BUTTONS) and active state, and
+    // wire each to switch the main Contacts list to 1–4 contacts per row.
+    private fun applyColumnButtons() {
+        val toolbar = binding.mainMenu.requireToolbar()
+        val current = config.contactsListColumns
+        columnButtonIds.forEachIndexed { index, id ->
+            (toolbar.menu.findItem(id)?.actionView as? TextView)?.apply {
+                text = columnButtonLabels[index]
+                setTextColor(themeColor(ThemeSlot.COLUMN_BUTTONS))
+                applyThemeFont(ThemeSlot.COLUMN_BUTTONS)
+                alpha = if (index + 1 == current) 1f else INACTIVE_COLUMN_BUTTON_ALPHA
+                setOnClickListener { setContactsColumns(index + 1) }
+            }
+        }
+    }
+
+    private fun setContactsColumns(columns: Int) {
+        if (config.contactsListColumns != columns) {
+            config.contactsListColumns = columns
+            findViewById<ContactsFragment>(R.id.contacts_fragment)?.columnCountChanged()
+        }
+        applyColumnButtons()
     }
 
     // Long-pressing the overflow ("⋮") icon jumps straight to the 白い熊 連絡先 UI page. If the overflow
@@ -327,6 +360,8 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         menu.findViewById<MaterialToolbar>(org.fossify.commons.R.id.top_toolbar)?.let {
             styleToolbarMenu(it, themeColor(ThemeSlot.SEARCH_ACTION_ICON), themeColor(ThemeSlot.SEARCH_MENU_TEXT))
         }
+
+        applyColumnButtons()
     }
 
     private fun styleToolbarMenu(toolbar: MaterialToolbar, iconColor: Int, textColor: Int) {

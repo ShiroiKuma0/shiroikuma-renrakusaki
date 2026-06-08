@@ -4,8 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.util.AttributeSet
 import org.fossify.commons.extensions.areSystemAnimationsEnabled
+import org.fossify.commons.extensions.beGone
+import org.fossify.commons.extensions.beVisible
 import org.fossify.commons.extensions.hideKeyboard
 import org.fossify.commons.models.contacts.Contact
+import org.fossify.commons.views.MyGridLayoutManager
+import org.fossify.commons.views.MyLinearLayoutManager
 import org.fossify.contacts.activities.EditContactActivity
 import org.fossify.contacts.activities.InsertOrEditContactActivity
 import org.fossify.contacts.activities.MainActivity
@@ -21,6 +25,7 @@ import org.fossify.contacts.interfaces.RefreshContactsListener
 class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerFragment<MyViewPagerFragment.LetterLayout>(context, attributeSet) {
 
     private lateinit var binding: FragmentContactsBinding
+    private var lastContacts = listOf<Contact>()
 
     override fun onFinishInflate() {
         super.onFinishInflate()
@@ -44,6 +49,8 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
     }
 
     fun setupContactsAdapter(contacts: List<Contact>) {
+        lastContacts = contacts
+        setupListLayoutManager()
         setupViewVisibility(contacts.isNotEmpty())
         val currAdapter = innerBinding.fragmentList.adapter
 
@@ -78,6 +85,30 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
                 showPhoneNumbers = context.config.showPhoneNumbers
                 showContactThumbnails = context.config.showContactThumbnails
                 updateItems(contacts)
+            }
+        }
+    }
+
+    // The "contacts per row" toolbar buttons rebuild the list with a new column count.
+    fun columnCountChanged() {
+        forceListRedraw = true
+        setupContactsAdapter(lastContacts)
+    }
+
+    // 1 column = list view (with the letter fastscroller); 2–4 columns = a grid (fastscroller hidden).
+    // Only swap the layout manager when it actually changes, so a normal refresh keeps the scroll position.
+    private fun setupListLayoutManager() {
+        val columns = context.config.contactsListColumns
+        val current = innerBinding.fragmentList.layoutManager
+        if (columns > 1) {
+            innerBinding.letterFastscroller.beGone()
+            if (current !is MyGridLayoutManager || current.spanCount != columns) {
+                innerBinding.fragmentList.layoutManager = MyGridLayoutManager(context, columns)
+            }
+        } else {
+            innerBinding.letterFastscroller.beVisible()
+            if (current !is MyLinearLayoutManager) {
+                innerBinding.fragmentList.layoutManager = MyLinearLayoutManager(context)
             }
         }
     }
