@@ -124,6 +124,12 @@ enum class ThemeSlot(
     ROW_NOTE("row_note", ThemeGroup.ROWS, R.string.field_note, hasFont = true),
     ROW_GROUPS("row_groups", ThemeGroup.ROWS, R.string.field_groups, hasFont = true),
     ROW_CONTACT_SOURCE("row_contact_source", ThemeGroup.ROWS, R.string.field_contact_source, hasFont = true),
+
+    // Color of the optional divider line drawn between contact rows (thickness set via a slider).
+    CONTACT_DIVIDER("contacts_list_divider", ThemeGroup.ROWS, R.string.theme_slot_divider),
+
+    // The separator text shown between two fields that share a line (a moved-right column).
+    COLUMN_SPACER("contacts_list_column_spacer", ThemeGroup.ROWS, R.string.theme_rows_spacer, hasFont = true),
 }
 
 // Alpha factors for the muted (inherited) defaults.
@@ -186,6 +192,9 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.ROW_ADDRESS_COUNTRY, ThemeSlot.ROW_COMPANY, ThemeSlot.ROW_POSITION, ThemeSlot.ROW_WEBSITE,
     ThemeSlot.ROW_IM, ThemeSlot.ROW_BIRTHDAY, ThemeSlot.ROW_ANNIVERSARY, ThemeSlot.ROW_NOTE,
     ThemeSlot.ROW_GROUPS, ThemeSlot.ROW_CONTACT_SOURCE -> themeColor(ThemeSlot.TEXT_SECONDARY)
+
+    ThemeSlot.CONTACT_DIVIDER -> themeColor(ThemeSlot.TEXT_SECONDARY)
+    ThemeSlot.COLUMN_SPACER -> themeColor(ThemeSlot.TEXT_SECONDARY)
 }
 
 /** Set an explicit override for a slot. Foundation slots write through to the stock commons colors. */

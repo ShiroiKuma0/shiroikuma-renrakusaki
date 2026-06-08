@@ -9,8 +9,10 @@ import android.widget.SeekBar
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.recyclerview.widget.LinearLayoutManager
 import org.fossify.commons.dialogs.RadioGroupDialog
+import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
+import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.commons.extensions.toast
 import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.NavigationIcon
@@ -18,17 +20,22 @@ import org.fossify.commons.models.RadioItem
 import org.fossify.contacts.R
 import org.fossify.contacts.adapters.ContactsListFieldsAdapter
 import org.fossify.contacts.databinding.ActivityThemeBinding
+import org.fossify.contacts.databinding.DialogColumnSpacerBinding
 import org.fossify.contacts.databinding.ItemThemeColorBinding
 import org.fossify.contacts.databinding.ItemThemeFieldsOrderBinding
 import org.fossify.contacts.databinding.ItemThemeSectionBinding
+import org.fossify.contacts.databinding.ItemThemeSliderBinding
 import org.fossify.contacts.databinding.ItemThemeSubgroupBinding
 import org.fossify.contacts.databinding.ItemThemeTextBinding
+import org.fossify.contacts.databinding.ItemThemeValueBinding
 import org.fossify.contacts.dialogs.AlphaColorPickerDialog
 import org.fossify.contacts.dialogs.FontPickerDialog
 import org.fossify.contacts.extensions.FontWeightOption
 import org.fossify.contacts.extensions.ThemeGroup
 import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.helpers.ContactsListConfig
+import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_DIVIDER_DP
+import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_SPACING_DP
 import org.fossify.contacts.helpers.RowFieldEntry
 import org.fossify.contacts.extensions.applyTopBarColors
 import org.fossify.contacts.extensions.config
@@ -119,6 +126,34 @@ class ThemeActivity : SimpleActivity() {
     // control (font / weight / size / color) for each currently-shown field.
     private fun addRowsSection(primaryColor: Int, stepPx: Int) {
         addSectionHeader(getString(R.string.theme_group_rows), primaryColor)
+
+        addSubgroupHeader(getString(R.string.theme_rows_layout), primaryColor, stepPx)
+        addSlider(
+            getString(R.string.theme_rows_spacing),
+            config.contactsListSpacing,
+            MAX_CONTACTS_LIST_SPACING_DP,
+            stepPx * 2,
+        ) {
+            config.contactsListSpacing = it
+            config.contactsListRevision += 1
+        }
+        addSlider(
+            getString(R.string.theme_rows_divider_thickness),
+            config.contactsListDividerThickness,
+            MAX_CONTACTS_LIST_DIVIDER_DP,
+            stepPx * 2,
+        ) {
+            config.contactsListDividerThickness = it
+            config.contactsListRevision += 1
+        }
+        addColorRow(ThemeSlot.CONTACT_DIVIDER, stepPx * 2)
+
+        addSubgroupHeader(getString(R.string.theme_rows_spacer_group), primaryColor, stepPx)
+        addValueRow(getString(R.string.theme_rows_spacer_text), config.contactsListColumnSpacer, stepPx * 2) {
+            editColumnSpacer()
+        }
+        addTextSlot(ThemeSlot.COLUMN_SPACER, stepPx * 2, stepPx)
+
         addSubgroupHeader(getString(R.string.theme_rows_order), primaryColor, stepPx)
 
         val entries = ContactsListConfig.parse(config.contactsListFields).toMutableList()
@@ -152,6 +187,56 @@ class ThemeActivity : SimpleActivity() {
         }
         addSubgroupHeader(getString(R.string.theme_rows_styling), getProperPrimaryColor(), stepPx, container)
         shown.forEach { addTextSlot(it.field.slot, stepPx * 2, stepPx, container) }
+    }
+
+    @Suppress("EmptyFunctionBlock") // SeekBar's start/stop-tracking callbacks are intentionally no-ops
+    private fun addSlider(title: String, value: Int, max: Int, indent: Int, onChange: (Int) -> Unit) {
+        val textColor = getProperTextColor()
+        val b = ItemThemeSliderBinding.inflate(layoutInflater, binding.themeHolder, false)
+        b.themeSliderTitle.text = title
+        b.themeSliderTitle.setTextColor(textColor)
+        b.themeSliderValue.setTextColor(textColor)
+        b.themeSliderValue.text = dpLabel(value)
+        b.themeSliderSeekbar.max = max
+        b.themeSliderSeekbar.progress = value
+        b.themeSliderSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                b.themeSliderValue.text = dpLabel(progress)
+                onChange(progress)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
+        indentRow(b.root, indent)
+        binding.themeHolder.addView(b.root)
+    }
+
+    private fun dpLabel(dp: Int) = "$dp dp"
+
+    private fun addValueRow(title: String, value: String, indent: Int, onClick: () -> Unit) {
+        val textColor = getProperTextColor()
+        val b = ItemThemeValueBinding.inflate(layoutInflater, binding.themeHolder, false)
+        b.themeValueLabel.text = title
+        b.themeValueLabel.setTextColor(textColor)
+        b.themeValueValue.text = value
+        b.themeValueValue.setTextColor(textColor)
+        b.root.setOnClickListener { onClick() }
+        indentRow(b.root, indent)
+        binding.themeHolder.addView(b.root)
+    }
+
+    private fun editColumnSpacer() {
+        val view = DialogColumnSpacerBinding.inflate(layoutInflater)
+        view.columnSpacerEdittext.setText(config.contactsListColumnSpacer)
+        getAlertDialogBuilder()
+            .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ ->
+                config.contactsListColumnSpacer = view.columnSpacerEdittext.text.toString()
+                config.contactsListRevision += 1
+                buildRows()
+            }
+            .setNegativeButton(org.fossify.commons.R.string.cancel, null)
+            .apply { setupDialogStuff(view.root, this, R.string.theme_rows_spacer_text) }
     }
 
     private fun addSubgroupHeader(
@@ -254,6 +339,7 @@ class ThemeActivity : SimpleActivity() {
             } else {
                 previews[slot]?.background?.setTint(themeColor(slot))
             }
+            bumpRowRevisionIfNeeded(slot)
         }
     }
 
