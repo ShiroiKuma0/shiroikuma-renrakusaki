@@ -174,6 +174,8 @@
     <string name="theme_slot_divider">Horizontal divider color</string>
     <string name="theme_rows_vdivider_thickness">Vertical divider thickness</string>
     <string name="theme_slot_vdivider">Vertical divider color</string>
+    <string name="theme_rows_thumbnail_group">Thumbnail</string>
+    <string name="theme_rows_thumbnail_size">Thumbnail size</string>
     <string name="theme_rows_spacer_group">Column spacer</string>
     <string name="theme_rows_spacer_text">Spacer text</string>
     <string name="theme_rows_spacer">Spacer</string>
