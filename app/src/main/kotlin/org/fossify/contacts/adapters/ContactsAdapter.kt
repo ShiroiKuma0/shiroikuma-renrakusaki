@@ -9,12 +9,14 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
 import android.telephony.PhoneNumberUtils
+import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Menu
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -75,6 +77,10 @@ class ContactsAdapter(
     var showPhoneNumbers = config.showPhoneNumbers
     var fontSize = activity.getTextSize()
     var onDragEndListener: (() -> Unit)? = null
+
+    // Configured list-row layout grouped into lines (each line a list of column fields). Static for the
+    // adapter's lifetime; a config change recreates the adapter via forceListRedraw.
+    private val contactRowLines: List<List<RowField>> by lazy { buildContactRowLines() }
 
     private var touchHelper: ItemTouchHelper? = null
     private var startReorderDragListener: StartReorderDragListener? = null
@@ -157,9 +163,8 @@ class ContactsAdapter(
                 if (showPhoneNumbers) org.fossify.commons.R.layout.item_contact_with_number_grid else org.fossify.commons.R.layout.item_contact_without_number_grid
             }
 
-            else -> {
-                if (showPhoneNumbers) org.fossify.commons.R.layout.item_contact_with_number else org.fossify.commons.R.layout.item_contact_without_number
-            }
+            // List rows are fully configurable (which fields, order, columns) — use our own layout.
+            else -> R.layout.item_contact_custom
         }
 
         return createViewHolder(layout, parent)
@@ -389,51 +394,10 @@ class ContactsAdapter(
         view.apply {
             setupViewBackground(activity)
             findViewById<ConstraintLayout>(org.fossify.commons.R.id.item_contact_frame)?.isSelected = selectedKeys.contains(contact.id)
-            val fullName = contact.getNameToDisplay()
-            findViewById<TextView>(org.fossify.commons.R.id.item_contact_name).text = if (textToHighlight.isEmpty()) fullName else {
-                val normalizedFullName = fullName.normalizeString()
-                val normalizedSearchText = textToHighlight.normalizeString()
-                if (normalizedFullName.contains(normalizedSearchText, true)) {
-                    fullName.highlightTextPart(textToHighlight, properPrimaryColor)
-                } else {
-                    fullName.highlightTextFromNumbers(textToHighlight, properPrimaryColor)
-                }
-            }
-
-            val nameSlot = if (location == LOCATION_FAVORITES_TAB) ThemeSlot.FAVORITE_NAME else ThemeSlot.CONTACT_NAME
-            findViewById<TextView>(org.fossify.commons.R.id.item_contact_name).apply {
-                // Keep full opacity so the slot color shows exactly (WYSIWYG), matching the number row.
-                alpha = 1f
-                setTextColor(textColor)
-                setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
-                applyThemeFont(nameSlot)
-            }
-
-            if (findViewById<TextView>(org.fossify.commons.R.id.item_contact_number) != null) {
-                val phoneNumberToUse = if (textToHighlight.isEmpty()) {
-                    contact.phoneNumbers.firstOrNull()
-                } else {
-                    contact.phoneNumbers.firstOrNull { it.value.contains(textToHighlight) } ?: contact.phoneNumbers.firstOrNull()
-                }
-                val phoneNumberToFormat = phoneNumberToUse?.value ?: ""
-                val numberText = if (config.formatPhoneNumbers) {
-                    phoneNumberToFormat.formatPhoneNumber()
-                } else {
-                    phoneNumberToUse?.value ?: ""
-                }
-                val numberSlot = if (location == LOCATION_FAVORITES_TAB) {
-                    ThemeSlot.FAVORITE_NUMBER
-                } else {
-                    ThemeSlot.CONTACT_NUMBER
-                }
-                findViewById<TextView>(org.fossify.commons.R.id.item_contact_number).apply {
-                    text = if (textToHighlight.isEmpty()) numberText else numberText.highlightTextPart(textToHighlight, properPrimaryColor, false, true)
-                    // The commons layout dims this row (android:alpha 0.6); reset so the slot color shows exactly.
-                    alpha = 1f
-                    setTextColor(activity.themeColor(numberSlot))
-                    setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
-                    applyThemeFont(numberSlot)
-                }
+            if (viewType == VIEW_TYPE_GRID) {
+                setupGridText(this, contact)
+            } else {
+                setupCustomFields(this, contact)
             }
 
             findViewById<ImageView>(org.fossify.commons.R.id.item_contact_image).apply {
@@ -494,6 +458,113 @@ class ContactsAdapter(
                 }
             }
         }
+    }
+
+    // Grid view keeps the stock name (+ optional number) rendering and its CONTACT_/FAVORITE_ slots.
+    private fun setupGridText(view: View, contact: Contact) {
+        val nameSlot = if (location == LOCATION_FAVORITES_TAB) ThemeSlot.FAVORITE_NAME else ThemeSlot.CONTACT_NAME
+        view.findViewById<TextView>(org.fossify.commons.R.id.item_contact_name).apply {
+            text = highlightedName(contact)
+            alpha = 1f
+            setTextColor(textColor)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+            applyThemeFont(nameSlot)
+        }
+
+        setupGridNumber(view, contact)
+    }
+
+    private fun highlightedName(contact: Contact): CharSequence {
+        val fullName = contact.getNameToDisplay()
+        if (textToHighlight.isEmpty()) {
+            return fullName
+        }
+        return if (fullName.normalizeString().contains(textToHighlight.normalizeString(), true)) {
+            fullName.highlightTextPart(textToHighlight, properPrimaryColor)
+        } else {
+            fullName.highlightTextFromNumbers(textToHighlight, properPrimaryColor)
+        }
+    }
+
+    private fun setupGridNumber(view: View, contact: Contact) {
+        val numberView = view.findViewById<TextView>(org.fossify.commons.R.id.item_contact_number) ?: return
+        val phoneNumberToUse = if (textToHighlight.isEmpty()) {
+            contact.phoneNumbers.firstOrNull()
+        } else {
+            contact.phoneNumbers.firstOrNull { it.value.contains(textToHighlight) } ?: contact.phoneNumbers.firstOrNull()
+        }
+        val rawNumber = phoneNumberToUse?.value ?: ""
+        val numberText = if (config.formatPhoneNumbers) rawNumber.formatPhoneNumber() else rawNumber
+        val numberSlot = if (location == LOCATION_FAVORITES_TAB) ThemeSlot.FAVORITE_NUMBER else ThemeSlot.CONTACT_NUMBER
+        numberView.apply {
+            text = if (textToHighlight.isEmpty()) {
+                numberText
+            } else {
+                numberText.highlightTextPart(textToHighlight, properPrimaryColor, false, true)
+            }
+            alpha = 1f
+            setTextColor(activity.themeColor(numberSlot))
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+            applyThemeFont(numberSlot)
+        }
+    }
+
+    // List view: render the configured fields into the custom row, grouped into lines/columns.
+    // Empty values are skipped, and a line with no non-empty value is dropped entirely.
+    private fun setupCustomFields(view: View, contact: Contact) {
+        val fieldsHolder = view.findViewById<LinearLayout>(R.id.item_contact_fields_holder) ?: return
+        fieldsHolder.removeAllViews()
+        contactRowLines.forEach { lineFields ->
+            val columns = lineFields.mapNotNull { field ->
+                val text = field.extract(contact, activity)
+                if (text.isEmpty()) null else field to text
+            }
+            if (columns.isEmpty()) {
+                return@forEach
+            }
+            val lineView = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                )
+            }
+            columns.forEachIndexed { index, (field, text) ->
+                lineView.addView(buildFieldView(field, text, isLast = index == columns.lastIndex))
+            }
+            fieldsHolder.addView(lineView)
+        }
+    }
+
+    private fun buildFieldView(field: RowField, text: String, isLast: Boolean): TextView {
+        return TextView(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                if (!isLast) {
+                    marginEnd = activity.resources.getDimensionPixelSize(org.fossify.commons.R.dimen.small_margin)
+                }
+            }
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            this.text = when {
+                textToHighlight.isEmpty() -> text
+                field == RowField.PHONE -> text.highlightTextFromNumbers(textToHighlight, properPrimaryColor)
+                else -> text.highlightTextPart(textToHighlight, properPrimaryColor)
+            }
+            setTextColor(activity.themeColor(field.slot))
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+            applyThemeFont(field.slot)
+        }
+    }
+
+    private fun buildContactRowLines(): List<List<RowField>> {
+        val lines = ArrayList<MutableList<RowField>>()
+        ContactsListConfig.parse(config.contactsListFields).filter { it.checked }.forEach { entry ->
+            if (!entry.sameLine || lines.isEmpty()) {
+                lines.add(mutableListOf(entry.field))
+            } else {
+                lines.last().add(entry.field)
+            }
+        }
+        return lines
     }
 
     override fun onChange(position: Int) = contactItems.getOrNull(position)?.getBubbleText() ?: ""

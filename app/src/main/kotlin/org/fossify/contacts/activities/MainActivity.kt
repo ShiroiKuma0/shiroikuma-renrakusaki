@@ -13,6 +13,7 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
 import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
@@ -62,6 +63,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
     private var storedStartNameWithSurname = false
     private var storedFontSize = 0
     private var storedShowTabs = 0
+    private var storedContactsListRevision = 0
 
     override var isSearchBarEnabled = true
 
@@ -141,6 +143,12 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             }
         }
 
+        // A change to the configurable contacts-list fields/styling forces the list rows to be rebuilt.
+        if (storedContactsListRevision != config.contactsListRevision) {
+            findViewById<MyViewPagerFragment<*>>(R.id.contacts_fragment)?.forceListRedraw = true
+            findViewById<MyViewPagerFragment<*>>(R.id.favorites_fragment)?.forceListRedraw = true
+        }
+
         if (werePermissionsHandled && !isFirstResume) {
             if (binding.viewPager.adapter == null) {
                 initFragments()
@@ -217,6 +225,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
         binding.mainMenu.requireToolbar().setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
+                R.id.ui_settings -> launchUiSettings()
                 R.id.sort -> showSortingDialog(showCustomSorting = getCurrentFragment() is FavoritesFragment)
                 R.id.filter -> showFilterDialog()
                 R.id.dialpad -> launchDialpad()
@@ -229,6 +238,38 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             }
             return@setOnMenuItemClickListener true
         }
+
+        setupOverflowLongPress()
+    }
+
+    // Long-pressing the overflow ("⋮") icon jumps straight to the 白い熊 連絡先 UI page. If the overflow
+    // button can't be located the menu item still works, so this is a best-effort shortcut.
+    private fun setupOverflowLongPress() {
+        val toolbar = binding.mainMenu.requireToolbar()
+        toolbar.post {
+            val description = getString(androidx.appcompat.R.string.abc_action_menu_overflow_description)
+            findViewByContentDescription(toolbar, description)?.setOnLongClickListener {
+                launchUiSettings()
+                true
+            }
+        }
+    }
+
+    private fun findViewByContentDescription(view: View, description: CharSequence): View? {
+        if (description == view.contentDescription) {
+            return view
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                findViewByContentDescription(view.getChildAt(i), description)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun launchUiSettings() {
+        hideKeyboard()
+        startActivity(Intent(this, ThemeActivity::class.java))
     }
 
     private fun changeViewType() {
@@ -311,6 +352,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             storedStartNameWithSurname = startNameWithSurname
             storedShowTabs = showTabs
             storedFontSize = fontSize
+            storedContactsListRevision = contactsListRevision
         }
     }
 

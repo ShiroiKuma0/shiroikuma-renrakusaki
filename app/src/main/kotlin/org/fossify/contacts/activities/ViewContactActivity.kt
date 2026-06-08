@@ -129,7 +129,8 @@ class ViewContactActivity : ContactActivity() {
     }
 
     // When the setting is on, ignore the "Manage shown contact fields" mask and show every field a contact has.
-    private fun getFieldsToShow() = if (config.showAllFieldsWhenViewing) ALL_CONTACT_FIELDS else config.showContactFields
+    private fun getFieldsToShow() =
+        if (config.showAllFieldsWhenViewing) ALL_CONTACT_FIELDS else config.showContactFields
 
     private fun initContact() {
         var wasLookupKeyUsed = false

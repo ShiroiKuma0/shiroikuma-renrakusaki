@@ -2,9 +2,12 @@ package org.fossify.contacts.activities
 
 import android.net.Uri
 import android.os.Bundle
+import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.recyclerview.widget.LinearLayoutManager
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
@@ -13,8 +16,10 @@ import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.NavigationIcon
 import org.fossify.commons.models.RadioItem
 import org.fossify.contacts.R
+import org.fossify.contacts.adapters.ContactsListFieldsAdapter
 import org.fossify.contacts.databinding.ActivityThemeBinding
 import org.fossify.contacts.databinding.ItemThemeColorBinding
+import org.fossify.contacts.databinding.ItemThemeFieldsOrderBinding
 import org.fossify.contacts.databinding.ItemThemeSectionBinding
 import org.fossify.contacts.databinding.ItemThemeSubgroupBinding
 import org.fossify.contacts.databinding.ItemThemeTextBinding
@@ -23,6 +28,8 @@ import org.fossify.contacts.dialogs.FontPickerDialog
 import org.fossify.contacts.extensions.FontWeightOption
 import org.fossify.contacts.extensions.ThemeGroup
 import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.helpers.ContactsListConfig
+import org.fossify.contacts.helpers.RowFieldEntry
 import org.fossify.contacts.extensions.applyTopBarColors
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.fontDisplayName
@@ -43,6 +50,9 @@ class ThemeActivity : SimpleActivity() {
 
     private var pendingFontSlot: ThemeSlot? = null
     private var pendingFontBinding: ItemThemeTextBinding? = null
+
+    // Holds the per-field styling controls for the "Contacts' list" section; rebuilt when the field set changes.
+    private var rowStylingContainer: LinearLayout? = null
 
     private val fontImportLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         onFontImported(uri)
@@ -74,6 +84,11 @@ class ThemeActivity : SimpleActivity() {
     }
 
     private fun addGroup(group: ThemeGroup, primaryColor: Int, stepPx: Int) {
+        if (group == ThemeGroup.ROWS) {
+            addRowsSection(primaryColor, stepPx)
+            return
+        }
+
         addSectionHeader(getString(group.labelRes), primaryColor)
 
         var sawAny = false
@@ -100,13 +115,57 @@ class ThemeActivity : SimpleActivity() {
         binding.themeHolder.addView(section.root)
     }
 
-    private fun addSubgroupHeader(title: String, primaryColor: Int, indent: Int) {
-        val subgroup = ItemThemeSubgroupBinding.inflate(layoutInflater, binding.themeHolder, false)
+    // The "Contacts' list" section: the field order-box (tick / drag / column buttons) then a styling
+    // control (font / weight / size / color) for each currently-shown field.
+    private fun addRowsSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.theme_group_rows), primaryColor)
+        addSubgroupHeader(getString(R.string.theme_rows_order), primaryColor, stepPx)
+
+        val entries = ContactsListConfig.parse(config.contactsListFields).toMutableList()
+        val orderList = ItemThemeFieldsOrderBinding.inflate(layoutInflater, binding.themeHolder, false).root
+        orderList.layoutManager = LinearLayoutManager(this)
+        val adapter = ContactsListFieldsAdapter(this, entries) {
+            config.contactsListFields = ContactsListConfig.serialize(entries)
+            config.contactsListRevision += 1
+            rebuildRowStyling(entries, stepPx)
+        }
+        orderList.adapter = adapter
+        adapter.attachTo(orderList)
+        binding.themeHolder.addView(orderList)
+
+        rowStylingContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+        }
+        binding.themeHolder.addView(rowStylingContainer)
+        rebuildRowStyling(entries, stepPx)
+    }
+
+    private fun rebuildRowStyling(entries: List<RowFieldEntry>, stepPx: Int) {
+        val container = rowStylingContainer ?: return
+        container.removeAllViews()
+        val shown = entries.filter { it.checked }
+        if (shown.isEmpty()) {
+            return
+        }
+        addSubgroupHeader(getString(R.string.theme_rows_styling), getProperPrimaryColor(), stepPx, container)
+        shown.forEach { addTextSlot(it.field.slot, stepPx * 2, stepPx, container) }
+    }
+
+    private fun addSubgroupHeader(
+        title: String,
+        primaryColor: Int,
+        indent: Int,
+        parent: ViewGroup = binding.themeHolder,
+    ) {
+        val subgroup = ItemThemeSubgroupBinding.inflate(layoutInflater, parent, false)
         subgroup.themeSubgroupLabel.text = title
         subgroup.themeSubgroupLabel.setTextColor(primaryColor)
         subgroup.themeSubgroupRule.setBackgroundColor(primaryColor)
         indentRow(subgroup.root, indent)
-        binding.themeHolder.addView(subgroup.root)
+        parent.addView(subgroup.root)
     }
 
     private fun addColorRow(slot: ThemeSlot, indent: Int) {
@@ -121,9 +180,9 @@ class ThemeActivity : SimpleActivity() {
     }
 
     @Suppress("EmptyFunctionBlock") // SeekBar's start/stop-tracking callbacks are intentionally no-ops
-    private fun addTextSlot(slot: ThemeSlot, indent: Int, stepPx: Int) {
+    private fun addTextSlot(slot: ThemeSlot, indent: Int, stepPx: Int, parent: ViewGroup = binding.themeHolder) {
         val textColor = getProperTextColor()
-        val b = ItemThemeTextBinding.inflate(layoutInflater, binding.themeHolder, false)
+        val b = ItemThemeTextBinding.inflate(layoutInflater, parent, false)
         b.themeTextLabel.text = getString(slot.labelRes)
         listOf(
             b.themeTextLabel, b.themeTextFontTitle, b.themeTextFontValue,
@@ -146,6 +205,7 @@ class ThemeActivity : SimpleActivity() {
                 config.setFontSize(slot.key, progress)
                 b.themeTextSizeValue.text = sizeLabel(progress)
                 refreshSample(b, slot)
+                bumpRowRevisionIfNeeded(slot)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar) {}
@@ -158,7 +218,7 @@ class ThemeActivity : SimpleActivity() {
         indentRow(b.themeTextWeightRow, stepPx)
         indentRow(b.themeTextSizeRow, stepPx)
         indentRow(b.themeTextSample, stepPx)
-        binding.themeHolder.addView(b.root)
+        parent.addView(b.root)
     }
 
     private fun indentRow(view: android.view.View, indent: Int) {
@@ -178,6 +238,13 @@ class ThemeActivity : SimpleActivity() {
 
     private fun sizeLabel(sp: Int) = if (sp > 0) "$sp sp" else getString(R.string.theme_size_default)
 
+    // Styling a contacts-list field must trigger a list redraw; other slots don't affect the list.
+    private fun bumpRowRevisionIfNeeded(slot: ThemeSlot) {
+        if (slot.group == ThemeGroup.ROWS) {
+            config.contactsListRevision += 1
+        }
+    }
+
     private fun openColorPicker(slot: ThemeSlot) {
         AlphaColorPickerDialog(this, themeColor(slot), addDefaultColorButton = true) { wasPositive, color ->
             if (wasPositive) setThemeColor(slot, color) else resetThemeColor(slot)
@@ -195,6 +262,7 @@ class ThemeActivity : SimpleActivity() {
             if (wasPositive) setThemeColor(slot, color) else resetThemeColor(slot)
             b.themeTextColorPreview.background.setTint(themeColor(slot))
             refreshSample(b, slot)
+            bumpRowRevisionIfNeeded(slot)
         }
     }
 
@@ -210,6 +278,7 @@ class ThemeActivity : SimpleActivity() {
                 config.setFontFamily(slot.key, fileName)
                 b.themeTextFontValue.text = fontDisplayName(fileName)
                 refreshSample(b, slot)
+                bumpRowRevisionIfNeeded(slot)
             }
         )
     }
@@ -221,6 +290,7 @@ class ThemeActivity : SimpleActivity() {
             config.setFontWeight(slot.key, weight)
             b.themeTextWeightValue.text = getString(FontWeightOption.fromValue(weight).labelRes)
             refreshSample(b, slot)
+            bumpRowRevisionIfNeeded(slot)
         }
     }
 
@@ -244,5 +314,6 @@ class ThemeActivity : SimpleActivity() {
         if (b != null) {
             refreshSample(b, slot)
         }
+        bumpRowRevisionIfNeeded(slot)
     }
 }

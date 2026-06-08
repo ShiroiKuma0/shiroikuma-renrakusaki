@@ -18,6 +18,16 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(SHOW_ALL_FIELDS_WHEN_VIEWING, true)
         set(value) = prefs.edit().putBoolean(SHOW_ALL_FIELDS_WHEN_VIEWING, value).apply()
 
+    // Configurable contacts-list rows (see ContactsListConfig). "" = the built-in default layout.
+    var contactsListFields: String
+        get() = prefs.getString(CONTACTS_LIST_FIELDS, "")!!
+        set(value) = prefs.edit().putString(CONTACTS_LIST_FIELDS, value).apply()
+
+    // Revision counter bumped whenever the contacts-list field layout or per-field styling changes.
+    var contactsListRevision: Int
+        get() = prefs.getInt(CONTACTS_LIST_REVISION, 0)
+        set(value) = prefs.edit().putInt(CONTACTS_LIST_REVISION, value).apply()
+
     var autoBackupContactSources: Set<String>
         get() = prefs.getStringSet(AUTO_BACKUP_CONTACT_SOURCES, setOf())!!
         set(autoBackupContactSources) = prefs.edit().remove(AUTO_BACKUP_CONTACT_SOURCES).putStringSet(AUTO_BACKUP_CONTACT_SOURCES, autoBackupContactSources)
