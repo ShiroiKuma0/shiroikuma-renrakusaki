@@ -171,6 +171,21 @@
             </RelativeLayout>
 
             <RelativeLayout
+                android:id="@+id/settings_show_all_fields_when_viewing_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_show_all_fields_when_viewing"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/show_all_fields_when_viewing" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
                 android:id="@+id/settings_merge_duplicate_contacts_holder"
                 style="@style/SettingsHolderSwitchStyle"
                 android:layout_width="match_parent"
