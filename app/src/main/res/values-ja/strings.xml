@@ -34,6 +34,7 @@
     <string name="show_contact_thumbnails">連絡先のサムネイルを表示</string>
     <string name="show_dialpad_button">メイン画面にダイヤルパッドを表示</string>
     <string name="manage_shown_contact_fields">表示する連絡先の入力欄を管理</string>
+    <string name="show_all_fields_when_viewing">連絡先を表示する際に保存済みのすべての入力欄を表示</string>
     <string name="contacts">連絡先</string>
     <string name="show_only_contacts_with_numbers">電話番号が登録された連絡先のみ表示</string>
     <string name="merge_duplicate_contacts">重複した連絡先を統合</string>

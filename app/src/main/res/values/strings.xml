@@ -52,6 +52,7 @@
     <string name="format_phone_numbers">Format phone numbers</string>
     <string name="show_dialpad_button">Show a dialpad button on the main screen</string>
     <string name="manage_shown_contact_fields">Manage shown contact fields</string>
+    <string name="show_all_fields_when_viewing">Show all saved fields when viewing a contact</string>
     <string name="contacts">Contacts</string>
     <string name="show_only_contacts_with_numbers">Show only contacts with phone numbers</string>
     <string name="show_private_contacts">Show private contacts to Fossify Phone, Messages, and Calendar</string>

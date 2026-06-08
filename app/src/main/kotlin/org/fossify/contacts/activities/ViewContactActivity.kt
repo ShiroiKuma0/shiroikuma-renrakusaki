@@ -52,7 +52,7 @@ class ViewContactActivity : ContactActivity() {
 
         setupEdgeToEdge(padBottomSystem = listOf(binding.contactScrollview))
 
-        showFields = config.showContactFields
+        showFields = getFieldsToShow()
         setupMenu()
     }
 
@@ -114,7 +114,7 @@ class ViewContactActivity : ContactActivity() {
 
             findItem(R.id.manage_visible_fields).setOnMenuItemClickListener {
                 ManageVisibleFieldsDialog(this@ViewContactActivity) {
-                    showFields = config.showContactFields
+                    showFields = getFieldsToShow()
                     ensureBackgroundThread {
                         initContact()
                     }
@@ -127,6 +127,9 @@ class ViewContactActivity : ContactActivity() {
             finish()
         }
     }
+
+    // When the setting is on, ignore the "Manage shown contact fields" mask and show every field a contact has.
+    private fun getFieldsToShow() = if (config.showAllFieldsWhenViewing) ALL_CONTACT_FIELDS else config.showContactFields
 
     private fun initContact() {
         var wasLookupKeyUsed = false
