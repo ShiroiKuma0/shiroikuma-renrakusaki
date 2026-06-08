@@ -7,6 +7,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.getAlertDialogBuilder
@@ -27,6 +28,7 @@ import org.fossify.contacts.databinding.ItemThemeSectionBinding
 import org.fossify.contacts.databinding.ItemThemeSliderBinding
 import org.fossify.contacts.databinding.ItemThemeSubgroupBinding
 import org.fossify.contacts.databinding.ItemThemeTextBinding
+import org.fossify.contacts.databinding.ItemThemeThumbnailBinding
 import org.fossify.contacts.databinding.ItemThemeValueBinding
 import org.fossify.contacts.dialogs.AlphaColorPickerDialog
 import org.fossify.contacts.dialogs.FontPickerDialog
@@ -36,6 +38,8 @@ import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.helpers.ContactsListConfig
 import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_DIVIDER_DP
 import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_SPACING_DP
+import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_THUMBNAIL_DP
+import org.fossify.contacts.helpers.MIN_CONTACTS_LIST_THUMBNAIL_DP
 import org.fossify.contacts.helpers.RowFieldEntry
 import org.fossify.contacts.extensions.applyTopBarColors
 import org.fossify.contacts.extensions.config
@@ -158,6 +162,9 @@ class ThemeActivity : SimpleActivity() {
         }
         addColorRow(ThemeSlot.CONTACT_VDIVIDER, stepPx * 2)
 
+        addSubgroupHeader(getString(R.string.theme_rows_thumbnail_group), primaryColor, stepPx)
+        addThumbnailSlider(stepPx * 2)
+
         addSubgroupHeader(getString(R.string.theme_rows_spacer_group), primaryColor, stepPx)
         addValueRow(getString(R.string.theme_rows_spacer_text), config.contactsListColumnSpacer, stepPx * 2) {
             editColumnSpacer()
@@ -223,6 +230,42 @@ class ThemeActivity : SimpleActivity() {
     }
 
     private fun dpLabel(dp: Int) = "$dp dp"
+
+    // A thumbnail-size slider that live-resizes a preview of the contact placeholder as it moves.
+    @Suppress("EmptyFunctionBlock") // SeekBar's start/stop-tracking callbacks are intentionally no-ops
+    private fun addThumbnailSlider(indent: Int) {
+        val textColor = getProperTextColor()
+        val b = ItemThemeThumbnailBinding.inflate(layoutInflater, binding.themeHolder, false)
+        b.themeThumbnailTitle.text = getString(R.string.theme_rows_thumbnail_size)
+        b.themeThumbnailTitle.setTextColor(textColor)
+        b.themeThumbnailValue.setTextColor(textColor)
+        b.themeThumbnailSeekbar.max = MAX_CONTACTS_LIST_THUMBNAIL_DP
+        b.themeThumbnailSeekbar.min = MIN_CONTACTS_LIST_THUMBNAIL_DP
+        b.themeThumbnailSeekbar.progress = config.contactsListThumbnailSize
+        b.themeThumbnailValue.text = dpLabel(config.contactsListThumbnailSize)
+        updateThumbnailPreview(b.themeThumbnailPreview, config.contactsListThumbnailSize)
+        b.themeThumbnailSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                config.contactsListThumbnailSize = progress
+                config.contactsListRevision += 1
+                b.themeThumbnailValue.text = dpLabel(progress)
+                updateThumbnailPreview(b.themeThumbnailPreview, progress)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
+        indentRow(b.root, indent)
+        binding.themeHolder.addView(b.root)
+    }
+
+    private fun updateThumbnailPreview(preview: ImageView, dp: Int) {
+        val px = (dp * resources.displayMetrics.density).toInt()
+        preview.updateLayoutParams {
+            width = px
+            height = px
+        }
+    }
 
     private fun addValueRow(title: String, value: String, indent: Int, onClick: () -> Unit) {
         val textColor = getProperTextColor()

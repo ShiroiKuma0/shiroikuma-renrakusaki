@@ -149,6 +149,8 @@
     <string name="theme_slot_divider">横の区切り線の色</string>
     <string name="theme_rows_vdivider_thickness">縦の区切り線の太さ</string>
     <string name="theme_slot_vdivider">縦の区切り線の色</string>
+    <string name="theme_rows_thumbnail_group">サムネイル</string>
+    <string name="theme_rows_thumbnail_size">サムネイルのサイズ</string>
     <string name="theme_rows_spacer_group">列の区切り</string>
     <string name="theme_rows_spacer_text">区切り文字</string>
     <string name="theme_rows_spacer">区切り</string>

@@ -48,6 +48,12 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getString(CONTACTS_LIST_COLUMN_SPACER, DEFAULT_CONTACTS_LIST_COLUMN_SPACER)!!
         set(value) = prefs.edit().putString(CONTACTS_LIST_COLUMN_SPACER, value).apply()
 
+    // Contact thumbnail size in the main Contacts list rows, in dp.
+    var contactsListThumbnailSize: Int
+        get() = prefs.getInt(CONTACTS_LIST_THUMBNAIL_SIZE, DEFAULT_CONTACTS_LIST_THUMBNAIL_DP)
+            .coerceIn(MIN_CONTACTS_LIST_THUMBNAIL_DP, MAX_CONTACTS_LIST_THUMBNAIL_DP)
+        set(value) = prefs.edit().putInt(CONTACTS_LIST_THUMBNAIL_SIZE, value).apply()
+
     // Contacts shown per row in the main Contacts list (1 = list view, 2–4 = grid).
     var contactsListColumns: Int
         get() = prefs.getInt(CONTACTS_LIST_COLUMNS, DEFAULT_CONTACTS_LIST_COLUMNS)

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Thumbnail-size slider (title + seekbar + value) with a live preview of the contact placeholder. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/theme_thumbnail_holder"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/activity_margin"
+        android:paddingTop="@dimen/small_margin"
+        android:paddingEnd="@dimen/activity_margin"
+        android:paddingBottom="@dimen/small_margin">
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/theme_thumbnail_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <SeekBar
+            android:id="@+id/theme_thumbnail_seekbar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/normal_margin"
+            android:layout_marginEnd="@dimen/normal_margin"
+            android:layout_weight="1" />
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/theme_thumbnail_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:minWidth="64dp" />
+
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/theme_thumbnail_preview"
+        android:layout_width="@dimen/list_icon_size_medium"
+        android:layout_height="@dimen/list_icon_size_medium"
+        android:layout_marginStart="@dimen/activity_margin"
+        android:layout_marginBottom="@dimen/normal_margin"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_unknown_contact" />
+
+</LinearLayout>
