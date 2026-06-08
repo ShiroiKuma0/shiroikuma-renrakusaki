@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A labelled slider row (title + seekbar + value), used for contacts-list spacing / divider thickness. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/theme_slider_holder"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/activity_margin"
+    android:paddingTop="@dimen/small_margin"
+    android:paddingEnd="@dimen/activity_margin"
+    android:paddingBottom="@dimen/small_margin">
+
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/theme_slider_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <SeekBar
+        android:id="@+id/theme_slider_seekbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/normal_margin"
+        android:layout_marginEnd="@dimen/normal_margin"
+        android:layout_weight="1" />
+
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/theme_slider_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:minWidth="64dp" />
+
+</LinearLayout>
