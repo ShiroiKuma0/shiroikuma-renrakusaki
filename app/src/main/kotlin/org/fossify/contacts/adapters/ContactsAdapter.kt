@@ -20,6 +20,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -77,6 +78,9 @@ class ContactsAdapter(
     var showPhoneNumbers = config.showPhoneNumbers
     var fontSize = activity.getTextSize()
     var onDragEndListener: (() -> Unit)? = null
+
+    // Configured thumbnail size (px) for the custom list rows; grid keeps its own cell size.
+    private val thumbnailSizePx = (config.contactsListThumbnailSize * activity.resources.displayMetrics.density).toInt()
 
     // Configured list-row layout grouped into lines (each line a list of column fields). Static for the
     // adapter's lifetime; a config change recreates the adapter via forceListRedraw.
@@ -403,6 +407,12 @@ class ContactsAdapter(
 
             findViewById<ImageView>(org.fossify.commons.R.id.item_contact_image).apply {
                 beVisibleIf(showContactThumbnails)
+                if (viewType == VIEW_TYPE_LIST) {
+                    updateLayoutParams {
+                        width = thumbnailSizePx
+                        height = thumbnailSizePx
+                    }
+                }
                 if (profileIconClick != null && viewType != VIEW_TYPE_GRID) {
                     setBackgroundResource(R.drawable.selector_clickable_circle)
                     setOnClickListener {

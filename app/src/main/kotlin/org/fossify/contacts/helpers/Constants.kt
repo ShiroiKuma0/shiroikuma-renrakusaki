@@ -51,6 +51,12 @@ const val DEFAULT_CONTACTS_LIST_SPACING_DP = 2 // matches the stock tiny_margin 
 const val MAX_CONTACTS_LIST_SPACING_DP = 40
 const val MAX_CONTACTS_LIST_DIVIDER_DP = 12
 
+// Contact thumbnail (photo) size in the main Contacts list rows, in dp.
+const val CONTACTS_LIST_THUMBNAIL_SIZE = "contacts_list_thumbnail_size"
+const val DEFAULT_CONTACTS_LIST_THUMBNAIL_DP = 40 // matches the stock list_icon_size_medium
+const val MIN_CONTACTS_LIST_THUMBNAIL_DP = 16
+const val MAX_CONTACTS_LIST_THUMBNAIL_DP = 96
+
 // Number of contacts shown per row in the main Contacts list (1 = list, 2–4 = grid). Set via the toolbar buttons.
 const val CONTACTS_LIST_COLUMNS = "contacts_list_columns"
 const val DEFAULT_CONTACTS_LIST_COLUMNS = 1
