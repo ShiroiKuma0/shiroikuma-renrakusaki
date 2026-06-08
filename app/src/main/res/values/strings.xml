@@ -164,6 +164,41 @@
     <!-- FAQ -->
     <string name="faq_1_title">I want to change what fields are visible at contacts. Can I do it?</string>
     <string name="faq_1_text">Yes, all you have to do is go in Settings -> Manage shown contact fields. There you can select what fields should be visible. Some of them are even disabled by default, so you might find some new ones there.</string>
+    <!-- 白い熊 連絡先 UI: configurable contacts-list rows -->
+    <string name="ui_settings_title">白い熊 連絡先 UI</string>
+    <string name="theme_group_rows">Contacts\' list</string>
+    <string name="theme_rows_order">Displayed fields &amp; order</string>
+    <string name="theme_rows_styling">Field styling</string>
+    <string name="move_field_left">Move left</string>
+    <string name="move_field_right">Move right</string>
+    <string name="reorder">Reorder</string>
+
+    <!-- Contacts-list field labels -->
+    <string name="field_display_name">Name</string>
+    <string name="field_prefix">Prefix</string>
+    <string name="field_first_name">First name</string>
+    <string name="field_middle_name">Middle name</string>
+    <string name="field_surname">Surname</string>
+    <string name="field_suffix">Suffix</string>
+    <string name="field_nickname">Nickname</string>
+    <string name="field_phone">Phone number</string>
+    <string name="field_email">Email</string>
+    <string name="field_address">Address</string>
+    <string name="field_address_street">Address — street</string>
+    <string name="field_address_city">Address — city</string>
+    <string name="field_address_region">Address — region</string>
+    <string name="field_address_postcode">Address — postcode</string>
+    <string name="field_address_country">Address — country</string>
+    <string name="field_company">Company</string>
+    <string name="field_position">Position</string>
+    <string name="field_website">Website</string>
+    <string name="field_im">IM</string>
+    <string name="field_birthday">Birthday</string>
+    <string name="field_anniversary">Anniversary</string>
+    <string name="field_note">Note</string>
+    <string name="field_groups">Groups</string>
+    <string name="field_contact_source">Contact source</string>
+
     <!--
         Haven't found some strings? There's more at
         https://github.com/FossifyOrg/Commons/tree/master/commons/src/main/res
