@@ -1,6 +1,26 @@
 package org.fossify.contacts.helpers
 
-import org.fossify.commons.helpers.*
+import org.fossify.commons.helpers.SHOW_ADDRESSES_FIELD
+import org.fossify.commons.helpers.SHOW_CONTACT_SOURCE_FIELD
+import org.fossify.commons.helpers.SHOW_EMAILS_FIELD
+import org.fossify.commons.helpers.SHOW_EVENTS_FIELD
+import org.fossify.commons.helpers.SHOW_FIRST_NAME_FIELD
+import org.fossify.commons.helpers.SHOW_GROUPS_FIELD
+import org.fossify.commons.helpers.SHOW_IMS_FIELD
+import org.fossify.commons.helpers.SHOW_MIDDLE_NAME_FIELD
+import org.fossify.commons.helpers.SHOW_NICKNAME_FIELD
+import org.fossify.commons.helpers.SHOW_NOTES_FIELD
+import org.fossify.commons.helpers.SHOW_ORGANIZATION_FIELD
+import org.fossify.commons.helpers.SHOW_PHONE_NUMBERS_FIELD
+import org.fossify.commons.helpers.SHOW_PREFIX_FIELD
+import org.fossify.commons.helpers.SHOW_RINGTONE_FIELD
+import org.fossify.commons.helpers.SHOW_STRUCTURED_ADDRESSES_FIELD
+import org.fossify.commons.helpers.SHOW_SUFFIX_FIELD
+import org.fossify.commons.helpers.SHOW_SURNAME_FIELD
+import org.fossify.commons.helpers.SHOW_WEBSITES_FIELD
+import org.fossify.commons.helpers.TAB_CONTACTS
+import org.fossify.commons.helpers.TAB_FAVORITES
+import org.fossify.commons.helpers.TAB_GROUPS
 import org.joda.time.DateTime
 
 const val GROUP = "group"
@@ -14,6 +34,13 @@ const val FORMAT_PHONE_NUMBERS = "format_phone_numbers"
 // When on, ViewContactActivity ignores the per-field "Manage shown contact fields" mask and
 // shows every field a contact actually has. Configurable from Settings.
 const val SHOW_ALL_FIELDS_WHEN_VIEWING = "show_all_fields_when_viewing"
+
+// Configurable contacts-list rows: which fields show, in what order, and how they wrap into columns.
+// Encoded by ContactsListConfig as "key:checked:sameLine" entries joined by "|".
+const val CONTACTS_LIST_FIELDS = "contacts_list_fields"
+
+// Bumped on any contacts-list field/styling edit so MainActivity knows to rebuild the list.
+const val CONTACTS_LIST_REVISION = "contacts_list_revision"
 const val ALL_CONTACT_FIELDS = SHOW_PREFIX_FIELD or SHOW_FIRST_NAME_FIELD or SHOW_MIDDLE_NAME_FIELD or
     SHOW_SURNAME_FIELD or SHOW_SUFFIX_FIELD or SHOW_NICKNAME_FIELD or SHOW_PHONE_NUMBERS_FIELD or
     SHOW_EMAILS_FIELD or SHOW_ADDRESSES_FIELD or SHOW_IMS_FIELD or SHOW_STRUCTURED_ADDRESSES_FIELD or

@@ -27,6 +27,7 @@ enum class ThemeGroup(@StringRes val labelRes: Int) {
     TABS(R.string.theme_group_tabs),
     TOPBAR(R.string.theme_group_topbar),
     LISTS(R.string.theme_group_lists),
+    ROWS(R.string.theme_group_rows),
 }
 
 enum class ThemeSlot(
@@ -96,6 +97,33 @@ enum class ThemeSlot(
         "theme_group_fastscroller", ThemeGroup.LISTS, R.string.theme_slot_fastscroller,
         subgroupLabelRes = R.string.theme_group_groups,
     ),
+
+    // Contacts'-list row fields — one styling slot per RowField (font / weight / size / color), shared by
+    // all three contact lists. Rendered specially in ThemeActivity (only enabled fields show a control).
+    ROW_DISPLAY_NAME("row_display_name", ThemeGroup.ROWS, R.string.field_display_name, hasFont = true),
+    ROW_PREFIX("row_prefix", ThemeGroup.ROWS, R.string.field_prefix, hasFont = true),
+    ROW_FIRST_NAME("row_first_name", ThemeGroup.ROWS, R.string.field_first_name, hasFont = true),
+    ROW_MIDDLE_NAME("row_middle_name", ThemeGroup.ROWS, R.string.field_middle_name, hasFont = true),
+    ROW_SURNAME("row_surname", ThemeGroup.ROWS, R.string.field_surname, hasFont = true),
+    ROW_SUFFIX("row_suffix", ThemeGroup.ROWS, R.string.field_suffix, hasFont = true),
+    ROW_NICKNAME("row_nickname", ThemeGroup.ROWS, R.string.field_nickname, hasFont = true),
+    ROW_PHONE("row_phone", ThemeGroup.ROWS, R.string.field_phone, hasFont = true),
+    ROW_EMAIL("row_email", ThemeGroup.ROWS, R.string.field_email, hasFont = true),
+    ROW_ADDRESS("row_address", ThemeGroup.ROWS, R.string.field_address, hasFont = true),
+    ROW_ADDRESS_STREET("row_address_street", ThemeGroup.ROWS, R.string.field_address_street, hasFont = true),
+    ROW_ADDRESS_CITY("row_address_city", ThemeGroup.ROWS, R.string.field_address_city, hasFont = true),
+    ROW_ADDRESS_REGION("row_address_region", ThemeGroup.ROWS, R.string.field_address_region, hasFont = true),
+    ROW_ADDRESS_POSTCODE("row_address_postcode", ThemeGroup.ROWS, R.string.field_address_postcode, hasFont = true),
+    ROW_ADDRESS_COUNTRY("row_address_country", ThemeGroup.ROWS, R.string.field_address_country, hasFont = true),
+    ROW_COMPANY("row_company", ThemeGroup.ROWS, R.string.field_company, hasFont = true),
+    ROW_POSITION("row_position", ThemeGroup.ROWS, R.string.field_position, hasFont = true),
+    ROW_WEBSITE("row_website", ThemeGroup.ROWS, R.string.field_website, hasFont = true),
+    ROW_IM("row_im", ThemeGroup.ROWS, R.string.field_im, hasFont = true),
+    ROW_BIRTHDAY("row_birthday", ThemeGroup.ROWS, R.string.field_birthday, hasFont = true),
+    ROW_ANNIVERSARY("row_anniversary", ThemeGroup.ROWS, R.string.field_anniversary, hasFont = true),
+    ROW_NOTE("row_note", ThemeGroup.ROWS, R.string.field_note, hasFont = true),
+    ROW_GROUPS("row_groups", ThemeGroup.ROWS, R.string.field_groups, hasFont = true),
+    ROW_CONTACT_SOURCE("row_contact_source", ThemeGroup.ROWS, R.string.field_contact_source, hasFont = true),
 }
 
 // Alpha factors for the muted (inherited) defaults.
@@ -148,6 +176,16 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.FAVORITE_FASTSCROLLER -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.GROUP_NAME -> themeColor(ThemeSlot.TEXT)
     ThemeSlot.GROUP_FASTSCROLLER -> themeColor(ThemeSlot.PRIMARY)
+
+    // Contacts'-list row fields: name-like fields read as primary text, the rest as muted secondary text.
+    ThemeSlot.ROW_DISPLAY_NAME, ThemeSlot.ROW_PREFIX, ThemeSlot.ROW_FIRST_NAME, ThemeSlot.ROW_MIDDLE_NAME,
+    ThemeSlot.ROW_SURNAME, ThemeSlot.ROW_SUFFIX, ThemeSlot.ROW_NICKNAME -> themeColor(ThemeSlot.TEXT)
+
+    ThemeSlot.ROW_PHONE, ThemeSlot.ROW_EMAIL, ThemeSlot.ROW_ADDRESS, ThemeSlot.ROW_ADDRESS_STREET,
+    ThemeSlot.ROW_ADDRESS_CITY, ThemeSlot.ROW_ADDRESS_REGION, ThemeSlot.ROW_ADDRESS_POSTCODE,
+    ThemeSlot.ROW_ADDRESS_COUNTRY, ThemeSlot.ROW_COMPANY, ThemeSlot.ROW_POSITION, ThemeSlot.ROW_WEBSITE,
+    ThemeSlot.ROW_IM, ThemeSlot.ROW_BIRTHDAY, ThemeSlot.ROW_ANNIVERSARY, ThemeSlot.ROW_NOTE,
+    ThemeSlot.ROW_GROUPS, ThemeSlot.ROW_CONTACT_SOURCE -> themeColor(ThemeSlot.TEXT_SECONDARY)
 }
 
 /** Set an explicit override for a slot. Foundation slots write through to the stock commons colors. */
