@@ -71,8 +71,9 @@ line's, keeping upgrades monotonic.
    or a config-only task, to confirm the build script still evaluates.
 
 7. **Build the new `+1`** via the **build-apk** skill
-   (`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew buildFoss < /dev/null`), then **ask** before
-   any `adb push`. This is the first build of the new upstream line (`<newVersion>+1`). If the build can't
+   (`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew buildFoss < /dev/null`), then deliver it via
+   **`/after-build`** (auto: `/adb-push` if a phone is connected, else `/scp` to skhw — no prompt). This
+   is the first build of the new upstream line (`<newVersion>+1`). If the build can't
    resolve `org.fossify:commons:<ver>-sk1`, publish the patched Commons first (step 4).
 
 8. **Stop.** Let the user test. Commit/push only on their explicit **"Push"** (force-push may be needed
