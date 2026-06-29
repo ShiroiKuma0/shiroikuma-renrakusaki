@@ -11,6 +11,7 @@ import android.graphics.drawable.LayerDrawable
 import android.telephony.PhoneNumberUtils
 import android.text.TextUtils
 import android.util.TypedValue
+import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MotionEvent
 import android.view.View
@@ -43,6 +44,7 @@ import org.fossify.contacts.R
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.activities.ViewContactActivity
 import org.fossify.contacts.dialogs.CreateNewGroupDialog
+import org.fossify.contacts.dialogs.SetDefaultSimDialog
 import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.applyThemeFont
 import org.fossify.contacts.extensions.config
@@ -120,6 +122,8 @@ class ContactsAdapter(
             findItem(R.id.cab_delete).isVisible = location == LOCATION_CONTACTS_TAB || location == LOCATION_GROUP_CONTACTS
             findItem(R.id.cab_create_shortcut).isVisible =
                 isOreoPlus() && isOneItemSelected() && (location == LOCATION_FAVORITES_TAB || location == LOCATION_CONTACTS_TAB)
+            // CAB only opens where long-press is enabled (never in INSERT_OR_EDIT), so one-selected suffices.
+            findItem(R.id.cab_set_default_sim).isVisible = isOneItemSelected()
 
             if (location == LOCATION_GROUP_CONTACTS) {
                 findItem(R.id.cab_remove).title = activity.getString(R.string.remove_from_group)
@@ -141,6 +145,7 @@ class ContactsAdapter(
             R.id.cab_send_sms_to_contacts -> sendSMSToContacts()
             R.id.cab_send_email_to_contacts -> sendEmailToContacts()
             R.id.cab_create_shortcut -> createShortcut()
+            R.id.cab_set_default_sim -> setDefaultSim()
             R.id.cab_remove -> removeContacts()
             R.id.cab_delete -> askConfirmDelete()
         }
@@ -388,6 +393,67 @@ class ContactsAdapter(
 
     private fun getSelectedItems() = contactItems.filter { selectedKeys.contains(it.id) } as ArrayList<Contact>
 
+    // The contact's stored default SIM slot (1 or 2), found across any of its numbers; 0 = none.
+    private fun contactSimSlot(contact: Contact): Int {
+        contact.phoneNumbers.forEach { phoneNumber ->
+            val key = phoneNumber.normalizedNumber.ifEmpty { phoneNumber.value }
+            if (key.isNotEmpty()) {
+                val slot = config.getSimSlot(key)
+                if (slot == 1 || slot == 2) {
+                    return slot
+                }
+            }
+        }
+        return 0
+    }
+
+    // Long-press ➜ CAB ➜ "Set default SIM for contact": pick SIM 1 / SIM 2 / None for every number the
+    // contact has. The Phone fork reads this (via the content provider) to choose the SIM, incl. Android Auto.
+    private fun setDefaultSim() {
+        val contact = getSelectedItems().firstOrNull() ?: return
+        SetDefaultSimDialog(activity, contactSimSlot(contact)) { slot ->
+            contact.phoneNumbers.forEach { phoneNumber ->
+                val key = phoneNumber.normalizedNumber.ifEmpty { phoneNumber.value }
+                if (key.isNotEmpty()) {
+                    config.setSimSlot(key, slot)
+                }
+            }
+            finishActMode()
+            notifyDataSetChanged()
+        }
+    }
+
+    // Overlay a small SIM badge on the contact photo: SIM 1 red (bottom-start), SIM 2 blue (bottom-end),
+    // number in yellow. Rebuilt each bind so recycled rows never show a stale badge.
+    private fun setupSimBadge(view: View, contact: Contact) {
+        val frame = view.findViewById<ConstraintLayout>(org.fossify.commons.R.id.item_contact_frame) ?: return
+        frame.findViewById<View>(R.id.sim_badge)?.let { frame.removeView(it) }
+
+        if (!showContactThumbnails) {
+            return
+        }
+        val slot = contactSimSlot(contact)
+        if (slot != 1 && slot != 2) {
+            return
+        }
+
+        val badge = LayoutInflater.from(activity).inflate(R.layout.sim_badge, frame, false)
+        badge.findViewById<ImageView>(R.id.sim_badge_icon)
+            .applyColorFilter(if (slot == 1) SIM1_BADGE_COLOR else SIM2_BADGE_COLOR)
+        badge.findViewById<TextView>(R.id.sim_badge_number).text = slot.toString()
+        badge.layoutParams = ConstraintLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            bottomToBottom = org.fossify.commons.R.id.item_contact_image
+            if (slot == 1) {
+                startToStart = org.fossify.commons.R.id.item_contact_image
+            } else {
+                endToEnd = org.fossify.commons.R.id.item_contact_image
+            }
+        }
+        frame.addView(badge)
+    }
+
     override fun onViewRecycled(holder: ViewHolder) {
         super.onViewRecycled(holder)
         if (!activity.isDestroyed && !activity.isFinishing) {
@@ -449,6 +515,8 @@ class ContactsAdapter(
                         .into(findViewById(org.fossify.commons.R.id.item_contact_image))
                 }
             }
+
+            setupSimBadge(this, contact)
 
             val dragIcon = findViewById<ImageView>(org.fossify.commons.R.id.drag_handle_icon)
             if (enableDrag && textToHighlight.isEmpty()) {
