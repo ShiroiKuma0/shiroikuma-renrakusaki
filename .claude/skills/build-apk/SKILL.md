@@ -5,6 +5,15 @@ description: Build the signed foss release APK with the buildFoss Gradle task, t
 
 # Build the foss release APK and optionally send to phone
 
+> **⚠️ CRITICAL — every build MUST have a unique, strictly-increasing `BUILD_NUMBER`.**
+> Never produce two builds with the same `BUILD_NUMBER`; never overwrite an APK already on the
+> phone. ALWAYS build with `./gradlew buildFoss < /dev/null` — it auto-increments `BUILD_NUMBER`
+> in `gradle.properties`, renames the APK, and copies it to `~/tmp/`. **NEVER run a bare
+> `assembleFossRelease` for a deliverable build** — it does NOT bump `BUILD_NUMBER`, so you get the
+> same filename and clobber the previous build on the phone (this mistake happened once). After
+> building, confirm the printed `BUILD_NUMBER` is higher than the last one pushed; clean any stale
+> `app/build/outputs/apk/foss/release/*.apk` first so the freshly-numbered APK is the one copied.
+
 > **Always build after changes.** Whenever you finish applying a change to the
 > app — UI, code, or resources — run this build automatically as the final step,
 > **without waiting to be asked**. Then deliver the APK via `/after-build` below
@@ -52,18 +61,18 @@ The `buildFoss` task (`app/build.gradle.kts`) has an interactive `read -p "Push 
 
 ## Signing
 
-Release signing is non-interactive: `app/build.gradle.kts` reads credentials from `keystore.properties` (falling back to `SIGNING_*` env vars). If neither is present the build is unsigned and the APK will not install. The keystore lives at `~/.android-keystores/shiroikuma-renrakusaki.jks` (alias `renrakusaki`); `keystore.properties` is gitignored.
+Release signing is non-interactive: `app/build.gradle.kts` reads credentials from `keystore.properties` (falling back to `SIGNING_*` env vars). If neither is present the build is unsigned and the APK will not install. **Both forks now sign with the shared denwa key** (`~/.android-keystores/shiroikuma-denwa.jks`, alias `denwa`) so they share a `signature`-permission content provider for private contacts + per-contact SIM; `keystore.properties` (gitignored) points there. Changing this key requires uninstalling the app first (cert mismatch blocks in-place update).
 
 ## Prerequisite — patched Commons in mavenLocal
 
-This app builds against our patched Fossify Commons (`commons = "6.1.6-sk1"` in
+This app builds against our patched Fossify Commons (`commons = "6.1.6-sk5"` in
 `gradle/libs.versions.toml`), resolved from `mavenLocal()` (`~/.m2`). On this machine it is already
 published, so `buildFoss` just works. **On a fresh machine, or if `~/.m2` was cleared**, the build fails
-with `Could not resolve org.fossify:commons:6.1.6-sk1` — publish it first:
+with `Could not resolve org.fossify:commons:6.1.6-sk5` — publish it first:
 
 ```bash
 cd ~/git/shiroikuma-commons && JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 \
-  ./gradlew :commons:publishToMavenLocal -PVERSION=6.1.6-sk1
+  ./gradlew :commons:publishToMavenLocal -PVERSION=6.1.6-sk5
 ```
 
 See the `shiroikuma-commons` repo's CLAUDE.md for the patch details.

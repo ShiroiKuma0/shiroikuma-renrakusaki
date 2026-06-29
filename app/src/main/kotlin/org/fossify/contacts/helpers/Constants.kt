@@ -51,6 +51,10 @@ const val DEFAULT_CONTACTS_LIST_SPACING_DP = 2 // matches the stock tiny_margin 
 const val MAX_CONTACTS_LIST_SPACING_DP = 40
 const val MAX_CONTACTS_LIST_DIVIDER_DP = 12
 
+// Int extra (a commons TAB_* mask) telling MainActivity which tab to open;
+// sent by our Phone fork (shiroikuma-denwa) when its Contacts/Favorites tabs hand off to this app.
+const val OPEN_TAB_INTENT_EXTRA = "shiroikuma_open_tab"
+
 // Contact thumbnail (photo) size in the main Contacts list rows, in dp.
 const val CONTACTS_LIST_THUMBNAIL_SIZE = "contacts_list_thumbnail_size"
 const val DEFAULT_CONTACTS_LIST_THUMBNAIL_DP = 40 // matches the stock list_icon_size_medium
@@ -75,9 +79,20 @@ const val ALL_CONTACT_FIELDS = SHOW_PREFIX_FIELD or SHOW_FIRST_NAME_FIELD or SHO
 
 // Granular theming
 const val THEME_V1_SEEDED = "theme_v1_seeded"
+const val PURE_YELLOW_MIGRATED = "pure_yellow_migrated" // one-time #FFEB3B → #FFFF00 rewrite done
 const val THEME_UNSET = Int.MIN_VALUE // a slot with this stored value follows its inherited default
 const val PALETTE_BLACK = 0xFF000000.toInt()
-const val PALETTE_YELLOW = 0xFFFFEB3B.toInt()
+const val PALETTE_YELLOW = 0xFFFFFF00.toInt()
+
+// Per-contact default SIM: one entry per phone number (keyed by the number), value = SIM slot (1 or 2).
+// Read by our Phone fork (shiroikuma-denwa) via MyContactsContentProvider to pick the SIM for
+// outgoing calls, including from Android Auto. Absent/0 = no preference.
+const val SIM_SLOT_PREFIX = "sim_slot_"
+const val SIM_SLOT_PROVIDER_PATH = "sim_slot" // ContentProvider path denwa queries (number → slot)
+
+// Favorites SIM badge colors: SIM 1 red (bottom-start), SIM 2 blue (bottom-end), number in pure yellow.
+const val SIM1_BADGE_COLOR = 0xFFFF0000.toInt()
+const val SIM2_BADGE_COLOR = 0xFF2962FF.toInt()
 
 // Per-element fonts: one entry per text slot, keyed by the slot key.
 const val FONT_FAMILY_PREFIX = "font_family_" // String, "" = system/global default

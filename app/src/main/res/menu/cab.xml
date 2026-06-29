@@ -42,6 +42,12 @@
         android:title="@string/create_shortcut"
         app:showAsAction="never" />
     <item
+        android:id="@+id/cab_set_default_sim"
+        android:icon="@drawable/ic_one_sim_vector"
+        android:showAsAction="always"
+        android:title="@string/set_default_sim"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/cab_select_all"
         android:icon="@drawable/ic_select_all_vector"
         android:title="@string/select_all"

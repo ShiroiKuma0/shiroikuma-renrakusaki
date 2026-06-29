@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_launcher_name">白い熊 連絡先</string>
+    <!-- Per-contact default SIM (used by the Phone fork, incl. Android Auto) -->
+    <string name="set_default_sim">Set default SIM for contact</string>
+    <string name="sim_slot_1">SIM 1</string>
+    <string name="sim_slot_2">SIM 2</string>
     <string name="address">Address</string>
     <string name="street">Street</string>
     <string name="neighborhood">Appartment or suite number</string>

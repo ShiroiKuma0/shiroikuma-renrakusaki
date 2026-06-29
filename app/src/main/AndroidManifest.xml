@@ -23,6 +23,12 @@
         android:name="android.hardware.telephony"
         android:required="false" />
 
+    <!-- Locks our private-data provider (private contacts + per-contact SIM) to apps signed with our
+         key — i.e. the Phone fork shiroikuma-denwa. signature-level: granted only on a matching cert. -->
+    <permission
+        android:name="${applicationId}.permission.READ_PRIVATE_DATA"
+        android:protectionLevel="signature" />
+
     <queries>
         <package android:name="org.fossify.contacts.debug" />
         <package android:name="org.fossify.contacts" />
@@ -259,7 +265,8 @@
         <provider
             android:name=".contentproviders.MyContactsContentProvider"
             android:authorities="${applicationId}.contactsprovider"
-            android:exported="true" />
+            android:exported="true"
+            android:readPermission="${applicationId}.permission.READ_PRIVATE_DATA" />
 
         <activity-alias
             android:name=".activities.SplashActivity.Red"
