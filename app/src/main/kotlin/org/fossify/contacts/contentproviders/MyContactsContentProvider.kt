@@ -5,16 +5,28 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
+import android.telephony.PhoneNumberUtils
 import com.google.gson.Gson
 import org.fossify.commons.helpers.LocalContactsHelper
 import org.fossify.commons.helpers.MyContactsContentProvider
 import org.fossify.contacts.extensions.config
+import org.fossify.contacts.helpers.SIM_SLOT_PROVIDER_PATH
 
 class MyContactsContentProvider : ContentProvider() {
     override fun insert(uri: Uri, contentValues: ContentValues?) = null
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
-        if (context == null || !context!!.config.showPrivateContacts) {
+        if (context == null) {
+            return null
+        }
+
+        // Per-contact default SIM lookup for the Phone fork: content://<authority>/sim_slot,
+        // selectionArgs[0] = the dialed number. Returns a one-row cursor with the SIM slot (1/2, 0 = none).
+        if (uri.lastPathSegment == SIM_SLOT_PROVIDER_PATH) {
+            return querySimSlot(selectionArgs)
+        }
+
+        if (!context!!.config.showPrivateContacts) {
             return null
         } else {
             val matrixCursor = MatrixCursor(
@@ -48,6 +60,22 @@ class MyContactsContentProvider : ContentProvider() {
             }
 
             return matrixCursor
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun querySimSlot(selectionArgs: Array<out String>?): Cursor {
+        val number = selectionArgs?.getOrNull(0).orEmpty()
+        val slot = if (number.isEmpty()) {
+            0
+        } else {
+            context!!.config.getAllSimSlots().entries
+                .firstOrNull { PhoneNumberUtils.compare(it.key, number) }
+                ?.value ?: 0
+        }
+
+        return MatrixCursor(arrayOf("slot")).apply {
+            newRow().add("slot", slot)
         }
     }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import org.fossify.commons.helpers.BaseConfig
 import org.fossify.commons.helpers.SHOW_TABS
 
+@Suppress("TooManyFunctions") // a SharedPreferences wrapper naturally exposes many small accessors
 class Config(context: Context) : BaseConfig(context) {
     companion object {
         fun newInstance(context: Context) = Config(context)
@@ -71,6 +72,11 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(THEME_V1_SEEDED, false)
         set(value) = prefs.edit().putBoolean(THEME_V1_SEEDED, value).apply()
 
+    // One-time migration of persisted material-yellow colors to pure yellow (see migrateToPureYellowIfNeeded).
+    var pureYellowMigrated: Boolean
+        get() = prefs.getBoolean(PURE_YELLOW_MIGRATED, false)
+        set(value) = prefs.edit().putBoolean(PURE_YELLOW_MIGRATED, value).apply()
+
     fun getThemeOverride(key: String): Int = prefs.getInt(key, THEME_UNSET)
 
     fun setThemeOverride(key: String, color: Int) = prefs.edit().putInt(key, color).apply()
@@ -92,4 +98,23 @@ class Config(context: Context) : BaseConfig(context) {
 
     fun setFontSize(slotKey: String, value: Int) =
         prefs.edit().putInt(FONT_SIZE_PREFIX + slotKey, value).apply()
+
+    // Per-number default SIM slot (1 or 2; slot 0 clears it). Keyed by the phone number.
+    fun getSimSlot(number: String): Int = prefs.getInt(SIM_SLOT_PREFIX + number, 0)
+
+    fun setSimSlot(number: String, slot: Int) {
+        val editor = prefs.edit()
+        if (slot == 0) {
+            editor.remove(SIM_SLOT_PREFIX + number)
+        } else {
+            editor.putInt(SIM_SLOT_PREFIX + number, slot)
+        }
+        editor.apply()
+    }
+
+    // All stored number → slot entries, for the ContentProvider's number matching (PhoneNumberUtils.compare).
+    fun getAllSimSlots(): Map<String, Int> = prefs.all
+        .filterKeys { it.startsWith(SIM_SLOT_PREFIX) }
+        .mapNotNull { (key, value) -> (value as? Int)?.let { key.removePrefix(SIM_SLOT_PREFIX) to it } }
+        .toMap()
 }

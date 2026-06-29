@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Small SIM badge overlaid on a contact photo: a tinted SIM-card icon with the slot number.
+     Tint (red SIM 1 / blue SIM 2) and the number are set at bind time in ContactsAdapter. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/sim_badge"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <ImageView
+        android:id="@+id/sim_badge_icon"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:contentDescription="@string/set_default_sim"
+        android:src="@drawable/ic_sim_vector" />
+
+    <TextView
+        android:id="@+id/sim_badge_number"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:shadowColor="#FF000000"
+        android:shadowDx="0"
+        android:shadowDy="0"
+        android:shadowRadius="4"
+        android:textColor="#FFFFFF00"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+</FrameLayout>

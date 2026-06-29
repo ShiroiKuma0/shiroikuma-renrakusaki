@@ -245,3 +245,48 @@ fun Context.seedBlackYellowThemeIfNeeded() {
     config.accentColor = PALETTE_YELLOW
     config.themeV1Seeded = true
 }
+
+// Fork: dialog accent frame width, in dp.
+private const val DIALOG_FRAME_WIDTH_DP = 3
+
+// Fork: dialogs are black-on-black and invisible without a frame. Opt into commons' (sk3) dialog
+// accent border — pure yellow. Set on every launch (not gated) so existing installs pick it up too,
+// since the one-time theme seed above won't re-run after an in-place update.
+fun Context.seedDialogFrame() {
+    config.dialogBorderColor = PALETTE_YELLOW
+    config.dialogBorderWidth = DIALOG_FRAME_WIDTH_DP
+}
+
+// The material yellow the palette used before PALETTE_YELLOW became pure yellow (#FFFF00).
+private const val OLD_MATERIAL_YELLOW_RGB = 0xFFEB3B
+private const val RGB_MASK = 0xFFFFFF
+
+/** [color] with a material-yellow RGB part rewritten to pure yellow; the alpha byte is preserved. */
+private fun materialToPureYellow(color: Int): Int = if (color and RGB_MASK == OLD_MATERIAL_YELLOW_RGB) {
+    (color and RGB_MASK.inv()) or (PALETTE_YELLOW and RGB_MASK)
+} else {
+    color
+}
+
+/** One-time rewrite of every persisted material-yellow color to pure yellow (the palette change). */
+fun Context.migrateToPureYellowIfNeeded() {
+    if (config.pureYellowMigrated) {
+        return
+    }
+
+    // The stock commons colors the foundation slots write through to
+    config.backgroundColor = materialToPureYellow(config.backgroundColor)
+    config.textColor = materialToPureYellow(config.textColor)
+    config.primaryColor = materialToPureYellow(config.primaryColor)
+    config.accentColor = materialToPureYellow(config.accentColor)
+
+    // Per-slot overrides; unset slots follow their inherited defaults, so there is nothing to rewrite
+    for (slot in ThemeSlot.entries) {
+        val override = config.getThemeOverride(slot.key)
+        if (override != THEME_UNSET) {
+            config.setThemeOverride(slot.key, materialToPureYellow(override))
+        }
+    }
+
+    config.pureYellowMigrated = true
+}
