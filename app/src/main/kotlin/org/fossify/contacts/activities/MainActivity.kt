@@ -46,6 +46,7 @@ import org.fossify.contacts.fragments.ContactsFragment
 import org.fossify.contacts.fragments.FavoritesFragment
 import org.fossify.contacts.fragments.MyViewPagerFragment
 import org.fossify.contacts.helpers.ALL_TABS_MASK
+import org.fossify.contacts.helpers.OPEN_TAB_INTENT_EXTRA
 import org.fossify.contacts.helpers.tabsList
 import org.fossify.contacts.interfaces.RefreshContactsListener
 import java.util.Arrays
@@ -88,6 +89,14 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         setupTabs()
         checkContactPermissions()
         checkWhatsNewDialog()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        takeRequestedTab()?.let {
+            binding.viewPager.currentItem = it
+        }
     }
 
     private fun checkContactPermissions() {
@@ -633,7 +642,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
         if (binding.viewPager.adapter == null) {
             binding.viewPager.adapter = ViewPagerAdapter(this, tabsList, config.showTabs)
-            binding.viewPager.currentItem = getDefaultTab()
+            binding.viewPager.currentItem = takeRequestedTab() ?: getDefaultTab()
         }
 
         ContactsHelper(this).getContacts { contacts ->
@@ -680,6 +689,26 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         findViewById(R.id.favorites_fragment),
         findViewById(R.id.groups_fragment)
     )
+
+    // Tab requested via OPEN_TAB_INTENT_EXTRA (sent by our Phone fork) as a page position;
+    // consumed on use, null when absent or when the requested tab is hidden.
+    private fun takeRequestedTab(): Int? {
+        val wantedTab = intent.getIntExtra(OPEN_TAB_INTENT_EXTRA, 0)
+        if (wantedTab == 0) {
+            return null
+        }
+
+        intent.removeExtra(OPEN_TAB_INTENT_EXTRA)
+        if (config.showTabs and wantedTab == 0) {
+            return null
+        }
+
+        return when (wantedTab) {
+            TAB_CONTACTS -> 0
+            TAB_FAVORITES -> if (config.showTabs and TAB_CONTACTS != 0) 1 else 0
+            else -> null
+        }
+    }
 
     private fun getDefaultTab(): Int {
         val showTabsMask = config.showTabs

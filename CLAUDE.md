@@ -21,6 +21,7 @@ This repo is a fork. Read this section before building, branching, or rebasing.
 
 - **App ID:** `shiroikuma.renrakusaki` (`APP_ID` in `gradle.properties`). The Kotlin package / `namespace` stays `org.fossify.contacts` (`APP_NAMESPACE`) so the source tree is untouched and upstream rebases stay clean.
 - **App label:** `白い熊 連絡先` — set in `app/src/main/res/values/strings.xml` **and** `values-ja/strings.xml` (`app_launcher_name`). Update both whenever the label changes.
+- **UI default palette:** black `#000000` + **pure yellow `#FFFF00`** (`PALETTE_BLACK` / `PALETTE_YELLOW` in `helpers/Constants.kt`). Never material yellow `#FFEB3B`.
 
 ### Versioning scheme
 
@@ -129,6 +130,15 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew :commons:publishToMavenLo
 ```
 
 Then set this app's `commons` pin to `<ver>-sk1`. The patched AAR lives only in `~/.m2`, not in the repo.
+
+## Tab hand-off from our Phone fork (denwa)
+
+Our Phone fork (`shiroikuma.denwa`, repo `~/git/shiroikuma-denwa`) launches this app's `MainActivity`
+directly when its Contacts/Favorites tabs are tapped, passing the `shiroikuma_open_tab` int extra
+(a commons `TAB_*` mask) to pick the tab. `OPEN_TAB_INTENT_EXTRA` (helpers/Constants.kt) defines the
+name and `MainActivity.takeRequestedTab()` consumes it — at first init and in `onNewIntent` (denwa sends
+`CLEAR_TOP or SINGLE_TOP`, so a running instance gets it there). Keep the extra name in sync with the
+denwa repo if it ever changes.
 
 ## Commit convention — no Claude attribution
 
