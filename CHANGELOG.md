@@ -1,144 +1,57 @@
-# Changelog
-All notable changes to this project will be documented in this file.
+# Changelog — 白い熊 連絡先
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+This is a fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts). It tracks an upstream
+release and layers our customizations on top; versions are `<upstream version>+<fork build>`. This
+file documents what the fork adds on top of stock — see upstream's own changelog for the base app.
 
-## [Unreleased]
+## [1.6.0+44] — 2026-06-30
 
-## [1.6.0] - 2026-01-30
-### Added
-- Added support for custom fonts
+First published release of the fork, built on **Fossify Contacts 1.6.0**. Everything below is added
+on top of stock.
 
-### Changed
-- Tapping contact photo in lists now launches the contact details page ([#452])
-- Updated translations
+### Major features
+- **Granular Theme & Colors system** with a pure black `#000000` + pure yellow `#FFFF00` default
+  palette (never material yellow `#FFEB3B`).
+- **Fully configurable contacts list:** choose which fields are shown, reorder them, and arrange them
+  into **1–4 columns** via one-tap 一二三四 per-row buttons — each field carrying its own font, size,
+  and color.
+- **Per-contact default SIM:** a SIM badge in the list, a picker from the long-press (CAB) menu, and a
+  content provider that exposes the choice to the companion dialer so it auto-selects the right SIM.
+- **View contact → "show all saved fields"** option that ignores the shown-fields mask.
 
-### Fixed
-- Fixed incorrect spacing between prefix and last name ([#157])
+### UI & theming
+- Black/yellow launcher icon — a yellow-traced figure on black (50% size).
+- Configurable **top-bar**, **search action-icon**, and **overflow-menu** colors.
+- Configurable contact **phone-number** color.
+- **Per-element font** selection in the color pickers.
+- **Alpha slider** on every color picker.
+- **Recently-used colors** row in the color picker.
+- Configurable contacts-list **thumbnail size** with a live preview.
+- Contacts-list **row spacing**, **dividers** (including between columns), and a configurable column
+  spacer for left-flowing multi-column layouts.
+- Custom **人** placeholder icon for contacts without a photo.
+- Contact name reset to **full opacity** (WYSIWYG), matching the number.
+- The 白い熊 連絡先 settings page reorganized into a cascading, indented section layout.
 
-## [1.5.0] - 2025-12-16
-### Changed
-- Updated translations
+### Integrations
+- **Tab hand-off from our Phone fork** (`shiroikuma.denwa`): launches this app directly on the
+  **Contacts** or **Favorites** tab via the `shiroikuma_open_tab` intent extra — honored at first
+  launch and delivered to a running instance via `onNewIntent`.
 
-### Fixed
-- Fixed invisible navigation bars in contact viewer ([#415])
-- Fixed search highlighting for characters with accents and diacritics ([#12])
+### Packaging & side-by-side
+- Rebranded to app id **`shiroikuma.renrakusaki`** (label 白い熊 連絡先, English + Japanese) so it
+  installs **side-by-side** with the official build; the Kotlin namespace stays `org.fossify.contacts`
+  to keep upstream rebases clean.
+- Builds against a **patched Fossify Commons** (`6.1.6-sk5`) from `mavenLocal` that strips upstream's
+  anti-tamper "fake version" / sideloading checks and adds black/yellow CAB & menu fixes.
+- Custom fork build pipeline: `buildFoss` produces the signed `fossRelease` APK, copies it to `~/tmp/`,
+  and auto-increments the fork build number. Fork version name is `<VERSION_NAME>+<BUILD_NUMBER>` and
+  the effective `versionCode` is `VERSION_CODE * 10000 + BUILD_NUMBER`, keeping upgrades monotonic
+  across upstream bumps.
 
-## [1.4.0] - 2025-10-29
-### Changed
-- Compatibility updates for Android 15 & 16
-- Search query is now preserved when switching tabs
-- Updated translations
-
-## [1.3.0] - 2025-10-09
-### Added
-- Support for importing contacts from vCards shared by other apps ([#321])
-
-### Changed
-- Updated translations
-
-### Fixed
-- Fixed search not matching full phone numbers
-
-## [1.2.5] - 2025-09-09
-### Changed
-- Updated translations
-
-### Fixed
-- Fixed contacts edits being silently discarded when using navigation arrow ([#360])
-
-## [1.2.4] - 2025-07-31
-### Changed
-- Updated translations
-
-### Fixed
-- Fixed issue with contacts not displaying when syncing via DAVx⁵ ([#339])
-
-## [1.2.3] - 2025-07-23
-### Changed
-- All contact exports now use the vCard 4.0 format
-- Preference category labels now use sentence case
-- Updated translations
-
-### Fixed
-- Filtering contacts now works correctly on the favorites tab ([#78])
-
-## [1.2.2] - 2025-06-17
-### Changed
-- Updated translations
-
-### Fixed
-- Fixed invisible preferred number indicator in light themes ([#289])
-
-## [1.2.1] - 2025-06-03
-### Changed
-- Updated translations
-
-### Fixed
-- Fixed crash on startup due to private contacts ([#281])
-- Fixed crash when creating new contacts
-
-## [1.2.0] - 2025-05-31
-### Added
-- Support for structured addresses ([#30])
-- Dialog for choosing contact source when editing a merged contact ([#201])
-
-### Changed
-- Updated translations
-
-## [1.1.0] - 2024-10-28
-### Added
-- Added an option to display formatted phone numbers
-- Added a favorite button for contacts in groups
-
-### Changed
-- Replaced checkboxes with switches
-- Other minor bug fixes and improvements
-- Added more translations
-
-### Removed
-- Removed support for Android 7 and older versions
-
-### Fixed
-- Fixed issue with contacts not displaying on Android 14 and above
-- Fixed data loss when deleting contacts with identical names
-- Fixed corrupted automatic backups
-- Fixed low-quality photo exports in vCards
-- Fixed overlap between the floating action button and list items
-
-## [1.0.1] - 2024-01-17
-### Fixed
-- Fixed vcf importer
-
-## [1.0.0] - 2024-01-17
-### Added
-- Initial release
-
-[#12]: https://github.com/FossifyOrg/Contacts/issues/12
-[#30]: https://github.com/FossifyOrg/Contacts/issues/30
-[#78]: https://github.com/FossifyOrg/Contacts/issues/78
-[#157]: https://github.com/FossifyOrg/Contacts/issues/157
-[#201]: https://github.com/FossifyOrg/Contacts/issues/201
-[#281]: https://github.com/FossifyOrg/Contacts/issues/281
-[#289]: https://github.com/FossifyOrg/Contacts/issues/289
-[#321]: https://github.com/FossifyOrg/Contacts/issues/321
-[#339]: https://github.com/FossifyOrg/Contacts/issues/339
-[#360]: https://github.com/FossifyOrg/Contacts/issues/360
-[#415]: https://github.com/FossifyOrg/Contacts/issues/415
-[#452]: https://github.com/FossifyOrg/Contacts/issues/452
-
-[Unreleased]: https://github.com/FossifyOrg/Contacts/compare/1.6.0...HEAD
-[1.6.0]: https://github.com/FossifyOrg/Contacts/compare/1.5.0...1.6.0
-[1.5.0]: https://github.com/FossifyOrg/Contacts/compare/1.4.0...1.5.0
-[1.4.0]: https://github.com/FossifyOrg/Contacts/compare/1.3.0...1.4.0
-[1.3.0]: https://github.com/FossifyOrg/Contacts/compare/1.2.5...1.3.0
-[1.2.5]: https://github.com/FossifyOrg/Contacts/compare/1.2.4...1.2.5
-[1.2.4]: https://github.com/FossifyOrg/Contacts/compare/1.2.3...1.2.4
-[1.2.3]: https://github.com/FossifyOrg/Contacts/compare/1.2.2...1.2.3
-[1.2.2]: https://github.com/FossifyOrg/Contacts/compare/1.2.1...1.2.2
-[1.2.1]: https://github.com/FossifyOrg/Contacts/compare/1.2.0...1.2.1
-[1.2.0]: https://github.com/FossifyOrg/Contacts/compare/1.1.0...1.2.0
-[1.1.0]: https://github.com/FossifyOrg/Contacts/compare/1.0.1...1.1.0
-[1.0.1]: https://github.com/FossifyOrg/Contacts/compare/1.0.0...1.0.1
-[1.0.0]: https://github.com/FossifyOrg/Contacts/releases/tag/1.0.0
+### Fixes & behavior
+- Fixed `INSTALL_FAILED_CONFLICTING_PROVIDER` (distinct provider authority) so the fork installs
+  alongside upstream.
+- Removed the Commons "fake version" sideloading dialog app-wide — first neutralized at the splash and
+  app-wide, then obsoleted entirely by linking the patched Commons.
+- De-branded the GitHub new-issue form to this fork.
