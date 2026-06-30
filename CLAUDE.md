@@ -116,7 +116,7 @@ colors") whenever the installed app id is not `org.fossify.*` — always the cas
 
 - **Source:** the `shiroikuma-commons` fork (`~/git/shiroikuma-commons`, branch `custom`), which strips
   Commons' anti-tamper "fake version" / sideloading checks out entirely.
-- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk1"` in
+- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk5"` in
   `gradle/libs.versions.toml` (`mavenLocal()` is already a repository in `settings.gradle.kts`).
 - Because Commons itself no longer nags, this app carries **no** in-app workaround — no `getPackageName`
   spoof, no `SIDELOADING_FALSE`, no `res/raw/keep.xml`.
