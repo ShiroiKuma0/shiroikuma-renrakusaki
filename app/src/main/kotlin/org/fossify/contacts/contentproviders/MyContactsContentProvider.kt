@@ -65,13 +65,20 @@ class MyContactsContentProvider : ContentProvider() {
 
     @Suppress("DEPRECATION")
     private fun querySimSlot(selectionArgs: Array<out String>?): Cursor {
-        val number = selectionArgs?.getOrNull(0).orEmpty()
-        val slot = if (number.isEmpty()) {
+        // Defensive: this is called cross-process by the dialer; never let it throw (it would crash
+        // our process). Any failure just yields "no preference" (slot 0).
+        val slot = try {
+            val number = selectionArgs?.getOrNull(0).orEmpty()
+            val ctx = context
+            if (number.isEmpty() || ctx == null) {
+                0
+            } else {
+                ctx.config.getAllSimSlots().entries
+                    .firstOrNull { PhoneNumberUtils.compare(it.key, number) }
+                    ?.value ?: 0
+            }
+        } catch (ignored: Exception) {
             0
-        } else {
-            context!!.config.getAllSimSlots().entries
-                .firstOrNull { PhoneNumberUtils.compare(it.key, number) }
-                ?.value ?: 0
         }
 
         return MatrixCursor(arrayOf("slot")).apply {
