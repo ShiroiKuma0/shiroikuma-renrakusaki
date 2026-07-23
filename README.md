@@ -6,11 +6,11 @@
 
 **A black-and-yellow, deeply customizable contacts app — your list, your layout, your colors.**
 
-A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, per-contact default SIM, and direct tab hand-off from the matching Phone fork.
+A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, per-contact default SIM, settings + contacts export/import, and an automation backup broadcast for the companion task runner.
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+44`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+67`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -26,6 +26,26 @@ The list stops being a fixed single column. **Choose which fields show, reorder 
 
 ---
 
+## 🇯🇵 Japanese-aware sorting & letter sections
+Contacts sort and group the way a Japanese address book should: kana readings bucket into **gojūon rows** (あ か さ た な は ま や ら わ — voiced, semi-voiced and small kana folded into their base row), Latin names follow A–Z, and everything else lands in ＃. The provider's **phonetic reading (フリガナ)** drives it all — editable right in the contact editor — with **per-contact sort-field overrides** (reading, nickname, organization) and fully themeable **letter-section headers** (underline, dividers, padding, colors).
+
+---
+
+## 📋 詳 detail mode: last call & last message at a glance
+Flip the list into detail mode and every contact shows its **most recent call and SMS**, read straight from the system providers — numbers matched by trailing digits so country-code formats can't hide a match. Timestamps come in your choice of format: Japanese readings (午前九時), the system format, or plain 24-/12-hour clocks, with custom patterns for today / this year / older.
+
+---
+
+## 📦 Export / Import
+Category-based export to a plain-file ZIP: `settings.json` with every preference (colors, fonts, layout, options) plus your **contacts as .vcf** — pick categories on both export and import, then restore on any device in two taps.
+
+---
+
+## 🤖 Automation backup broadcast
+A token-gated, exported `BACKUP_CONTACTS` broadcast lets the companion task runner (白い熊 自由作業盤) trigger a **full .vcf backup to any absolute path** before risky system operations — and get a verified `OK:<file>` / `ERROR:<reason>` reply over a plain reply broadcast, the one ACK channel that survives EMUI's broadcast mangling. Born from a real incident: an EMUI locale switch once wiped every contact.
+
+---
+
 ## 📱 Per-contact default SIM
 On a dual-SIM phone, pin a preferred SIM to any contact: a **SIM badge** shows it right in the list, a **picker** (from the long-press menu) sets it, and a **content provider** exposes the choice so the companion dialer auto-selects the right SIM when you call.
 
@@ -37,7 +57,7 @@ Our companion Phone fork (`shiroikuma.denwa`) launches this app straight to the 
 ---
 
 ## 🧩 Side-by-side, no nags
-A distinct app id (`shiroikuma.renrakusaki`) lets this run alongside the official build. It links against a **patched Fossify Commons** (`6.1.6-sk5`) that strips upstream's anti-tamper "fake version" / sideloading dialog and adds black/yellow CAB & menu fixes — so the fork runs clean instead of nagging that it's "fake."
+A distinct app id (`shiroikuma.renrakusaki`) lets this run alongside the official build. It links against a **patched Fossify Commons** (`6.1.6-sk7`) that strips upstream's anti-tamper "fake version" / sideloading dialog and adds black/yellow CAB & menu fixes, styled toasts, and a stale-source import fallback — so the fork runs clean instead of nagging that it's "fake."
 
 ---
 
@@ -50,4 +70,4 @@ git clone https://github.com/ShiroiKuma0/shiroikuma-renrakusaki
 cd shiroikuma-renrakusaki
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew buildFoss
 ```
-Builds the signed `fossRelease` APK and copies it to `~/tmp/`. The build links against our patched Fossify Commons (`6.1.6-sk5`), published to your local Maven repo (`mavenLocal`) from the [`shiroikuma-commons`](https://github.com/ShiroiKuma0/shiroikuma-commons) fork.
+Builds the signed `fossRelease` APK and copies it to `~/tmp/`. The build links against our patched Fossify Commons (`6.1.6-sk7`), published to your local Maven repo (`mavenLocal`) from the [`shiroikuma-commons`](https://github.com/ShiroiKuma0/shiroikuma-commons) fork.

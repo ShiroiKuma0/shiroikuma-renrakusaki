@@ -4,6 +4,65 @@ This is a fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts). It
 release and layers our customizations on top; versions are `<upstream version>+<fork build>`. This
 file documents what the fork adds on top of stock — see upstream's own changelog for the base app.
 
+## [1.6.0+67] — 2026-07-23
+
+Everything added since `1.6.0+44`, still on **Fossify Contacts 1.6.0**.
+
+### Major features
+- **Japanese-aware sorting & letter sections:** sort keys starting with kana bucket into **gojūon
+  rows** (あ か さ た な は ま や ら わ — voiced, semi-voiced and small kana fold into their base
+  row, ん joins the わ row), Latin keys bucket A–Z after diacritic folding, everything else lands
+  in ＃; section order kana → A–Z → ＃. Driven by the provider's **phonetic reading (フリガナ)**,
+  loaded per refresh and editable as a proper Reading field in the contact editor.
+- **Per-contact sort-field override:** a long-press "Sort by" picker (default / reading / nickname /
+  organization), stored against the provider lookup key so it survives contact edits.
+- **詳 detail list mode:** each contact's **last call and last SMS**, read straight from the system
+  call-log and SMS providers (new `READ_CALL_LOG` / `READ_SMS` runtime permissions, requested only
+  when the mode is enabled). Numbers are matched by their trailing digits so differing country-code
+  formats still match.
+- **Configurable detail timestamps:** Japanese readings (午前九時), the system date/time format, or
+  plain 24-/12-hour clocks; non-Japanese modes prefix a numeric date on other days, with custom
+  patterns for **today / this year / older** entered via a new pattern-input dialog.
+- **Export / Import page:** category-based export to a plain-file ZIP — `settings.json` (every
+  preference, typed) and **contacts as .vcf** — with per-category selection on both sides, a
+  remembered export folder, last-export display, and a restart prompt after import.
+- **`BACKUP_CONTACTS` automation broadcast** for the companion task runner (白い熊 自由作業盤): a
+  token-gated, exported receiver runs a **full .vcf export of every contact source to any absolute
+  path** (directory or file). The backup buffers the vCards in memory first and then writes, so a
+  reported success means the file actually landed.
+
+### Automation reply channel (the EMUI saga)
+- The backup replies `OK:<absolute written file>` / `ERROR:<reason>` on **every** terminal outcome —
+  automation off, wrong token, missing/relative path, export failure, success — exactly once, via a
+  **plain reply broadcast** described by `reply_action` / `reply_package` / `reply_id` string extras
+  and answered with the echoed `reply_id` + `result`.
+- That design is the survivor of live-verified EMUI failures: EMUI **severs the ordered-broadcast
+  result channel** between third-party apps (the caller's `resultTo` is finished empty in ~10 ms
+  while a severed copy runs on the `bgthirdapp` queue), **drops any broadcast carrying a live
+  Binder** (`ResultReceiver`), and lets a `PendingIntent` reply fire into the void. `setResultData`
+  is still set for AOSP correctness.
+- Settings → **Automation** section: enable toggle, tap-to-copy / hold-to-regenerate token, and an
+  **All files access** row (`MANAGE_EXTERNAL_STORAGE`) for backup targets outside
+  Download/Documents.
+
+### UI & theming
+- **Letter-section header theming:** header color/font, vertical padding, underline color +
+  thickness, top divider color + thickness, and a group-by-letter toggle.
+- **Per-tab list colors** and a "List rows" theming group.
+- **詳 detail-line theming:** separate controls for the last-call and last-message lines.
+- **Application language** setting (in-app locale via `AppCompatDelegate.setApplicationLocales`),
+  persisted below Android 13 by the `autoStoreLocales` service.
+- "Lastname, Firstname" display option and a theme switch list row.
+
+### Fixes & behavior
+- The per-contact SIM `sim_slot` provider query **never throws** — a dialer query against a bad or
+  missing contact now returns empty instead of crashing the caller.
+
+### Packaging
+- Patched Commons pin bumped `6.1.6-sk5` → **`6.1.6-sk7`** (styled toasts, stale-source import
+  fallback).
+- New `androidx-documentfile` dependency for the export/import SAF work.
+
 ## [1.6.0+44] — 2026-06-30
 
 First published release of the fork, built on **Fossify Contacts 1.6.0**. Everything below is added
