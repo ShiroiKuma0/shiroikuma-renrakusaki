@@ -11,6 +11,7 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
+import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds
 import android.provider.ContactsContract.CommonDataKinds.Im
 import android.provider.ContactsContract.CommonDataKinds.Note
@@ -128,6 +129,11 @@ import org.fossify.contacts.helpers.ADD_NEW_CONTACT_NUMBER
 import org.fossify.contacts.helpers.IS_FROM_SIMPLE_CONTACTS
 import org.fossify.contacts.helpers.KEY_EMAIL
 import org.fossify.contacts.helpers.KEY_NAME
+import org.fossify.contacts.helpers.SORT_FIELD_DEFAULT
+import org.fossify.contacts.helpers.SORT_FIELD_NICKNAME
+import org.fossify.contacts.helpers.SORT_FIELD_ORGANIZATION
+import org.fossify.contacts.helpers.SORT_FIELD_READING
+import org.fossify.contacts.helpers.fallbackSortFieldKey
 import java.util.LinkedList
 import java.util.Locale
 
@@ -148,6 +154,12 @@ class EditContactActivity : ContactActivity() {
     private var wasActivityInitialized = false
     private var lastPhotoIntentUri: Uri? = null
     private var isSaving = false
+
+    // Fork: reading (フリガナ) + sort-field state. originalReading null = not loaded (nothing to save);
+    // pendingReading is captured on the UI thread when saving; sortFieldKey identifies the contact in Config.
+    private var originalReading: String? = null
+    private var pendingReading: String? = null
+    private var sortFieldKey = ""
     private var isThirdPartyIntent = false
     private var highlightLastPhoneNumber = false
     private var highlightLastEmail = false
@@ -563,6 +575,7 @@ class EditContactActivity : ContactActivity() {
     private fun setupEditContact() {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         setupNames()
+        setupReadingAndSortBy()
         setupPhoneNumbers()
         setupEmails()
         setupAddresses()
@@ -573,6 +586,114 @@ class EditContactActivity : ContactActivity() {
         setupEvents()
         setupGroups()
         setupContactSource()
+    }
+
+    // Fork: phonetic reading (フリガナ, provider phonetic-name columns) + per-contact sort-field
+    // override (app-side, keyed by the provider lookup key). Existing non-private contacts only —
+    // a new contact has no raw id / lookup key yet, so the rows appear once it is saved and reopened.
+    private fun setupReadingAndSortBy() {
+        val isExistingProviderContact = contact!!.id != 0 && !contact!!.isPrivate()
+        binding.contactReading.beVisibleIf(isExistingProviderContact)
+        binding.contactSortBy.beVisibleIf(isExistingProviderContact)
+        if (!isExistingProviderContact) {
+            return
+        }
+
+        val rawId = contact!!.id
+        ensureBackgroundThread {
+            loadReadingAndLookupKey(rawId)
+            runOnUiThread {
+                if (isDestroyed || isFinishing) {
+                    return@runOnUiThread
+                }
+                binding.contactReading.setText(originalReading)
+                updateSortByLabel()
+                binding.contactSortBy.setOnClickListener { showSortFieldPicker() }
+            }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught", "SwallowedException") // a failed query just leaves the row empty
+    private fun loadReadingAndLookupKey(rawId: Int) {
+        sortFieldKey = fallbackSortFieldKey(contact!!.contactId)
+        originalReading = ""
+        val projection = arrayOf(
+            ContactsContract.Data.LOOKUP_KEY,
+            StructuredName.PHONETIC_FAMILY_NAME,
+            StructuredName.PHONETIC_MIDDLE_NAME,
+            StructuredName.PHONETIC_GIVEN_NAME,
+        )
+        val selection = "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
+        val args = arrayOf(rawId.toString(), StructuredName.CONTENT_ITEM_TYPE)
+        try {
+            contentResolver.query(ContactsContract.Data.CONTENT_URI, projection, selection, args, null)
+                ?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        cursor.getString(0)?.let { sortFieldKey = it }
+                        originalReading = listOfNotNull(cursor.getString(1), cursor.getString(2), cursor.getString(3))
+                            .filter { it.isNotEmpty() }
+                            .joinToString(" ")
+                    }
+                }
+        } catch (e: Exception) {
+            return
+        }
+    }
+
+    private fun sortFieldLabel(value: Int) = when (value) {
+        SORT_FIELD_READING -> R.string.sort_field_reading
+        SORT_FIELD_NICKNAME -> R.string.sort_field_nickname
+        SORT_FIELD_ORGANIZATION -> R.string.sort_field_organization
+        else -> R.string.sort_field_default
+    }
+
+    private fun updateSortByLabel() {
+        val current = getString(sortFieldLabel(config.getSortField(sortFieldKey)))
+        binding.contactSortBy.text = "${getString(R.string.sort_by_field)}: $current"
+    }
+
+    private fun showSortFieldPicker() {
+        val items = arrayListOf(
+            RadioItem(SORT_FIELD_DEFAULT, getString(R.string.sort_field_default)),
+            RadioItem(SORT_FIELD_READING, getString(R.string.sort_field_reading)),
+            RadioItem(SORT_FIELD_NICKNAME, getString(R.string.sort_field_nickname)),
+            RadioItem(SORT_FIELD_ORGANIZATION, getString(R.string.sort_field_organization)),
+        )
+        RadioGroupDialog(this, items, config.getSortField(sortFieldKey)) {
+            config.setSortField(sortFieldKey, it as Int)
+            config.contactsListRevision += 1
+            updateSortByLabel()
+        }
+    }
+
+    // Persist the reading into the provider's phonetic-name columns (family / middle / given from the
+    // whitespace-separated parts). Runs on the save background thread, after the contact update itself.
+    @Suppress("TooGenericExceptionCaught", "SwallowedException") // reading failures must not block the save
+    private fun savePhoneticReading() {
+        val reading = pendingReading?.trim() ?: return
+        if (originalReading == null || reading == originalReading) {
+            return
+        }
+
+        val tokens = reading.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val middle = if (tokens.size >= 3) tokens.subList(1, tokens.size - 1).joinToString(" ") else ""
+        val values = ContentValues().apply {
+            put(StructuredName.PHONETIC_FAMILY_NAME, tokens.firstOrNull().orEmpty())
+            put(StructuredName.PHONETIC_MIDDLE_NAME, middle)
+            put(StructuredName.PHONETIC_GIVEN_NAME, if (tokens.size >= 2) tokens.last() else "")
+        }
+        val selection = "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
+        val args = arrayOf(contact!!.id.toString(), StructuredName.CONTENT_ITEM_TYPE)
+        try {
+            val updated = contentResolver.update(ContactsContract.Data.CONTENT_URI, values, selection, args)
+            if (updated == 0) {
+                values.put(ContactsContract.Data.RAW_CONTACT_ID, contact!!.id)
+                values.put(ContactsContract.Data.MIMETYPE, StructuredName.CONTENT_ITEM_TYPE)
+                contentResolver.insert(ContactsContract.Data.CONTENT_URI, values)
+            }
+        } catch (e: Exception) {
+            return
+        }
     }
 
     private fun setupNames() {
@@ -1193,6 +1314,7 @@ class EditContactActivity : ContactActivity() {
         val primaryState = Pair(oldPrimary, newPrimary)
 
         contact = contactValues
+        pendingReading = if (binding.contactReading.isVisible()) binding.contactReading.value else null
 
         ensureBackgroundThread {
             config.lastUsedContactSource = contact!!.source
@@ -1400,6 +1522,7 @@ class EditContactActivity : ContactActivity() {
     private fun updateContact(photoUpdateStatus: Int, primaryState: Pair<PhoneNumber?, PhoneNumber?>) {
         isSaving = true
         if (ContactsHelper(this@EditContactActivity).updateContact(contact!!, photoUpdateStatus)) {
+            savePhoneticReading()
             val status = getPrimaryNumberStatus(primaryState.first, primaryState.second)
             if (status != PrimaryNumberStatus.UNCHANGED) {
                 updateDefaultNumberForDuplicateContacts(primaryState, status) {

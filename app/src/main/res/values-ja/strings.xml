@@ -1,6 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_launcher_name">白い熊 連絡先</string>
+    <!-- Export / Import (kojiki-style category export: settings + fonts + contacts) -->
+    <string name="eim_title">エクスポート / インポート</string>
+    <string name="eim_dir">エクスポート先フォルダー</string>
+    <string name="eim_dir_unset">未設定 — タップして選択</string>
+    <string name="eim_last">最終エクスポート</string>
+    <string name="eim_none">まだありません</string>
+    <string name="eim_select_all">すべて選択</string>
+    <string name="eim_cat_settings">設定 — 色・フォント・レイアウト・オプション</string>
+    <string name="eim_cat_contacts">連絡先（.vcf）</string>
+    <string name="eim_export">エクスポート</string>
+    <string name="eim_import">インポート…</string>
+    <string name="eim_none_selected">何も選択されていません</string>
+    <string name="eim_export_ok">エクスポート完了: %s</string>
+    <string name="eim_export_fail">エクスポート失敗: %s</string>
+    <string name="eim_import_fail">インポート失敗: %s</string>
+    <string name="eim_import_none">既知のカテゴリがファイルにありません</string>
+    <string name="eim_import_done">インポート完了 — %s。すべて適用するには再起動してください。</string>
+    <string name="eim_restart_now">今すぐ再起動</string>
+    <string name="eim_restart_later">後で</string>
+    <string name="eim_vcf_group">VCF</string>
+    <!-- Automation intents (token-gated on-demand backup for the jiyusagyoban fork) -->
+    <string name="automation">自動化</string>
+    <string name="enable_automation">自動化インテントを許可</string>
+    <string name="automation_token">自動化トークン — タップでコピー、長押しで再生成</string>
+    <string name="automation_token_regenerated">トークンを再生成しました</string>
+    <string name="all_files_access">全ファイルアクセス — Download/Documents 以外へのバックアップ用</string>
+    <string name="all_files_access_granted">許可済み</string>
+    <string name="all_files_access_needed">未許可 — タップして許可</string>
     <string name="address">住所</string>
     <string name="inserting">挿入しています…</string>
     <string name="updating">更新しています…</string>
@@ -89,7 +117,7 @@
     <string name="theme_group_search">検索バー</string>
     <string name="theme_group_tabs">タブ</string>
     <string name="theme_group_topbar">上部バー</string>
-    <string name="theme_group_lists">連絡先リスト</string>
+    <string name="theme_group_lists">リストの色（タブ別）</string>
     <!-- サブグループ（リストのタブ名としても使用） -->
     <string name="theme_group_contacts">連絡先</string>
     <string name="theme_group_favorites">お気に入り</string>
@@ -140,9 +168,19 @@
     <string name="font_weight_black">極太 (900)</string>
 
     <!-- 白い熊 連絡先 UI: 設定可能な連絡先リストの行 -->
+    <string name="theme_app_language">アプリの言語</string>
+    <string name="language_system_default">端末の言語に従う</string>
     <string name="ui_settings_title">白い熊 連絡先 UI</string>
     <string name="theme_slot_column_buttons">列数ボタン (一 二 三 四)</string>
-    <string name="theme_group_rows">連絡先リスト</string>
+    <string name="theme_group_rows">リストの行</string>
+    <string name="theme_sections_group">頭文字セクション</string>
+    <string name="theme_sections_enabled">頭文字で分類</string>
+    <string name="theme_sections_header">セクション見出し</string>
+    <string name="theme_sections_padding">見出しの上下余白</string>
+    <string name="theme_sections_underline_thickness">下線の太さ</string>
+    <string name="theme_sections_underline">下線の色</string>
+    <string name="theme_sections_divider_thickness">上区切り線の太さ</string>
+    <string name="theme_sections_divider">上区切り線の色</string>
     <string name="theme_rows_layout">間隔と区切り線</string>
     <string name="theme_rows_spacing">連絡先の間隔</string>
     <string name="theme_rows_divider_thickness">横の区切り線の太さ</string>
@@ -154,6 +192,18 @@
     <string name="theme_rows_spacer_group">列の区切り</string>
     <string name="theme_rows_spacer_text">区切り文字</string>
     <string name="theme_rows_spacer">区切り</string>
+    <string name="detail_mode">詳</string>
+    <string name="theme_detail_group">詳の行</string>
+    <string name="theme_detail_call">最終通話の行</string>
+    <string name="theme_detail_sms">最終メッセージの行</string>
+    <string name="detail_time_format">時刻の形式</string>
+    <string name="detail_pattern_today">今日の形式</string>
+    <string name="detail_pattern_this_year">今年の形式</string>
+    <string name="detail_pattern_older">それ以前の形式</string>
+    <string name="time_format_japanese">和式（午前九時）</string>
+    <string name="time_format_system">端末の形式</string>
+    <string name="time_format_24">24時間</string>
+    <string name="time_format_12">12時間</string>
     <string name="theme_rows_order">表示する項目と順序</string>
     <string name="theme_rows_styling">項目のスタイル</string>
     <string name="move_field_left">左へ</string>
@@ -161,8 +211,15 @@
     <string name="reorder">並べ替え</string>
 
     <!-- 連絡先リストの項目名 -->
+    <string name="field_reading">フリガナ</string>
+    <string name="sort_by_field">並べ替え基準</string>
+    <string name="sort_field_default">既定</string>
+    <string name="sort_field_reading">フリガナ</string>
+    <string name="sort_field_nickname">ニックネーム</string>
+    <string name="sort_field_organization">組織</string>
     <string name="field_display_name">名前</string>
     <string name="field_prefix">敬称（前）</string>
+    <string name="field_surname_first">姓、名</string>
     <string name="field_first_name">名</string>
     <string name="field_middle_name">ミドルネーム</string>
     <string name="field_surname">姓</string>

@@ -180,6 +180,41 @@
                 android:textCursorDrawable="@null"
                 android:textSize="@dimen/bigger_text_size" />
 
+            <!-- Fork: phonetic reading (フリガナ), stored in the provider's phonetic-name columns.
+                 Shown only when editing an existing non-private contact (set at bind time). -->
+            <org.fossify.commons.views.MyEditText
+                android:id="@+id/contact_reading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/contact_nickname"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="@dimen/activity_margin"
+                android:layout_marginBottom="@dimen/medium_margin"
+                android:layout_toEndOf="@+id/contact_name_image"
+                android:hint="@string/field_reading"
+                android:inputType="text"
+                android:lines="1"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textCursorDrawable="@null"
+                android:textSize="@dimen/bigger_text_size"
+                android:visibility="gone" />
+
+            <!-- Fork: which field this contact sorts/buckets by in the grouped list (app-side setting). -->
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/contact_sort_by"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/contact_reading"
+                android:layout_marginEnd="@dimen/activity_margin"
+                android:layout_marginBottom="@dimen/medium_margin"
+                android:layout_toEndOf="@+id/contact_name_image"
+                android:background="?attr/selectableItemBackground"
+                android:paddingVertical="@dimen/small_margin"
+                android:textSize="@dimen/bigger_text_size"
+                android:visibility="gone"
+                tools:text="Sort by: Default" />
+
             <ImageView
                 android:id="@+id/contact_numbers_image"
                 android:layout_width="@dimen/contact_icons_size"
@@ -196,7 +231,7 @@
                 android:id="@+id/contact_numbers_holder"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@+id/contact_nickname"
+                android:layout_below="@+id/contact_sort_by"
                 android:layout_marginBottom="@dimen/small_margin"
                 android:layout_toEndOf="@+id/contact_numbers_image"
                 android:orientation="vertical">

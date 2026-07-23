@@ -1,6 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_launcher_name">白い熊 連絡先</string>
+    <!-- Export / Import (kojiki-style category export: settings + fonts + contacts) -->
+    <string name="eim_title">Export / Import</string>
+    <string name="eim_dir">Export folder</string>
+    <string name="eim_dir_unset">Not set — tap to choose</string>
+    <string name="eim_last">Last export</string>
+    <string name="eim_none">none yet</string>
+    <string name="eim_select_all">Select all</string>
+    <string name="eim_cat_settings">Settings — colors, fonts, layout, options</string>
+    <string name="eim_cat_contacts">Contacts (.vcf)</string>
+    <string name="eim_export">Export</string>
+    <string name="eim_import">Import…</string>
+    <string name="eim_none_selected">Nothing selected</string>
+    <string name="eim_export_ok">Exported: %s</string>
+    <string name="eim_export_fail">Export failed: %s</string>
+    <string name="eim_import_fail">Import failed: %s</string>
+    <string name="eim_import_none">No known categories in the file</string>
+    <string name="eim_import_done">Import finished — %s. Restart to apply everything.</string>
+    <string name="eim_restart_now">Restart now</string>
+    <string name="eim_restart_later">Later</string>
+    <string name="eim_vcf_group">VCF</string>
+    <!-- Automation intents (token-gated on-demand backup for the jiyusagyoban fork) -->
+    <string name="automation">Automation</string>
+    <string name="enable_automation">Allow automation intents</string>
+    <string name="automation_token">Automation token — tap to copy, hold to regenerate</string>
+    <string name="automation_token_regenerated">Token regenerated</string>
+    <string name="all_files_access">All files access — for backups outside Download/Documents</string>
+    <string name="all_files_access_granted">Granted</string>
+    <string name="all_files_access_needed">Not granted — tap to allow</string>
     <!-- Per-contact default SIM (used by the Phone fork, incl. Android Auto) -->
     <string name="set_default_sim">Set default SIM for contact</string>
     <string name="sim_slot_1">SIM 1</string>
@@ -115,7 +143,7 @@
     <string name="theme_group_search">Search bar</string>
     <string name="theme_group_tabs">Tabs</string>
     <string name="theme_group_topbar">Top bar</string>
-    <string name="theme_group_lists">Contact lists</string>
+    <string name="theme_group_lists">List colors (per tab)</string>
     <!-- Subgroups (also reused as list-tab names) -->
     <string name="theme_group_contacts">Contacts</string>
     <string name="theme_group_favorites">Favorites</string>
@@ -169,9 +197,19 @@
     <string name="faq_1_title">I want to change what fields are visible at contacts. Can I do it?</string>
     <string name="faq_1_text">Yes, all you have to do is go in Settings -> Manage shown contact fields. There you can select what fields should be visible. Some of them are even disabled by default, so you might find some new ones there.</string>
     <!-- 白い熊 連絡先 UI: configurable contacts-list rows -->
+    <string name="theme_app_language">Application language</string>
+    <string name="language_system_default">System default (phone locale)</string>
     <string name="ui_settings_title">白い熊 連絡先 UI</string>
     <string name="theme_slot_column_buttons">Per-row buttons (一 二 三 四)</string>
-    <string name="theme_group_rows">Contacts\' list</string>
+    <string name="theme_group_rows">List rows</string>
+    <string name="theme_sections_group">Letter sections</string>
+    <string name="theme_sections_enabled">Group by letter</string>
+    <string name="theme_sections_header">Section header</string>
+    <string name="theme_sections_padding">Header vertical padding</string>
+    <string name="theme_sections_underline_thickness">Underline thickness</string>
+    <string name="theme_sections_underline">Underline color</string>
+    <string name="theme_sections_divider_thickness">Top divider thickness</string>
+    <string name="theme_sections_divider">Top divider color</string>
     <string name="theme_rows_layout">Spacing &amp; divider</string>
     <string name="theme_rows_spacing">Spacing between contacts</string>
     <string name="theme_rows_divider_thickness">Horizontal divider thickness</string>
@@ -183,6 +221,18 @@
     <string name="theme_rows_spacer_group">Column spacer</string>
     <string name="theme_rows_spacer_text">Spacer text</string>
     <string name="theme_rows_spacer">Spacer</string>
+    <string name="detail_mode">詳 (detail)</string>
+    <string name="theme_detail_group">詳 detail lines</string>
+    <string name="theme_detail_call">Last call line</string>
+    <string name="theme_detail_sms">Last message line</string>
+    <string name="detail_time_format">Time format</string>
+    <string name="detail_pattern_today">Today\u2019s format</string>
+    <string name="detail_pattern_this_year">This year\u2019s format</string>
+    <string name="detail_pattern_older">Older format</string>
+    <string name="time_format_japanese">Japanese (午前九時)</string>
+    <string name="time_format_system">System</string>
+    <string name="time_format_24">24-hour</string>
+    <string name="time_format_12">12-hour</string>
     <string name="theme_rows_order">Displayed fields &amp; order</string>
     <string name="theme_rows_styling">Field styling</string>
     <string name="move_field_left">Move left</string>
@@ -190,8 +240,15 @@
     <string name="reorder">Reorder</string>
 
     <!-- Contacts-list field labels -->
+    <string name="field_reading">Reading (フリガナ)</string>
+    <string name="sort_by_field">Sort by</string>
+    <string name="sort_field_default">Default</string>
+    <string name="sort_field_reading">Reading</string>
+    <string name="sort_field_nickname">Nickname</string>
+    <string name="sort_field_organization">Organization</string>
     <string name="field_display_name">Name</string>
     <string name="field_prefix">Prefix</string>
+    <string name="field_surname_first">Lastname, Firstname</string>
     <string name="field_first_name">First name</string>
     <string name="field_middle_name">Middle name</string>
     <string name="field_surname">Surname</string>

@@ -20,14 +20,17 @@ import org.fossify.contacts.helpers.THEME_UNSET
 // only diverges once the user gives it an explicit override (stored as an Int; THEME_UNSET means
 // "follow the default"). The default look is seeded to black background + yellow text/accents.
 
-// A top-level section in the Theme screen (large accent header + full-width rule).
+// A top-level section in the Theme screen (large accent header + full-width rule). Declaration order
+// is the page order: chrome first (foundation, search, tabs, top bar), then the Contacts-tab letter
+// sections, then the shared row layout, then the per-tab list colors.
 enum class ThemeGroup(@StringRes val labelRes: Int) {
     FOUNDATION(R.string.theme_group_foundation),
     SEARCH(R.string.theme_group_search),
     TABS(R.string.theme_group_tabs),
     TOPBAR(R.string.theme_group_topbar),
-    LISTS(R.string.theme_group_lists),
+    SECTIONS(R.string.theme_sections_group),
     ROWS(R.string.theme_group_rows),
+    LISTS(R.string.theme_group_lists),
 }
 
 enum class ThemeSlot(
@@ -102,6 +105,7 @@ enum class ThemeSlot(
     // Contacts'-list row fields — one styling slot per RowField (font / weight / size / color), shared by
     // all three contact lists. Rendered specially in ThemeActivity (only enabled fields show a control).
     ROW_DISPLAY_NAME("row_display_name", ThemeGroup.ROWS, R.string.field_display_name, hasFont = true),
+    ROW_SURNAME_FIRST("row_surname_first", ThemeGroup.ROWS, R.string.field_surname_first, hasFont = true),
     ROW_PREFIX("row_prefix", ThemeGroup.ROWS, R.string.field_prefix, hasFont = true),
     ROW_FIRST_NAME("row_first_name", ThemeGroup.ROWS, R.string.field_first_name, hasFont = true),
     ROW_MIDDLE_NAME("row_middle_name", ThemeGroup.ROWS, R.string.field_middle_name, hasFont = true),
@@ -130,8 +134,17 @@ enum class ThemeSlot(
     CONTACT_DIVIDER("contacts_list_divider", ThemeGroup.ROWS, R.string.theme_slot_divider),
     CONTACT_VDIVIDER("contacts_list_vdivider", ThemeGroup.ROWS, R.string.theme_slot_vdivider),
 
+    // Letter sections on the Contacts tab: the big header letter, its underline, and the framing divider.
+    SECTION_HEADER("contacts_section_header", ThemeGroup.SECTIONS, R.string.theme_sections_header, hasFont = true),
+    SECTION_UNDERLINE("contacts_section_underline", ThemeGroup.SECTIONS, R.string.theme_sections_underline),
+    SECTION_DIVIDER("contacts_section_divider", ThemeGroup.SECTIONS, R.string.theme_sections_divider),
+
     // The separator text shown between two fields that share a line (a moved-right column).
     COLUMN_SPACER("contacts_list_column_spacer", ThemeGroup.ROWS, R.string.theme_rows_spacer, hasFont = true),
+
+    // The 詳 detail-mode info lines (last call / last message) appended under a contact's fields.
+    DETAIL_CALL("detail_call_line", ThemeGroup.ROWS, R.string.theme_detail_call, hasFont = true),
+    DETAIL_SMS("detail_sms_line", ThemeGroup.ROWS, R.string.theme_detail_sms, hasFont = true),
 }
 
 // Alpha factors for the muted (inherited) defaults.
@@ -187,8 +200,9 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.GROUP_FASTSCROLLER -> themeColor(ThemeSlot.PRIMARY)
 
     // Contacts'-list row fields: name-like fields read as primary text, the rest as muted secondary text.
-    ThemeSlot.ROW_DISPLAY_NAME, ThemeSlot.ROW_PREFIX, ThemeSlot.ROW_FIRST_NAME, ThemeSlot.ROW_MIDDLE_NAME,
-    ThemeSlot.ROW_SURNAME, ThemeSlot.ROW_SUFFIX, ThemeSlot.ROW_NICKNAME -> themeColor(ThemeSlot.TEXT)
+    ThemeSlot.ROW_DISPLAY_NAME, ThemeSlot.ROW_SURNAME_FIRST, ThemeSlot.ROW_PREFIX, ThemeSlot.ROW_FIRST_NAME,
+    ThemeSlot.ROW_MIDDLE_NAME, ThemeSlot.ROW_SURNAME, ThemeSlot.ROW_SUFFIX, ThemeSlot.ROW_NICKNAME ->
+        themeColor(ThemeSlot.TEXT)
 
     ThemeSlot.ROW_PHONE, ThemeSlot.ROW_EMAIL, ThemeSlot.ROW_ADDRESS, ThemeSlot.ROW_ADDRESS_STREET,
     ThemeSlot.ROW_ADDRESS_CITY, ThemeSlot.ROW_ADDRESS_REGION, ThemeSlot.ROW_ADDRESS_POSTCODE,
@@ -199,6 +213,11 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.CONTACT_DIVIDER -> themeColor(ThemeSlot.TEXT_SECONDARY)
     ThemeSlot.CONTACT_VDIVIDER -> themeColor(ThemeSlot.TEXT_SECONDARY)
     ThemeSlot.COLUMN_SPACER -> themeColor(ThemeSlot.TEXT_SECONDARY)
+    ThemeSlot.DETAIL_CALL, ThemeSlot.DETAIL_SMS -> themeColor(ThemeSlot.TEXT_SECONDARY)
+
+    // Letter sections read as accents (yellow on the default palette), like denwa's date headers.
+    ThemeSlot.SECTION_HEADER, ThemeSlot.SECTION_UNDERLINE, ThemeSlot.SECTION_DIVIDER ->
+        themeColor(ThemeSlot.PRIMARY)
 }
 
 /** Set an explicit override for a slot. Foundation slots write through to the stock commons colors. */

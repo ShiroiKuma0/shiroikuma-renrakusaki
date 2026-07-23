@@ -1,36 +1,22 @@
 package org.fossify.contacts.activities
 
-import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
-import org.fossify.commons.dialogs.FilePickerDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.*
 import org.fossify.commons.models.RadioItem
 import org.fossify.contacts.R
 import org.fossify.contacts.databinding.ActivitySettingsBinding
-import org.fossify.contacts.dialogs.ExportContactsDialog
 import org.fossify.contacts.dialogs.ManageAutoBackupsDialog
 import org.fossify.contacts.dialogs.ManageVisibleFieldsDialog
 import org.fossify.contacts.dialogs.ManageVisibleTabsDialog
 import org.fossify.contacts.extensions.*
-import org.fossify.contacts.helpers.VcfExporter
-import java.io.OutputStream
 import java.util.Locale
 import kotlin.system.exitProcess
 
 class SettingsActivity : SimpleActivity() {
-    companion object {
-        private const val PICK_IMPORT_SOURCE_INTENT = 1
-        private const val PICK_EXPORT_FILE_INTENT = 2
-    }
-
     private val binding by viewBinding(ActivitySettingsBinding::inflate)
-
-    private var ignoredExportContactSources = HashSet<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,8 +51,6 @@ class SettingsActivity : SimpleActivity() {
         setupDefaultTab()
         setupEnableAutomaticBackups()
         setupManageAutomaticBackups()
-        setupExportContacts()
-        setupImportContacts()
         updateTextColors(binding.settingsHolder)
 
         arrayOf(
@@ -74,8 +58,7 @@ class SettingsActivity : SimpleActivity() {
             binding.settingsGeneralSettingsLabel,
             binding.settingsMainScreenLabel,
             binding.settingsListViewLabel,
-            binding.settingsBackupsLabel,
-            binding.settingsMigratingLabel
+            binding.settingsBackupsLabel
         ).forEach {
             it.setTextColor(getProperPrimaryColor())
         }
@@ -309,113 +292,4 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsManageAutomaticBackupsHolder.beVisibleIf(enable)
     }
 
-    private fun setupExportContacts() {
-        binding.contactsExportHolder.setOnClickListener {
-            tryExportContacts()
-        }
-    }
-
-    private fun setupImportContacts() {
-        binding.contactsImportHolder.setOnClickListener {
-            tryImportContacts()
-        }
-    }
-
-    private fun tryImportContacts() {
-        if (isQPlus()) {
-            Intent(Intent.ACTION_GET_CONTENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "text/x-vcard"
-
-                try {
-                    startActivityForResult(this, PICK_IMPORT_SOURCE_INTENT)
-                } catch (e: ActivityNotFoundException) {
-                    toast(org.fossify.commons.R.string.system_service_disabled, Toast.LENGTH_LONG)
-                } catch (e: Exception) {
-                    showErrorToast(e)
-                }
-            }
-        } else {
-            handlePermission(PERMISSION_READ_STORAGE) {
-                if (it) {
-                    importContacts()
-                }
-            }
-        }
-    }
-
-    private fun importContacts() {
-        FilePickerDialog(this) {
-            showImportContactsDialog(it) {}
-        }
-    }
-
-    private fun tryExportContacts() {
-        if (isQPlus()) {
-            ExportContactsDialog(this, config.lastExportPath, true) { file, ignoredContactSources ->
-                ignoredExportContactSources = ignoredContactSources
-
-                Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                    type = "text/x-vcard"
-                    putExtra(Intent.EXTRA_TITLE, file.name)
-                    addCategory(Intent.CATEGORY_OPENABLE)
-
-                    try {
-                        startActivityForResult(this, PICK_EXPORT_FILE_INTENT)
-                    } catch (e: ActivityNotFoundException) {
-                        toast(org.fossify.commons.R.string.no_app_found, Toast.LENGTH_LONG)
-                    } catch (e: Exception) {
-                        showErrorToast(e)
-                    }
-                }
-            }
-        } else {
-            handlePermission(PERMISSION_WRITE_STORAGE) {
-                if (it) {
-                    ExportContactsDialog(this, config.lastExportPath, false) { file, ignoredContactSources ->
-                        getFileOutputStream(file.toFileDirItem(this), true) {
-                            exportContactsTo(ignoredContactSources, it)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun exportContactsTo(ignoredContactSources: HashSet<String>, outputStream: OutputStream?) {
-        ContactsHelper(this).getContacts(true, false, ignoredContactSources) { contacts ->
-            if (contacts.isEmpty()) {
-                toast(org.fossify.commons.R.string.no_entries_for_exporting)
-            } else {
-                VcfExporter().exportContacts(
-                    context = this,
-                    outputStream = outputStream,
-                    contacts = contacts,
-                    showExportingToast = true
-                ) { result ->
-                    toast(
-                        when (result) {
-                            VcfExporter.ExportResult.EXPORT_OK -> org.fossify.commons.R.string.exporting_successful
-                            VcfExporter.ExportResult.EXPORT_PARTIAL -> org.fossify.commons.R.string.exporting_some_entries_failed
-                            else -> org.fossify.commons.R.string.exporting_failed
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
-        super.onActivityResult(requestCode, resultCode, resultData)
-        if (requestCode == PICK_IMPORT_SOURCE_INTENT && resultCode == Activity.RESULT_OK && resultData?.data != null) {
-            tryImportContactsFromFile(resultData.data!!) {}
-        } else if (requestCode == PICK_EXPORT_FILE_INTENT && resultCode == Activity.RESULT_OK && resultData?.data != null) {
-            try {
-                val outputStream = contentResolver.openOutputStream(resultData.data!!)
-                exportContactsTo(ignoredExportContactSources, outputStream)
-            } catch (e: Exception) {
-                showErrorToast(e)
-            }
-        }
-    }
 }

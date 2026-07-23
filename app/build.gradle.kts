@@ -183,6 +183,7 @@ tasks.register("buildFoss") {
 dependencies {
     implementation(libs.fossify.commons)
     implementation(libs.androidx.swiperefreshlayout)
+    implementation(libs.androidx.documentfile)
     implementation(libs.autofittextview)
     implementation(libs.ezvcard)
     implementation(libs.indicatorfastscroll)

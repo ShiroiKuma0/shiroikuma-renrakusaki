@@ -5,11 +5,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
+import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
 import android.telephony.PhoneNumberUtils
+import android.text.Spannable
+import android.text.SpannableString
 import android.text.TextUtils
+import android.text.style.ForegroundColorSpan
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.Menu
@@ -54,7 +58,10 @@ import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.helpers.*
 import org.fossify.contacts.interfaces.RefreshContactsListener
 import org.fossify.contacts.interfaces.RemoveFromGroupListener
+import org.fossify.contacts.models.ContactSection
+import java.text.Collator
 import java.util.Collections
+import java.util.Locale
 
 class ContactsAdapter(
     activity: SimpleActivity,
@@ -67,13 +74,22 @@ class ContactsAdapter(
     private val removeListener: RemoveFromGroupListener?,
     private val enableDrag: Boolean = false,
     itemClick: (Any) -> Unit,
-    private val profileIconClick: ((Any) -> Unit)? = null
+    private val profileIconClick: ((Any) -> Unit)? = null,
+    // Letter sections (grouped, foldable) — Contacts tab only; the pickers and Favorites stay flat.
+    private val groupBySections: Boolean = false,
+    // 詳 detail mode — single column, rows get last-call / last-SMS lines appended.
+    private val detailMode: Boolean = false
 ) : MyRecyclerViewAdapter(activity, recyclerView, itemClick), RecyclerViewFastScroller.OnPopupTextUpdate, ItemTouchHelperContract {
 
     private val NEW_GROUP_ID = -1
 
     private var config = activity.config
     private var textToHighlight = highlightText
+
+    // What the RecyclerView actually shows: contacts, interleaved with ContactSection headers in grouped
+    // mode. [cellInfos] mirrors it position-for-position with each contact row's grid cell (null = header).
+    private var displayItems = ArrayList<Any>()
+    private var cellInfos = ArrayList<RowCell?>()
 
     var startNameWithSurname = config.startNameWithSurname
     var showContactThumbnails = config.showContactThumbnails
@@ -92,6 +108,7 @@ class ContactsAdapter(
     private var startReorderDragListener: StartReorderDragListener? = null
 
     init {
+        rebuildDisplayList()
         setupDragListener(true)
         setupRowDecoration()
 
@@ -153,11 +170,11 @@ class ContactsAdapter(
 
     override fun getSelectableItemCount() = contactItems.size
 
-    override fun getIsItemSelectable(position: Int) = true
+    override fun getIsItemSelectable(position: Int) = displayItems.getOrNull(position) is Contact
 
-    override fun getItemSelectionKey(position: Int) = contactItems.getOrNull(position)?.id
+    override fun getItemSelectionKey(position: Int) = (displayItems.getOrNull(position) as? Contact)?.id
 
-    override fun getItemKeyPosition(key: Int) = contactItems.indexOfFirst { it.id == key }
+    override fun getItemKeyPosition(key: Int) = displayItems.indexOfFirst { (it as? Contact)?.id == key }
 
     override fun onActionModeCreated() {
         notifyDataSetChanged()
@@ -169,6 +186,8 @@ class ContactsAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val layout = when (viewType) {
+            VIEW_TYPE_SECTION -> R.layout.item_contact_section
+
             VIEW_TYPE_GRID -> {
                 if (showPhoneNumbers) org.fossify.commons.R.layout.item_contact_with_number_grid else org.fossify.commons.R.layout.item_contact_without_number_grid
             }
@@ -181,19 +200,31 @@ class ContactsAdapter(
     }
 
     override fun getItemViewType(position: Int): Int {
-        return viewType
+        return if (displayItems.getOrNull(position) is ContactSection) VIEW_TYPE_SECTION else viewType
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val contact = contactItems[position]
-        val allowLongClick = location != LOCATION_INSERT_OR_EDIT
-        holder.bindView(contact, true, allowLongClick) { itemView, layoutPosition ->
-            setupView(itemView, contact, holder)
+        when (val item = displayItems[position]) {
+            is ContactSection -> {
+                bindSectionView(holder.itemView, item)
+                // MyRecyclerView's drag-select resolves positions via itemView.tag — every row needs it.
+                bindViewHolder(holder)
+            }
+
+            is Contact -> {
+                val allowLongClick = location != LOCATION_INSERT_OR_EDIT
+                holder.bindView(item, true, allowLongClick) { itemView, layoutPosition ->
+                    setupView(itemView, item, holder)
+                }
+                bindViewHolder(holder)
+            }
         }
-        bindViewHolder(holder)
     }
 
-    override fun getItemCount() = contactItems.size
+    override fun getItemCount() = displayItems.size
+
+    /** Whether the display position holds a section header (full-width in the grid). */
+    fun isSectionAt(position: Int) = displayItems.getOrNull(position) is ContactSection
 
     private fun getItemWithKey(key: Int): Contact? = contactItems.firstOrNull { it.id == key }
 
@@ -201,12 +232,175 @@ class ContactsAdapter(
         if (newItems.hashCode() != contactItems.hashCode()) {
             contactItems = newItems.toMutableList()
             textToHighlight = highlightText
+            rebuildDisplayList()
             notifyDataSetChanged()
             finishActMode()
         } else if (textToHighlight != highlightText) {
             textToHighlight = highlightText
+            rebuildDisplayList()
             notifyDataSetChanged()
         }
+    }
+
+    // Rebuild the flattened display list (and each row's grid cell) from the contacts. In grouped mode
+    // contacts bucket under per-letter headers in their incoming (sorted) order; folded sections keep
+    // only their header. While searching every section shows, so matches are never hidden by fold state.
+    private fun rebuildDisplayList() {
+        val items = ArrayList<Any>(contactItems.size)
+        val cells = ArrayList<RowCell?>(contactItems.size)
+        val columns = if (location == LOCATION_CONTACTS_TAB && !detailMode) config.contactsListColumns else 1
+
+        if (!groupBySections) {
+            contactItems.forEachIndexed { index, contact ->
+                items.add(contact)
+                cells.add(cellFor(index, contactItems.size, columns))
+            }
+        } else {
+            // Order by section rank (kana rows あ〜わ, then A–Z, then ＃), then Japanese collation of
+            // the kana-folded key — so readings and Latin names interleave correctly within a section.
+            val collator = Collator.getInstance(Locale.JAPANESE)
+            val keyed = contactItems.map { it to effectiveSortKey(it) }.sortedWith(
+                compareBy<Pair<Contact, String>> { sectionRank(sectionTitleForSortKey(it.second)) }
+                    .then(compareBy(collator) { foldKana(it.second) })
+            )
+
+            val sections = LinkedHashMap<String, MutableList<Contact>>()
+            keyed.forEach { (contact, key) ->
+                sections.getOrPut(sectionTitleForSortKey(key)) { mutableListOf() }.add(contact)
+            }
+
+            val expandedTitles = config.expandedContactSections
+            val searching = textToHighlight.isNotEmpty()
+            var previousExpanded = false
+            sections.forEach { (title, members) ->
+                val expanded = searching || expandedTitles.contains(title)
+                items.add(ContactSection(title, members.size, expanded, showTopDivider = expanded || previousExpanded))
+                cells.add(null)
+                if (expanded) {
+                    members.forEachIndexed { index, contact ->
+                        items.add(contact)
+                        cells.add(cellFor(index, members.size, columns, grouped = true))
+                    }
+                }
+                previousExpanded = expanded
+            }
+
+            // An open section at the very bottom has no following header to close it — mark its last
+            // row so the decoration draws the closing full-width line there.
+            if (previousExpanded) {
+                for (i in cells.indices.reversed()) {
+                    val cell = cells[i] ?: break
+                    if (!cell.lastRow) {
+                        break
+                    }
+                    cells[i] = cell.copy(sectionClose = true)
+                }
+            }
+        }
+
+        displayItems = items
+        cellInfos = cells
+    }
+
+    private fun cellFor(index: Int, sectionSize: Int, columns: Int, grouped: Boolean = false): RowCell {
+        val lastRowStart = ((sectionSize + columns - 1) / columns - 1) * columns
+        return RowCell(
+            column = index % columns,
+            lastRow = index >= lastRowStart,
+            // Only grouped sections draw the row gap + divider above their first row (below the header);
+            // the flat list keeps its edge-to-edge start.
+            firstRow = grouped && index < columns,
+        )
+    }
+
+    // The name the global sort setting points at — the same derivation the letter fast-scroller uses.
+    private fun sortNameFor(contact: Contact): String {
+        val sorting = config.sorting
+        val name = when {
+            contact.isABusinessContact() -> contact.getFullCompany()
+            sorting and SORT_BY_SURNAME != 0 && contact.surname.isNotEmpty() -> contact.surname
+            sorting and SORT_BY_MIDDLE_NAME != 0 && contact.middleName.isNotEmpty() -> contact.middleName
+            sorting and SORT_BY_FIRST_NAME != 0 && contact.firstName.isNotEmpty() -> contact.firstName
+            startNameWithSurname -> contact.surname
+            else -> contact.firstName
+        }
+        return name.ifEmpty { contact.getNameToDisplay() }
+    }
+
+    // What the grouped list actually sorts and buckets by: the contact's sort-field override when set
+    // (and non-empty), else its reading (フリガナ), else the name per the global sort setting.
+    private fun effectiveSortKey(contact: Contact): String {
+        val reading = readingOf(contact)
+        val overrideValue = when (config.getSortField(sortFieldKeyFor(contact))) {
+            SORT_FIELD_READING -> reading
+            SORT_FIELD_NICKNAME -> contact.nickname
+            SORT_FIELD_ORGANIZATION -> contact.getFullCompany()
+            else -> ""
+        }
+        return overrideValue.ifEmpty { reading.ifEmpty { sortNameFor(contact) } }
+    }
+
+    private fun bindSectionView(view: View, section: ContactSection) {
+        val headerColor = activity.themeColor(ThemeSlot.SECTION_HEADER)
+        // Bold + double size by default; an explicit slot weight/size (settable on the UI page) wins.
+        val baseStyle = if (config.getFontWeight(ThemeSlot.SECTION_HEADER.key) == 0) Typeface.BOLD else Typeface.NORMAL
+        view.findViewById<TextView>(R.id.section_fold_indicator).apply {
+            text = if (section.expanded) UNFOLDED_INDICATOR else FOLDED_INDICATOR
+            setTextColor(headerColor)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * SECTION_HEADER_SCALE)
+            applyThemeFont(ThemeSlot.SECTION_HEADER, baseStyle)
+            // Slightly larger than the letter, whatever size the slot resolves to (textSize is px here).
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, textSize * INDICATOR_SCALE)
+        }
+        view.findViewById<TextView>(R.id.section_title).apply {
+            text = "${section.title} (${section.count})"
+            setTextColor(headerColor)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * SECTION_HEADER_SCALE)
+            applyThemeFont(ThemeSlot.SECTION_HEADER, baseStyle)
+        }
+        val paddingPx = (config.contactsSectionPadding * activity.resources.displayMetrics.density).toInt()
+        view.findViewById<View>(R.id.section_content).updateLayoutParams<LinearLayout.LayoutParams> {
+            topMargin = paddingPx
+            bottomMargin = paddingPx
+        }
+        applyLine(
+            view.findViewById(R.id.section_underline),
+            activity.themeColor(ThemeSlot.SECTION_UNDERLINE),
+            config.contactsSectionUnderlineThickness,
+        )
+        // Full-width separators only frame unfolded content (see ContactSection.showTopDivider).
+        applyLine(
+            view.findViewById(R.id.section_divider),
+            activity.themeColor(ThemeSlot.SECTION_DIVIDER),
+            if (section.showTopDivider) config.contactsSectionDividerThickness else 0,
+        )
+        view.setOnClickListener { toggleSection(section.title) }
+    }
+
+    // A plain View drawn as a line: colored, [thicknessDp] tall, hidden entirely at 0.
+    private fun applyLine(line: View, color: Int, thicknessDp: Int) {
+        if (thicknessDp <= 0) {
+            line.beGone()
+            return
+        }
+        line.beVisible()
+        line.setBackgroundColor(color)
+        line.updateLayoutParams { height = (thicknessDp * activity.resources.displayMetrics.density).toInt() }
+    }
+
+    // Flip one section's persisted fold state. Inert while searching — the search view forces every
+    // section open, so a toggle would silently change what shows after the search closes.
+    private fun toggleSection(title: String) {
+        if (textToHighlight.isNotEmpty()) {
+            return
+        }
+        val expanded = config.expandedContactSections.toMutableSet()
+        if (!expanded.add(title)) {
+            expanded.remove(title)
+        }
+        config.expandedContactSections = expanded
+        rebuildDisplayList()
+        notifyDataSetChanged()
     }
 
     private fun editContact() {
@@ -252,7 +446,7 @@ class ContactsAdapter(
                         refreshListener?.refreshContacts(ALL_TABS_MASK)
                         finishActMode()
                     } else {
-                        removeSelectedItems(positions)
+                        onContactsRemoved(positions)
                         refreshListener?.refreshContacts(TAB_CONTACTS or TAB_FAVORITES)
                     }
                 }
@@ -272,10 +466,22 @@ class ContactsAdapter(
                 refreshListener?.refreshContacts(TAB_FAVORITES)
                 finishActMode()
             } else {
-                removeSelectedItems(positions)
+                onContactsRemoved(positions)
             }
         } else if (location == LOCATION_GROUP_CONTACTS) {
             removeListener?.removeFromGroup(contactsToRemove)
+            onContactsRemoved(positions)
+        }
+    }
+
+    // contactItems changed: refresh the display list, then notify. Grouped mode rebinds everything
+    // (header counts and section runs shift); the flat list keeps the per-position removal animation.
+    private fun onContactsRemoved(positions: ArrayList<Int>) {
+        rebuildDisplayList()
+        if (groupBySections) {
+            notifyDataSetChanged()
+            finishActMode()
+        } else {
             removeSelectedItems(positions)
         }
     }
@@ -457,7 +663,10 @@ class ContactsAdapter(
     override fun onViewRecycled(holder: ViewHolder) {
         super.onViewRecycled(holder)
         if (!activity.isDestroyed && !activity.isFinishing) {
-            Glide.with(activity).clear(holder.itemView.findViewById<ImageView>(org.fossify.commons.R.id.item_contact_image))
+            // Section-header rows have no contact image — guard, or recycling one NPEs in Glide.
+            holder.itemView.findViewById<ImageView>(org.fossify.commons.R.id.item_contact_image)?.let {
+                Glide.with(activity).clear(it)
+            }
         }
     }
 
@@ -615,6 +824,45 @@ class ContactsAdapter(
             }
             fieldsHolder.addView(lineView)
         }
+
+        if (detailMode) {
+            lastCallFor(contact)?.let {
+                fieldsHolder.addView(buildEventLineView(CALL_GLYPH, it, ThemeSlot.DETAIL_CALL))
+            }
+            lastMessageFor(contact)?.let {
+                fieldsHolder.addView(buildEventLineView(SMS_GLYPH, it, ThemeSlot.DETAIL_SMS))
+            }
+        }
+    }
+
+    // A 詳 info line: leading glyph (☎ / ✉), a direction arrow colored by kind (incoming blue,
+    // outgoing green, missed red), then the timestamp in the configured format.
+    private fun buildEventLineView(glyph: String, event: LastEvent, slot: ThemeSlot): TextView {
+        val arrow = if (event.incoming) INCOMING_ARROW else OUTGOING_ARROW
+        val arrowColor = when {
+            event.missed -> DETAIL_MISSED_COLOR
+            event.incoming -> DETAIL_INCOMING_COLOR
+            else -> DETAIL_OUTGOING_COLOR
+        }
+        val line = SpannableString("$glyph $arrow ${event.timestamp.formatDetailTime(activity)}")
+        val arrowStart = glyph.length + 1
+        line.setSpan(
+            ForegroundColorSpan(arrowColor),
+            arrowStart,
+            arrowStart + arrow.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        return TextView(activity).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            text = line
+            setTextColor(activity.themeColor(slot))
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+            applyThemeFont(slot)
+        }
     }
 
     // Columns flow left-to-right: every column is wrap_content except the last, which takes the remaining
@@ -669,10 +917,11 @@ class ContactsAdapter(
             return
         }
         val density = activity.resources.displayMetrics.density
-        val columns = if (location == LOCATION_CONTACTS_TAB) config.contactsListColumns else 1
+        val columns = if (location == LOCATION_CONTACTS_TAB && !detailMode) config.contactsListColumns else 1
         val spacingPx = (config.contactsListSpacing * density).toInt()
         val hDividerPx = (config.contactsListDividerThickness * density).toInt()
         val vDividerPx = (config.contactsListVerticalDividerThickness * density).toInt()
+        val sectionLinePx = if (groupBySections) (config.contactsSectionDividerThickness * density).toInt() else 0
         recyclerView.addItemDecoration(
             ContactsRowDecoration(
                 columns,
@@ -681,7 +930,9 @@ class ContactsAdapter(
                 activity.themeColor(ThemeSlot.CONTACT_DIVIDER),
                 vDividerPx,
                 activity.themeColor(ThemeSlot.CONTACT_VDIVIDER),
-            )
+                sectionLinePx,
+                activity.themeColor(ThemeSlot.SECTION_DIVIDER),
+            ) { position -> cellInfos.getOrNull(position) }
         )
     }
 
@@ -697,7 +948,7 @@ class ContactsAdapter(
         return lines
     }
 
-    override fun onChange(position: Int) = contactItems.getOrNull(position)?.getBubbleText() ?: ""
+    override fun onChange(position: Int) = (displayItems.getOrNull(position) as? Contact)?.getBubbleText() ?: ""
 
     override fun onRowMoved(fromPosition: Int, toPosition: Int) {
         activity.config.isCustomOrderSelected = true
@@ -712,6 +963,8 @@ class ContactsAdapter(
             }
         }
 
+        // Drag-reorder only exists on the flat Favorites list, where the display list mirrors contactItems.
+        rebuildDisplayList()
         notifyItemMoved(fromPosition, toPosition)
     }
 
@@ -719,5 +972,28 @@ class ContactsAdapter(
 
     override fun onRowClear(myViewHolder: ViewHolder?) {
         onDragEndListener?.invoke()
+    }
+
+    companion object {
+        // Adapter-local view type for the letter-section header rows; the contact rows use the
+        // commons VIEW_TYPE_LIST / VIEW_TYPE_GRID values, so keep a safe distance from those.
+        private const val VIEW_TYPE_SECTION = 1000
+
+        // Fold-state glyphs on the section headers, styled like the header letter itself.
+        private const val FOLDED_INDICATOR = "▸"
+        private const val UNFOLDED_INDICATOR = "▾"
+
+        // 詳 info-line glyphs: the event kind, then its direction.
+        private const val CALL_GLYPH = "☎"
+        private const val SMS_GLYPH = "✉"
+        private const val INCOMING_ARROW = "↙"
+        private const val OUTGOING_ARROW = "↗"
+
+        // Default header size relative to the list font (66% of the original 2x look); a per-slot
+        // font size set on the UI page overrides it entirely.
+        private const val SECTION_HEADER_SCALE = 1.32f
+
+        // The fold/unfold glyph renders slightly larger than the header letter it follows.
+        private const val INDICATOR_SCALE = 1.2f
     }
 }

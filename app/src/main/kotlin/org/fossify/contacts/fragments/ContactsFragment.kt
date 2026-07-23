@@ -3,9 +3,10 @@ package org.fossify.contacts.fragments
 import android.content.Context
 import android.content.Intent
 import android.util.AttributeSet
+import androidx.recyclerview.widget.GridLayoutManager
 import org.fossify.commons.extensions.areSystemAnimationsEnabled
 import org.fossify.commons.extensions.beGone
-import org.fossify.commons.extensions.beVisible
+import org.fossify.commons.extensions.beVisibleIf
 import org.fossify.commons.extensions.hideKeyboard
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.commons.views.MyGridLayoutManager
@@ -71,7 +72,9 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
                 },
                 profileIconClick = {
                     activity?.viewContact(it as Contact)
-                }
+                },
+                groupBySections = isGrouped(),
+                detailMode = isDetailMode()
             ).apply {
                 innerBinding.fragmentList.adapter = this
             }
@@ -95,18 +98,35 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
         setupContactsAdapter(lastContacts)
     }
 
+    // Letter sections apply only to the real Contacts tab — the contact picker (InsertOrEdit) stays a
+    // flat list, where folded-away contacts would only get in the way.
+    private fun isGrouped() = activity is MainActivity && context.config.contactsListGrouped
+
+    // 詳 detail rows likewise only on the real Contacts tab; they force a single column.
+    private fun isDetailMode() = activity is MainActivity && context.config.contactsListDetailMode
+
     // 1 column = list view (with the letter fastscroller); 2–4 columns = a grid (fastscroller hidden).
-    // Only swap the layout manager when it actually changes, so a normal refresh keeps the scroll position.
+    // Grouped mode hides the fastscroller too — its position→letter mapping ignores header rows, and the
+    // section headers themselves are the letter index. Only swap the layout manager when it actually
+    // changes, so a normal refresh keeps the scroll position.
     private fun setupListLayoutManager() {
-        val columns = context.config.contactsListColumns
+        val columns = if (isDetailMode()) 1 else context.config.contactsListColumns
         val current = innerBinding.fragmentList.layoutManager
         if (columns > 1) {
             innerBinding.letterFastscroller.beGone()
             if (current !is MyGridLayoutManager || current.spanCount != columns) {
-                innerBinding.fragmentList.layoutManager = MyGridLayoutManager(context, columns)
+                innerBinding.fragmentList.layoutManager = MyGridLayoutManager(context, columns).apply {
+                    // Section headers span the full width; contacts flow in the columns beneath them.
+                    spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                        override fun getSpanSize(position: Int): Int {
+                            val adapter = innerBinding.fragmentList.adapter as? ContactsAdapter
+                            return if (adapter?.isSectionAt(position) == true) columns else 1
+                        }
+                    }
+                }
             }
         } else {
-            innerBinding.letterFastscroller.beVisible()
+            innerBinding.letterFastscroller.beVisibleIf(!isGrouped())
             if (current !is MyLinearLayoutManager) {
                 innerBinding.fragmentList.layoutManager = MyLinearLayoutManager(context)
             }
