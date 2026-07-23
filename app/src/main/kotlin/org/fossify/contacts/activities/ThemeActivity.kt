@@ -1,43 +1,74 @@
 package org.fossify.contacts.activities
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
+import android.text.format.DateUtils
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.documentfile.provider.DocumentFile
+import androidx.core.widget.doAfterTextChanged
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
+import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
+import org.fossify.commons.extensions.beGone
+import org.fossify.commons.extensions.copyToClipboard
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.setupDialogStuff
+import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.extensions.toast
 import org.fossify.commons.extensions.viewBinding
+import org.fossify.commons.helpers.ContactsHelper
 import org.fossify.commons.helpers.NavigationIcon
+import org.fossify.commons.helpers.ensureBackgroundThread
+import org.fossify.commons.helpers.isRPlus
 import org.fossify.commons.models.RadioItem
 import org.fossify.contacts.R
 import org.fossify.contacts.adapters.ContactsListFieldsAdapter
 import org.fossify.contacts.databinding.ActivityThemeBinding
 import org.fossify.contacts.databinding.DialogColumnSpacerBinding
+import org.fossify.contacts.databinding.DialogPatternInputBinding
 import org.fossify.contacts.databinding.ItemThemeColorBinding
 import org.fossify.contacts.databinding.ItemThemeFieldsOrderBinding
 import org.fossify.contacts.databinding.ItemThemeSectionBinding
 import org.fossify.contacts.databinding.ItemThemeSliderBinding
 import org.fossify.contacts.databinding.ItemThemeSubgroupBinding
+import org.fossify.contacts.databinding.ItemThemeSwitchBinding
 import org.fossify.contacts.databinding.ItemThemeTextBinding
 import org.fossify.contacts.databinding.ItemThemeThumbnailBinding
 import org.fossify.contacts.databinding.ItemThemeValueBinding
 import org.fossify.contacts.dialogs.AlphaColorPickerDialog
+import org.fossify.contacts.dialogs.ExportContactsDialog
 import org.fossify.contacts.dialogs.FontPickerDialog
+import org.fossify.contacts.extensions.tryImportContactsFromFile
+import org.fossify.contacts.helpers.SettingsExport
+import org.fossify.contacts.helpers.VcfExporter
 import org.fossify.contacts.extensions.FontWeightOption
 import org.fossify.contacts.extensions.ThemeGroup
 import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.helpers.ContactsListConfig
 import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_DIVIDER_DP
 import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_SPACING_DP
+import org.fossify.contacts.helpers.DETAIL_PATTERN_OLDER_PREFIX
+import org.fossify.contacts.helpers.DETAIL_PATTERN_TODAY_PREFIX
+import org.fossify.contacts.helpers.DETAIL_PATTERN_YEAR_PREFIX
+import org.fossify.contacts.helpers.MAX_SECTION_PADDING_DP
+import org.fossify.contacts.helpers.TIME_FORMAT_12H
+import org.fossify.contacts.helpers.TIME_FORMAT_24H
+import org.fossify.contacts.helpers.TIME_FORMAT_JAPANESE
+import org.fossify.contacts.helpers.TIME_FORMAT_SYSTEM
+import org.fossify.contacts.helpers.applyDetailPattern
 import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_THUMBNAIL_DP
 import org.fossify.contacts.helpers.MIN_CONTACTS_LIST_THUMBNAIL_DP
 import org.fossify.contacts.helpers.RowFieldEntry
@@ -50,9 +81,28 @@ import org.fossify.contacts.extensions.setThemeColor
 import org.fossify.contacts.extensions.showFontSample
 import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.helpers.MAX_FONT_SIZE_SP
+import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // Each cascade level is indented one more step: section contents one step in, subgroup contents two.
 private const val INDENT_STEP_DP = 72
+
+// Sample-timestamp ages for the pattern previews: safely "earlier this year"-ish and "older".
+private const val SAMPLE_THIS_YEAR_DAYS = 30
+private const val SAMPLE_OLDER_DAYS = 400
+
+// Every translation the app ships (mirrors the res/values-* locale dirs, plus English), as BCP-47 tags.
+// Offered by the "Application language" picker; display names render in each language itself.
+private val APP_LANGUAGE_TAGS = listOf(
+    "ar", "az", "be", "bg", "bn", "bn-BD", "bqi", "br", "bs", "ca", "ckb", "cr", "cs", "cy", "da", "de",
+    "el", "en", "en-GB", "en-IN", "eo", "es", "es-419", "es-US", "et", "eu", "fa", "fi", "fil", "fr",
+    "ga", "gl", "he", "hi-IN", "hr", "hu", "ia", "id", "is", "it", "ja", "kab", "kn", "ko-KR", "kr",
+    "lt", "ltg", "lv", "mk", "ml", "ms", "my", "nb-NO", "ne", "nl", "nn", "oc", "or", "pa", "pa-PK",
+    "pl", "pt", "pt-BR", "pt-PT", "ro", "ru", "sat", "si", "sk", "sl", "sr", "sv", "ta", "te", "th",
+    "tr", "uk", "ur", "vi", "zgh", "zh-CN", "zh-HK", "zh-TW",
+)
 
 @Suppress("TooManyFunctions")
 class ThemeActivity : SimpleActivity() {
@@ -64,6 +114,37 @@ class ThemeActivity : SimpleActivity() {
 
     // Holds the per-field styling controls for the "Contacts' list" section; rebuilt when the field set changes.
     private var rowStylingContainer: LinearLayout? = null
+
+    // Export / Import (top section): category selection survives buildRows() rebuilds; the export
+    // folder (a persisted SAF tree grant) lives in a device-local prefs file that is itself never exported.
+    private val eximSelected = SettingsExport.Cat.entries.toMutableSet()
+    private var ignoredExportContactSources = HashSet<String>()
+
+    private val eximDirPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) onEximDirPicked(uri)
+    }
+
+    private val eximSaveAs = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) runEximExport { contentResolver.openOutputStream(uri) }
+    }
+
+    private val eximImportPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) runEximImport(uri)
+    }
+
+    private val vcfImportPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) tryImportContactsFromFile(uri) {}
+    }
+
+    private val vcfExportCreator = registerForActivityResult(ActivityResultContracts.CreateDocument("text/x-vcard")) { uri ->
+        if (uri != null) {
+            try {
+                exportContactsTo(ignoredExportContactSources, contentResolver.openOutputStream(uri))
+            } catch (e: Exception) {
+                showErrorToast(e)
+            }
+        }
+    }
 
     private val fontImportLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         onFontImported(uri)
@@ -91,10 +172,268 @@ class ThemeActivity : SimpleActivity() {
         val primaryColor = getProperPrimaryColor()
         val stepPx = (INDENT_STEP_DP * resources.displayMetrics.density).toInt()
 
+        addExportImportSection(primaryColor, stepPx)
+        addAutomationSection(primaryColor, stepPx)
+        addLanguageSection(primaryColor, stepPx)
         ThemeGroup.entries.forEach { addGroup(it, primaryColor, stepPx) }
     }
 
+    // ---- Export / Import (kojiki-style: persisted folder, last-export line, category checklist) ----
+
+    private fun addExportImportSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.eim_title), primaryColor)
+
+        addValueRow(getString(R.string.eim_dir), eximDir()?.name ?: getString(R.string.eim_dir_unset), stepPx) {
+            eximDirPicker.launch(eximDirUri())
+        }
+        addValueRow(getString(R.string.eim_last), lastExportText(), stepPx) {}
+
+        val catRows = HashMap<SettingsExport.Cat, ItemThemeSwitchBinding>()
+        addSwitchRow(getString(R.string.eim_select_all), eximSelected.containsAll(SettingsExport.Cat.entries), stepPx) { on ->
+            SettingsExport.Cat.entries.forEach { cat ->
+                if (on) eximSelected.add(cat) else eximSelected.remove(cat)
+                catRows[cat]?.themeSwitch?.isChecked = on
+            }
+        }
+        for (cat in SettingsExport.Cat.entries) {
+            catRows[cat] = addSwitchRow(getString(cat.labelRes), cat in eximSelected, stepPx * 2) { on ->
+                if (on) eximSelected.add(cat) else eximSelected.remove(cat)
+            }
+        }
+
+        addActionRow(getString(R.string.eim_export), stepPx) { onEximExport() }
+        addActionRow(getString(R.string.eim_import), stepPx) { onEximImport() }
+
+        // The stock one-shot VCF flows, kept as their own separated rows at the section's end.
+        addSubgroupHeader(getString(R.string.eim_vcf_group), primaryColor, stepPx)
+        addActionRow(getString(R.string.export_contacts_to_vcf), stepPx * 2) { startVcfExport() }
+        addActionRow(getString(R.string.import_contacts_from_vcf), stepPx * 2) { startVcfImport() }
+    }
+
+    private fun eximPrefs() = getSharedPreferences("renrakusaki_eximport", Context.MODE_PRIVATE)
+
+    private fun eximDirUri(): Uri? =
+        eximPrefs().getString("dir_uri", null)?.let { runCatching { Uri.parse(it) }.getOrNull() }
+
+    private fun eximDir(): DocumentFile? =
+        eximDirUri()?.let { runCatching { DocumentFile.fromTreeUri(this, it) }.getOrNull() }
+            ?.takeIf { it.isDirectory }
+
+    private fun onEximDirPicked(uri: Uri) {
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+        }
+        eximPrefs().edit().putString("dir_uri", uri.toString()).apply()
+        buildRows()
+    }
+
+    private fun lastExportText(): String {
+        val dir = eximDir() ?: return getString(R.string.eim_none)
+        val newest = runCatching {
+            dir.listFiles().filter {
+                it.isFile && it.name?.startsWith(SettingsExport.EXPORT_PREFIX) == true && it.name?.endsWith(".zip") == true
+            }.maxByOrNull { it.lastModified() }
+        }.getOrNull() ?: return getString(R.string.eim_none)
+        return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT).format(Date(newest.lastModified()))
+    }
+
+    private fun onEximExport() {
+        if (eximSelected.isEmpty()) {
+            toast(R.string.eim_none_selected)
+            return
+        }
+        val dir = eximDir()
+        if (dir == null) {
+            runCatching { eximSaveAs.launch(SettingsExport.exportFileName()) }
+                .onFailure { toast(org.fossify.commons.R.string.no_app_found) }
+        } else {
+            runEximExport {
+                val file = dir.createFile("application/zip", SettingsExport.exportFileName())
+                    ?: error("cannot create a file in ${dir.name}")
+                contentResolver.openOutputStream(file.uri)
+            }
+        }
+    }
+
+    private fun runEximExport(openOut: () -> OutputStream?) {
+        toast(org.fossify.commons.R.string.exporting)
+        SettingsExport.export(this, eximSelected.toSet(), openOut) { result ->
+            runOnUiThread {
+                result
+                    .onSuccess {
+                        toast(getString(R.string.eim_export_ok, it))
+                        buildRows()
+                    }
+                    .onFailure { toast(getString(R.string.eim_export_fail, it.message ?: "")) }
+            }
+        }
+    }
+
+    private fun onEximImport() {
+        if (eximSelected.isEmpty()) {
+            toast(R.string.eim_none_selected)
+            return
+        }
+        runCatching { eximImportPicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }
+            .onFailure { toast(org.fossify.commons.R.string.no_app_found) }
+    }
+
+    private fun runEximImport(uri: Uri) {
+        toast(org.fossify.commons.R.string.importing)
+        ensureBackgroundThread {
+            val bytes = runCatching { contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+            if (bytes == null || bytes.isEmpty()) {
+                runOnUiThread { toast(getString(R.string.eim_import_fail, "no input stream")) }
+                return@ensureBackgroundThread
+            }
+            SettingsExport.import(this, bytes, eximSelected.toSet()) { result ->
+                runOnUiThread {
+                    result
+                        .onSuccess { summary ->
+                            // Persistent result dialog with an explicit restart — imported colors/fonts
+                            // only fully apply on a fresh process.
+                            ConfirmationDialog(
+                                activity = this,
+                                message = getString(R.string.eim_import_done, summary),
+                                positive = R.string.eim_restart_now,
+                                negative = R.string.eim_restart_later
+                            ) { restartApp() }
+                        }
+                        .onFailure { toast(getString(R.string.eim_import_fail, it.message ?: "")) }
+                }
+            }
+        }
+    }
+
+    private fun restartApp() {
+        val intent = packageManager.getLaunchIntentForPackage(packageName) ?: return
+        startActivity(Intent.makeRestartActivityTask(intent.component))
+        Runtime.getRuntime().exit(0)
+    }
+
+    // The stock VCF export/import flows (moved here from the settings page's Migrating section).
+
+    private fun startVcfExport() {
+        ExportContactsDialog(this, config.lastExportPath, true) { file, ignoredContactSources ->
+            ignoredExportContactSources = ignoredContactSources
+            runCatching { vcfExportCreator.launch(file.name) }
+                .onFailure { toast(org.fossify.commons.R.string.no_app_found) }
+        }
+    }
+
+    private fun startVcfImport() {
+        runCatching { vcfImportPicker.launch("text/x-vcard") }
+            .onFailure { toast(org.fossify.commons.R.string.no_app_found) }
+    }
+
+    private fun exportContactsTo(ignoredContactSources: HashSet<String>, outputStream: OutputStream?) {
+        ContactsHelper(this).getContacts(true, false, ignoredContactSources) { contacts ->
+            if (contacts.isEmpty()) {
+                toast(org.fossify.commons.R.string.no_entries_for_exporting)
+            } else {
+                VcfExporter().exportContacts(
+                    context = this,
+                    outputStream = outputStream,
+                    contacts = contacts,
+                    showExportingToast = true
+                ) { result ->
+                    toast(
+                        when (result) {
+                            VcfExporter.ExportResult.EXPORT_OK -> org.fossify.commons.R.string.exporting_successful
+                            VcfExporter.ExportResult.EXPORT_PARTIAL ->
+                                org.fossify.commons.R.string.exporting_some_entries_failed
+                            else -> org.fossify.commons.R.string.exporting_failed
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // ---- Automation (the token-gated intent surface; see BackupContactsReceiver) ----
+
+    private fun addAutomationSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.automation), primaryColor)
+        addSwitchRow(getString(R.string.enable_automation), config.automationEnabled, stepPx) {
+            config.automationEnabled = it
+        }
+        val tokenRow = addValueRow(getString(R.string.automation_token), config.automationToken, stepPx) {
+            copyToClipboard(config.automationToken)
+        }
+        tokenRow.root.setOnLongClickListener {
+            tokenRow.themeValueValue.text = config.regenerateAutomationToken()
+            toast(R.string.automation_token_regenerated)
+            true
+        }
+
+        // All-files access: needed so a BACKUP_CONTACTS broadcast can write to an arbitrary absolute
+        // path (e.g. 白い熊's archive folder) outside Download/Documents. API 30+ only.
+        if (isRPlus()) {
+            val granted = Environment.isExternalStorageManager()
+            val state = getString(if (granted) R.string.all_files_access_granted else R.string.all_files_access_needed)
+            addValueRow(getString(R.string.all_files_access), state, stepPx) {
+                try {
+                    startActivity(
+                        Intent(
+                            Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                            Uri.parse("package:$packageName")
+                        )
+                    )
+                } catch (e: Exception) {
+                    try {
+                        startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                    } catch (e2: Exception) {
+                        showErrorToast(e2)
+                    }
+                }
+            }
+        }
+    }
+
+    // App-wide display language, independent of the phone locale. Backed by the AndroidX per-app
+    // locales API: Android 13+ persists it in the system; below, the manifest's
+    // AppLocalesMetadataHolderService (autoStoreLocales) restores it on launch.
+    private fun addLanguageSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.theme_app_language), primaryColor)
+        val current = AppCompatDelegate.getApplicationLocales()
+        val currentName = current[0]?.let { it.getDisplayName(it).replaceFirstChar { c -> c.uppercase() } }
+            ?: getString(R.string.language_system_default)
+        addValueRow(getString(R.string.theme_app_language), currentName, stepPx) {
+            openLanguagePicker()
+        }
+    }
+
+    private fun openLanguagePicker() {
+        val items = ArrayList<RadioItem>()
+        items.add(RadioItem(0, getString(R.string.language_system_default), ""))
+        APP_LANGUAGE_TAGS
+            .map { tag -> Locale.forLanguageTag(tag) }
+            .sortedBy { it.getDisplayName(it).lowercase(Locale.getDefault()) }
+            .forEachIndexed { index, locale ->
+                val name = locale.getDisplayName(locale).replaceFirstChar { it.uppercase() }
+                items.add(RadioItem(index + 1, name, locale.toLanguageTag()))
+            }
+
+        val currentTag = AppCompatDelegate.getApplicationLocales().toLanguageTags()
+        val checkedId = items.firstOrNull { (it.value as String).equals(currentTag, ignoreCase = true) }?.id
+            ?: items.firstOrNull { (it.value as String).equals(currentTag.substringBefore('-'), ignoreCase = true) }?.id
+            ?: 0
+
+        RadioGroupDialog(this, items, checkedId) { value ->
+            val tag = value as String
+            AppCompatDelegate.setApplicationLocales(
+                if (tag.isEmpty()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(tag)
+            )
+        }
+    }
+
     private fun addGroup(group: ThemeGroup, primaryColor: Int, stepPx: Int) {
+        if (group == ThemeGroup.SECTIONS) {
+            addSectionsSection(primaryColor, stepPx)
+            return
+        }
         if (group == ThemeGroup.ROWS) {
             addRowsSection(primaryColor, stepPx)
             return
@@ -171,6 +510,19 @@ class ThemeActivity : SimpleActivity() {
         }
         addTextSlot(ThemeSlot.COLUMN_SPACER, stepPx * 2, stepPx)
 
+        addSubgroupHeader(getString(R.string.theme_detail_group), primaryColor, stepPx)
+        addValueRow(getString(R.string.detail_time_format), getString(detailTimeFormatLabel()), stepPx * 2) {
+            openDetailTimeFormatPicker()
+        }
+        // The 24-/12-hour modes expose their datetime patterns for editing, one per age bracket.
+        if (config.detailTimeFormat == TIME_FORMAT_24H || config.detailTimeFormat == TIME_FORMAT_12H) {
+            addPatternRow(R.string.detail_pattern_today, DETAIL_PATTERN_TODAY_PREFIX, stepPx * 2)
+            addPatternRow(R.string.detail_pattern_this_year, DETAIL_PATTERN_YEAR_PREFIX, stepPx * 2)
+            addPatternRow(R.string.detail_pattern_older, DETAIL_PATTERN_OLDER_PREFIX, stepPx * 2)
+        }
+        addTextSlot(ThemeSlot.DETAIL_CALL, stepPx * 2, stepPx)
+        addTextSlot(ThemeSlot.DETAIL_SMS, stepPx * 2, stepPx)
+
         addSubgroupHeader(getString(R.string.theme_rows_order), primaryColor, stepPx)
 
         val entries = ContactsListConfig.parse(config.contactsListFields).toMutableList()
@@ -193,6 +545,46 @@ class ThemeActivity : SimpleActivity() {
         }
         binding.themeHolder.addView(rowStylingContainer)
         rebuildRowStyling(entries, stepPx)
+    }
+
+    // The "Letter sections" top-level section: the grouped-view toggle, the header letter's text styling,
+    // and the underline / framing-divider lines (thickness slider + color each).
+    private fun addSectionsSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.theme_sections_group), primaryColor)
+        addSwitchRow(getString(R.string.theme_sections_enabled), config.contactsListGrouped, stepPx) {
+            config.contactsListGrouped = it
+            config.contactsListRevision += 1
+        }
+        addTextSlot(ThemeSlot.SECTION_HEADER, stepPx, stepPx)
+        addSlider(
+            getString(R.string.theme_sections_padding),
+            config.contactsSectionPadding,
+            MAX_SECTION_PADDING_DP,
+            stepPx,
+        ) {
+            config.contactsSectionPadding = it
+            config.contactsListRevision += 1
+        }
+        addSlider(
+            getString(R.string.theme_sections_underline_thickness),
+            config.contactsSectionUnderlineThickness,
+            MAX_CONTACTS_LIST_DIVIDER_DP,
+            stepPx,
+        ) {
+            config.contactsSectionUnderlineThickness = it
+            config.contactsListRevision += 1
+        }
+        addColorRow(ThemeSlot.SECTION_UNDERLINE, stepPx)
+        addSlider(
+            getString(R.string.theme_sections_divider_thickness),
+            config.contactsSectionDividerThickness,
+            MAX_CONTACTS_LIST_DIVIDER_DP,
+            stepPx,
+        ) {
+            config.contactsSectionDividerThickness = it
+            config.contactsListRevision += 1
+        }
+        addColorRow(ThemeSlot.SECTION_DIVIDER, stepPx)
     }
 
     private fun rebuildRowStyling(entries: List<RowFieldEntry>, stepPx: Int) {
@@ -267,7 +659,22 @@ class ThemeActivity : SimpleActivity() {
         }
     }
 
-    private fun addValueRow(title: String, value: String, indent: Int, onClick: () -> Unit) {
+    // Toggle row: the whole row is the tap target; the switch itself is non-interactive.
+    private fun addSwitchRow(title: String, checked: Boolean, indent: Int, onChange: (Boolean) -> Unit): ItemThemeSwitchBinding {
+        val b = ItemThemeSwitchBinding.inflate(layoutInflater, binding.themeHolder, false)
+        b.themeSwitchLabel.text = title
+        b.themeSwitchLabel.setTextColor(getProperTextColor())
+        b.themeSwitch.isChecked = checked
+        b.root.setOnClickListener {
+            b.themeSwitch.toggle()
+            onChange(b.themeSwitch.isChecked)
+        }
+        indentRow(b.root, indent)
+        binding.themeHolder.addView(b.root)
+        return b
+    }
+
+    private fun addValueRow(title: String, value: String, indent: Int, onClick: () -> Unit): ItemThemeValueBinding {
         val textColor = getProperTextColor()
         val b = ItemThemeValueBinding.inflate(layoutInflater, binding.themeHolder, false)
         b.themeValueLabel.text = title
@@ -277,6 +684,75 @@ class ThemeActivity : SimpleActivity() {
         b.root.setOnClickListener { onClick() }
         indentRow(b.root, indent)
         binding.themeHolder.addView(b.root)
+        return b
+    }
+
+    // Label-only tappable row (no value line) — used for one-shot actions like export/import.
+    private fun addActionRow(title: String, indent: Int, onClick: () -> Unit) {
+        val b = ItemThemeValueBinding.inflate(layoutInflater, binding.themeHolder, false)
+        b.themeValueLabel.text = title
+        b.themeValueLabel.setTextColor(getProperTextColor())
+        b.themeValueValue.beGone()
+        b.root.setOnClickListener { onClick() }
+        indentRow(b.root, indent)
+        binding.themeHolder.addView(b.root)
+    }
+
+    // A sample timestamp for each age bracket, so pattern rows and the edit dialog show a live example.
+    private fun sampleTimestampFor(kindPrefix: String): Long = when (kindPrefix) {
+        DETAIL_PATTERN_TODAY_PREFIX -> System.currentTimeMillis()
+        DETAIL_PATTERN_YEAR_PREFIX -> System.currentTimeMillis() - DateUtils.DAY_IN_MILLIS * SAMPLE_THIS_YEAR_DAYS
+        else -> System.currentTimeMillis() - DateUtils.DAY_IN_MILLIS * SAMPLE_OLDER_DAYS
+    }
+
+    private fun formatPatternSample(kindPrefix: String, pattern: String): String =
+        sampleTimestampFor(kindPrefix).applyDetailPattern(this, pattern)
+
+    private fun addPatternRow(titleRes: Int, kindPrefix: String, indent: Int) {
+        val pattern = config.getDetailPattern(kindPrefix, config.detailTimeFormat)
+        val value = "$pattern（${formatPatternSample(kindPrefix, pattern)}）"
+        addValueRow(getString(titleRes), value, indent) {
+            editDetailPattern(titleRes, kindPrefix)
+        }
+    }
+
+    private fun editDetailPattern(titleRes: Int, kindPrefix: String) {
+        val mode = config.detailTimeFormat
+        val view = DialogPatternInputBinding.inflate(layoutInflater)
+        view.patternEdittext.setText(config.getDetailPattern(kindPrefix, mode))
+        view.patternPreview.text = formatPatternSample(kindPrefix, config.getDetailPattern(kindPrefix, mode))
+        view.patternEdittext.doAfterTextChanged {
+            view.patternPreview.text = formatPatternSample(kindPrefix, it?.toString().orEmpty())
+        }
+        getAlertDialogBuilder()
+            .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ ->
+                config.setDetailPattern(kindPrefix, mode, view.patternEdittext.text.toString().trim())
+                config.contactsListRevision += 1
+                buildRows()
+            }
+            .setNegativeButton(org.fossify.commons.R.string.cancel, null)
+            .apply { setupDialogStuff(view.root, this, titleRes) }
+    }
+
+    private fun detailTimeFormatLabel() = when (config.detailTimeFormat) {
+        TIME_FORMAT_SYSTEM -> R.string.time_format_system
+        TIME_FORMAT_24H -> R.string.time_format_24
+        TIME_FORMAT_12H -> R.string.time_format_12
+        else -> R.string.time_format_japanese
+    }
+
+    private fun openDetailTimeFormatPicker() {
+        val items = arrayListOf(
+            RadioItem(TIME_FORMAT_JAPANESE, getString(R.string.time_format_japanese)),
+            RadioItem(TIME_FORMAT_SYSTEM, getString(R.string.time_format_system)),
+            RadioItem(TIME_FORMAT_24H, getString(R.string.time_format_24)),
+            RadioItem(TIME_FORMAT_12H, getString(R.string.time_format_12)),
+        )
+        RadioGroupDialog(this, items, config.detailTimeFormat) {
+            config.detailTimeFormat = it as Int
+            config.contactsListRevision += 1
+            buildRows()
+        }
     }
 
     private fun editColumnSpacer() {
@@ -376,9 +852,10 @@ class ThemeActivity : SimpleActivity() {
 
     private fun sizeLabel(sp: Int) = if (sp > 0) "$sp sp" else getString(R.string.theme_size_default)
 
-    // Styling a contacts-list field must trigger a list redraw; other slots don't affect the list.
+    // Styling a contacts-list field or a letter-section element must trigger a list redraw; other
+    // slots don't affect the list.
     private fun bumpRowRevisionIfNeeded(slot: ThemeSlot) {
-        if (slot.group == ThemeGroup.ROWS) {
+        if (slot.group == ThemeGroup.ROWS || slot.group == ThemeGroup.SECTIONS) {
             config.contactsListRevision += 1
         }
     }

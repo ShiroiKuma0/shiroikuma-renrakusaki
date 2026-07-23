@@ -9,11 +9,21 @@
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
+
+    <!-- Fork: the 詳 detail list mode shows each contact's last call / last SMS, read straight from
+         the system providers. Both are runtime permissions requested when the mode is enabled. -->
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+
+    <!-- Fork: the token-gated BACKUP_CONTACTS broadcast can target ANY absolute path (e.g. 白い熊's
+         archive folder, outside Download/Documents). On API 30+ that needs All-files access, granted
+         once per device via Settings → 自動化 → All files access. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <uses-permission
         android:name="android.permission.USE_FINGERPRINT"
@@ -249,6 +259,16 @@
         <receiver
             android:name=".receivers.AutomaticBackupReceiver"
             android:exported="false" />
+
+        <!-- Fork: token-gated on-demand backup trigger for the automation fork 自由作業盤;
+             fired (ordered) before it switches the system locale. See BackupContactsReceiver. -->
+        <receiver
+            android:name=".receivers.BackupContactsReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="shiroikuma.renrakusaki.action.BACKUP_CONTACTS" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -532,5 +552,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
+
+        <!-- Persists the in-app "Application language" choice (AppCompatDelegate.setApplicationLocales)
+             across restarts on devices below Android 13; 13+ stores it in the system instead. -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data
+                android:name="autoStoreLocales"
+                android:value="true" />
+        </service>
     </application>
 </manifest>
