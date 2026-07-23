@@ -21,6 +21,15 @@ enum class RowField(
         "display_name", R.string.field_display_name, ThemeSlot.ROW_DISPLAY_NAME,
         { c, _ -> c.getNameToDisplay() },
     ),
+    // "Surname, Firstname" as one field; falls back to the display name when the contact has neither
+    // (e.g. company-only contacts), so a row built on this field never goes blank.
+    SURNAME_FIRST(
+        "surname_first", R.string.field_surname_first, ThemeSlot.ROW_SURNAME_FIRST,
+        { c, _ ->
+            listOf(c.surname, c.firstName).filter { it.isNotEmpty() }.joinToString(", ")
+                .ifEmpty { c.getNameToDisplay() }
+        },
+    ),
     PREFIX("prefix", R.string.field_prefix, ThemeSlot.ROW_PREFIX, { c, _ -> c.prefix }),
     FIRST_NAME("first_name", R.string.field_first_name, ThemeSlot.ROW_FIRST_NAME, { c, _ -> c.firstName }),
     MIDDLE_NAME("middle_name", R.string.field_middle_name, ThemeSlot.ROW_MIDDLE_NAME, { c, _ -> c.middleName }),
@@ -89,9 +98,10 @@ object ContactsListConfig {
     private const val ENTRY_SEP = "|"
     private const val PART_SEP = ":"
 
-    // Default reproduces the stock look: name on the first line, phone on the second; everything else off.
+    // Default: "Lastname, Firstname" on the first line, phone on the second; everything else off
+    // (the stock display-name field stays available but unchecked).
     fun defaultEntries(): List<RowFieldEntry> {
-        val onByDefault = setOf(RowField.DISPLAY_NAME, RowField.PHONE)
+        val onByDefault = listOf(RowField.SURNAME_FIRST, RowField.PHONE)
         val result = ArrayList<RowFieldEntry>()
         onByDefault.forEach { result.add(RowFieldEntry(it, checked = true, sameLine = false)) }
         RowField.entries.filter { it !in onByDefault }.forEach {
@@ -114,16 +124,57 @@ object ContactsListConfig {
             seen[field] = RowFieldEntry(field, checked, sameLine)
         }
 
-        // Append any catalog fields missing from storage (e.g. introduced in a later version), unchecked.
+        // Add any catalog fields missing from storage (e.g. introduced in a later version), unchecked —
+        // "Lastname, Firstname" goes to the top of the list, everything else to the end. Once the user
+        // reorders and saves, the stored order wins.
+        val result = seen.values.toMutableList()
         RowField.entries.forEach { field ->
             if (field !in seen) {
-                seen[field] = RowFieldEntry(field, checked = false, sameLine = false)
+                val entry = RowFieldEntry(field, checked = false, sameLine = false)
+                if (field == RowField.SURNAME_FIRST) {
+                    result.add(0, entry)
+                } else {
+                    result.add(entry)
+                }
             }
         }
-        return seen.values.toList()
+        return result
     }
 
     fun serialize(entries: List<RowFieldEntry>): String = entries.joinToString(ENTRY_SEP) { entry ->
         "${entry.field.key}$PART_SEP${if (entry.checked) 1 else 0}$PART_SEP${if (entry.sameLine) 1 else 0}"
     }
+}
+
+// One-time switch of the default name field to "Lastname, Firstname" for layouts saved before it
+// existed: where the stored layout still shows the stock display name, SURNAME_FIRST takes its place
+// (position and line arrangement included) and DISPLAY_NAME is unchecked. Skipped when the user
+// already enabled SURNAME_FIRST themselves, and never repeated, so manual changes stick afterwards.
+fun Context.applySurnameFirstDefaultIfNeeded() {
+    if (config.surnameFirstDefaultApplied) {
+        return
+    }
+    config.surnameFirstDefaultApplied = true
+
+    if (config.contactsListFields.isBlank()) {
+        return // fresh install: defaultEntries() already leads with SURNAME_FIRST checked
+    }
+
+    val entries = ContactsListConfig.parse(config.contactsListFields).toMutableList()
+    val surnameFirst = entries.first { it.field == RowField.SURNAME_FIRST }
+    val displayName = entries.first { it.field == RowField.DISPLAY_NAME }
+    if (surnameFirst.checked || !displayName.checked) {
+        return
+    }
+
+    surnameFirst.checked = true
+    surnameFirst.sameLine = displayName.sameLine
+    displayName.checked = false
+    displayName.sameLine = false
+
+    entries.remove(surnameFirst)
+    entries.add(entries.indexOf(displayName), surnameFirst)
+
+    config.contactsListFields = ContactsListConfig.serialize(entries)
+    config.contactsListRevision += 1
 }

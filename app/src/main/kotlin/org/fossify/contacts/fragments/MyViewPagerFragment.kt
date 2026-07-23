@@ -34,6 +34,8 @@ import org.fossify.contacts.helpers.AVOID_CHANGING_TEXT_TAG
 import org.fossify.contacts.helpers.AVOID_CHANGING_VISIBILITY_TAG
 import org.fossify.contacts.helpers.Config
 import org.fossify.contacts.helpers.GROUP
+import org.fossify.contacts.helpers.foldKana
+import org.fossify.contacts.helpers.readingOf
 import org.fossify.contacts.interfaces.RefreshContactsListener
 import java.util.Locale
 
@@ -326,9 +328,12 @@ abstract class MyViewPagerFragment<Binding : MyViewPagerFragment.InnerBinding>(c
         val fixedText = text.trim().replace("\\s+".toRegex(), " ")
         if (adapter is ContactsAdapter) {
             val shouldNormalize = fixedText.normalizeString() == fixedText
+            val foldedQuery = foldKana(fixedText)
             val filtered = contactsIgnoringSearch.filter {
                 getProperText(it.getNameToDisplay(), shouldNormalize).contains(fixedText, true) ||
                     getProperText(it.nickname, shouldNormalize).contains(fixedText, true) ||
+                    // Reading (フリガナ) matches kana-insensitively: a hiragana query finds katakana readings.
+                    foldKana(readingOf(it)).contains(foldedQuery, true) ||
                     (fixedText.toLongOrNull() != null && it.phoneNumbers.any {
                         fixedText.normalizePhoneNumber().isNotEmpty() && it.normalizedNumber.contains(fixedText.normalizePhoneNumber(), true)
                     }) ||

@@ -8,6 +8,7 @@ detekt = "1.23.8"
 detektCompose = "0.4.28"
 #AndroidX
 androidx-swiperefreshlayout = "1.2.0"
+androidx-documentfile = "1.1.0"
 #AutoFitTextView
 autofittextview = "0.2.1"
 #EzVCard
@@ -17,7 +18,7 @@ indicatorfastscroll = "4524cd0b61"
 #Room
 room = "2.8.4"
 #Fossify
-commons = "6.1.6-sk5"  # shiroikuma: patched Commons (anti-tamper removed + fork-package fixes + black/yellow CAB & menus), from mavenLocal
+commons = "6.1.6-sk7"  # shiroikuma: patched Commons (anti-tamper removed + fork fixes + styled toasts + stale-source import fallback), from mavenLocal
 #Gradle
 gradlePlugins-agp = "9.2.1"
 #build
@@ -29,6 +30,7 @@ app-build-kotlinJVMTarget = "17"
 [libraries]
 #AndroidX
 androidx-swiperefreshlayout = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "androidx-swiperefreshlayout" }
+androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "androidx-documentfile" }
 #AutoFitTextView
 autofittextview = { module = "me.grantland:autofittextview", version.ref = "autofittextview" }
 #EzVcard

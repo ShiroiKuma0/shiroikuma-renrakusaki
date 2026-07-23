@@ -24,6 +24,11 @@
         app:actionLayout="@layout/menu_action_column_button"
         app:showAsAction="always" />
     <item
+        android:id="@+id/col_detail"
+        android:title="@string/detail_mode"
+        app:actionLayout="@layout/menu_action_column_button"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/ui_settings"
         android:title="@string/ui_settings_title"
         app:showAsAction="never" />

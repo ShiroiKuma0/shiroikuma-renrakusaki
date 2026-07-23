@@ -4,6 +4,7 @@ import org.fossify.commons.FossifyApp
 import org.fossify.contacts.extensions.migrateToPureYellowIfNeeded
 import org.fossify.contacts.extensions.seedBlackYellowThemeIfNeeded
 import org.fossify.contacts.extensions.seedDialogFrame
+import org.fossify.contacts.helpers.applySurnameFirstDefaultIfNeeded
 
 class App : FossifyApp() {
     override fun onCreate() {
@@ -14,5 +15,7 @@ class App : FossifyApp() {
         migrateToPureYellowIfNeeded()
         // Give dialogs a yellow accent frame so they read against the black background.
         seedDialogFrame()
+        // Switch saved list layouts to the "Lastname, Firstname" name field once.
+        applySurnameFirstDefaultIfNeeded()
     }
 }
