@@ -207,7 +207,7 @@ private fun Context.writeContactsBackup(rawPath: String): String {
 
 // ContactsHelper.getContacts is callback-based (its own background thread); bridge it to a blocking
 // call so writeContactsBackup can be one linear try-path.
-private fun Context.fetchAllContactsBlocking(): ArrayList<Contact> {
+internal fun Context.fetchAllContactsBlocking(): ArrayList<Contact> {
     val latch = CountDownLatch(1)
     var result = ArrayList<Contact>()
     ContactsHelper(this).getContacts(getAll = true, showOnlyContactsWithNumbers = false) {
@@ -223,7 +223,7 @@ private fun Context.fetchAllContactsBlocking(): ArrayList<Contact> {
 // app with no permission), then a direct FileOutputStream. The direct path is what lets an arbitrary
 // absolute location work — but on API 30+ a shared-storage path needs All-files access, so throw a
 // remedy-naming error instead of the silent FUSE/MediaProvider write rejection.
-private fun Context.openBackupOutputStream(exportFile: File): OutputStream {
+internal fun Context.openBackupOutputStream(exportFile: File, mimeType: String = "text/x-vcard"): OutputStream {
     val path = exportFile.absolutePath
     if (hasProperStoredFirstParentUri(path)) {
         val uri = createDocumentUriUsingFirstParentTreeUri(path)
@@ -233,7 +233,7 @@ private fun Context.openBackupOutputStream(exportFile: File): OutputStream {
         contentResolver.openOutputStream(uri, "wt")?.let { return it }
     }
 
-    mediaStoreBackupOutputStream(exportFile)?.let { return it }
+    mediaStoreBackupOutputStream(exportFile, mimeType)?.let { return it }
 
     val primary = Environment.getExternalStorageDirectory().absolutePath
     if (isRPlus() && path.startsWith("$primary/") && !Environment.isExternalStorageManager()) {
@@ -246,7 +246,7 @@ private fun Context.openBackupOutputStream(exportFile: File): OutputStream {
     return FileOutputStream(exportFile)
 }
 
-private fun Context.mediaStoreBackupOutputStream(exportFile: File): OutputStream? {
+private fun Context.mediaStoreBackupOutputStream(exportFile: File, mimeType: String): OutputStream? {
     val primary = Environment.getExternalStorageDirectory().absolutePath
     val parent = exportFile.parentFile?.absolutePath ?: return null
     if (!parent.startsWith("$primary/")) {
@@ -274,7 +274,7 @@ private fun Context.mediaStoreBackupOutputStream(exportFile: File): OutputStream
 
     val values = ContentValues().apply {
         put(MediaStore.MediaColumns.DISPLAY_NAME, exportFile.name)
-        put(MediaStore.MediaColumns.MIME_TYPE, "text/x-vcard")
+        put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
         put(MediaStore.MediaColumns.RELATIVE_PATH, "$relativePath/")
     }
     val uri = contentResolver.insert(collection, values) ?: return null

@@ -21,7 +21,13 @@ import org.fossify.contacts.helpers.VcfExporter.ExportResult.EXPORT_FAIL
 import java.io.OutputStream
 import java.time.LocalDate
 
-class VcfExporter {
+/**
+ * [onProgress] is called with (contacts converted so far, total) after every contact, so a headless
+ * caller can report real counts — see SettingsExport.exportBlocking. Unthrottled: the caller decides how
+ * often to surface it. It is a constructor parameter rather than one of exportContacts', to leave that
+ * heavily-called signature untouched.
+ */
+class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }) {
     enum class ExportResult {
         EXPORT_FAIL, EXPORT_OK, EXPORT_PARTIAL
     }
@@ -202,6 +208,7 @@ class VcfExporter {
 
                 cards.add(card)
                 contactsExported++
+                onProgress(contactsExported, contacts.size)
             }
 
             Ezvcard.write(cards).version(version).go(outputStream)

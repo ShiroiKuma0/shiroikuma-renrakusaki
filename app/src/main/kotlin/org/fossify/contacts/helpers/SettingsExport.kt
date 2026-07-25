@@ -2,20 +2,25 @@ package org.fossify.contacts.helpers
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.Uri
+import android.os.Environment
+import android.provider.DocumentsContract
 import androidx.annotation.StringRes
+import androidx.documentfile.provider.DocumentFile
 import org.fossify.commons.extensions.getSharedPrefs
-import org.fossify.commons.helpers.ContactsHelper
 import org.fossify.commons.helpers.FontHelper
 import org.fossify.commons.helpers.ensureBackgroundThread
-import org.fossify.commons.models.contacts.Contact
 import org.fossify.contacts.BuildConfig
 import org.fossify.contacts.R
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.extensions.config
+import org.fossify.contacts.extensions.fetchAllContactsBlocking
+import org.fossify.contacts.extensions.openBackupOutputStream
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -23,6 +28,12 @@ import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+
+/**
+ * (current, total, unit, text) — the progress channel of a headless export. Real counts only: [text] is
+ * the numbers-first line a caller displays ("連絡先 123/456"), never a percentage.
+ */
+typealias ProgressReporter = (current: Long, total: Long, unit: String, text: String) -> Unit
 
 /**
  * Category-based settings + contacts export/import, modeled on the kojiki fork's KojikiExport.
@@ -39,96 +50,215 @@ object SettingsExport {
 
     const val FORMAT = "renrakusaki-export"
     const val VERSION = 1
-    const val EXPORT_PREFIX = "shiroikuma-renrakusaki-"
 
-    /** A selectable export/import category. `id` names the entry inside the ZIP. */
-    enum class Cat(val id: String, @StringRes val labelRes: Int) {
-        SETTINGS("settings", R.string.eim_cat_settings),
-        CONTACTS("contacts", R.string.eim_cat_contacts);
+    // The app's English dash-separated name, and the prefix every export of ours starts with — the whole
+    // family names its backups "<app-name>_<yyyy-MM-dd_HH-mm-ss>.zip". Deliberately version-free: a
+    // backup is identified by when it was taken, not by the build that wrote it (the build is recorded
+    // inside, as manifest.json's appVersion). Older exports carried the version in the name and still
+    // match this prefix, so the "last export" row keeps finding them.
+    const val EXPORT_PREFIX = "shiroikuma-renrakusaki"
+
+    /**
+     * Everything independently selectable in an export or import: the top-level categories plus their
+     * parts (sub-options). `id` is what the automation contract accepts in its "items" extra, and for a
+     * top-level item it is also the stable name its data carries inside the ZIP. A part names its parent
+     * through [parentId] and is dotted after it ("settings.fonts") — selecting a parent WITHOUT its parts
+     * means that category's own data only. [labelRes] is the descriptive label shown in the picker
+     * (in-app and in 自由作業盤), [shortLabelRes] the bare noun used in progress lines and summaries.
+     */
+    enum class Item(
+        val id: String,
+        val parentId: String?,
+        @StringRes val labelRes: Int,
+        @StringRes val shortLabelRes: Int,
+    ) {
+        SETTINGS("settings", null, R.string.eim_cat_settings, R.string.eim_cat_settings_short),
+        SETTINGS_FONTS("settings.fonts", "settings", R.string.eim_cat_fonts, R.string.eim_cat_fonts_short),
+        CONTACTS("contacts", null, R.string.eim_cat_contacts, R.string.eim_cat_contacts_short);
+
+        val isTopLevel: Boolean get() = parentId == null
+
+        /** The parts of this item, in declaration order — empty for a leaf. */
+        val children: List<Item> get() = entries.filter { it.parentId == id }
 
         companion object {
-            fun byId(id: String): Cat? = entries.firstOrNull { it.id == id }
+            fun byId(id: String): Item? = entries.firstOrNull { it.id == id }
+
+            /** Parents first, each followed by its own parts — the order both pickers render. */
+            val listed: List<Item> get() = entries.filter { it.isTopLevel }.flatMap { listOf(it) + it.children }
         }
     }
+
+    // The configured export folder: a persisted SAF tree grant kept in a device-local prefs file that is
+    // itself never exported. Shared by the Export/Import page and the headless automation export, so both
+    // resolve the same folder.
+    private const val EXIM_PREFS = "renrakusaki_eximport"
+    private const val EXIM_DIR_URI = "dir_uri"
 
     // Device-local keys never carried across an export: the automation shared secret AND its enable
     // switch (each device owns its own security state — a restore must never silently flip automation
     // on/off or overwrite the token), per-device timestamps, and one-time version markers.
     private val PREFS_EXCLUDE = setOf(AUTOMATION_TOKEN, AUTOMATION_ENABLED, "last_auto_backup_time", "last_version")
 
+    /** "shiroikuma-renrakusaki_2026-07-25_18-58-23.zip" — app name, then when it was taken. */
     fun exportFileName(): String =
-        EXPORT_PREFIX + BuildConfig.VERSION_NAME + "-export_" +
-            SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.ROOT).format(Date()) + ".zip"
+        EXPORT_PREFIX + "_" + SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.ROOT).format(Date()) + ".zip"
 
     // ---------------------------------------------------------------------------------------------
     // EXPORT
     // ---------------------------------------------------------------------------------------------
 
     /**
-     * Write a ZIP of the selected categories. [openOut] runs on a background thread once the data is
-     * gathered; [done] reports a short human summary or the failure, on that background thread.
+     * Write a ZIP of the selected categories. [openOut] runs on a background thread; [done] reports a
+     * short human summary or the failure, on that background thread. A thin wrapper over
+     * [exportBlocking] — the Export/Import page and the automation receiver share one export core.
      */
-    fun export(activity: SimpleActivity, cats: Set<Cat>, openOut: () -> OutputStream?, done: (Result<String>) -> Unit) {
-        if (Cat.CONTACTS in cats) {
-            ContactsHelper(activity).getContacts(getAll = true, showOnlyContactsWithNumbers = false) { contacts ->
-                writeZip(activity, cats, contacts, openOut, done)
-            }
-        } else {
-            ensureBackgroundThread {
-                writeZip(activity, cats, null, openOut, done)
-            }
+    fun export(context: Context, items: Set<Item>, openOut: () -> OutputStream?, done: (Result<String>) -> Unit) {
+        ensureBackgroundThread {
+            done(runCatching { (openOut() ?: error("no output stream")).use { exportBlocking(context, items, it) } })
         }
     }
 
-    private fun writeZip(
-        activity: SimpleActivity,
-        cats: Set<Cat>,
-        contacts: ArrayList<Contact>?,
-        openOut: () -> OutputStream?,
-        done: (Result<String>) -> Unit,
-    ) {
-        val result = runCatching {
-            val out = openOut() ?: error("no output stream")
-            val parts = mutableListOf<String>()
-            ZipOutputStream(out).use { zip ->
-                val manifest = JSONObject()
-                    .put("format", FORMAT)
-                    .put("version", VERSION)
-                    .put("app", activity.packageName)
-                    .put("createdTs", System.currentTimeMillis())
-                    .put("categories", JSONArray(cats.map { it.id }))
-                writeEntry(zip, "manifest.json", manifest.toString(2).toByteArray())
+    /**
+     * The export core, callable headlessly — no Activity, no user interaction. Gathers the selected
+     * categories, writes the ZIP into [out] and reports real counts through [onProgress] (unthrottled;
+     * the caller decides how often to surface them). Blocking, so call it on a background thread, and it
+     * throws on every failure so both callers get a single error path. Returns a short human summary.
+     */
+    fun exportBlocking(
+        context: Context,
+        items: Set<Item>,
+        out: OutputStream,
+        onProgress: ProgressReporter = { _, _, _, _ -> },
+    ): String {
+        // Declaration order, not the caller's, so a ZIP's contents don't depend on how the set was built.
+        val ordered = Item.listed.filter { it in items }
+        require(ordered.isNotEmpty()) { "nothing selected" }
+        val total = ordered.size.toLong()
+        val unit = context.getString(R.string.state_progress_unit_category)
+        val parts = mutableListOf<String>()
 
-                for (cat in cats) {
-                    when (cat) {
-                        Cat.SETTINGS -> {
-                            val prefs = activity.getSharedPrefs()
-                            writeEntry(zip, "settings.json", exportPrefs(prefs, PREFS_EXCLUDE).toByteArray())
-                            val fonts = exportFonts(activity, zip)
-                            parts += activity.getString(cat.labelRes) +
-                                if (fonts > 0) " + $fonts fonts" else ""
-                        }
+        ZipOutputStream(out).use { zip ->
+            val manifest = JSONObject()
+                .put("format", FORMAT)
+                .put("version", VERSION)
+                .put("app", context.packageName)
+                .put("appVersion", BuildConfig.VERSION_NAME)
+                .put("createdTs", System.currentTimeMillis())
+                .put("categories", JSONArray(ordered.map { it.id }))
+            writeEntry(zip, "manifest.json", manifest.toString(2).toByteArray())
 
-                        Cat.CONTACTS -> {
-                            if (contacts.isNullOrEmpty()) error("no contacts to export")
-                            val buffer = ByteArrayOutputStream()
-                            var exportResult: VcfExporter.ExportResult? = null
-                            VcfExporter().exportContacts(
-                                context = activity,
-                                outputStream = buffer,
-                                contacts = contacts,
-                                showExportingToast = false
-                            ) { exportResult = it }
-                            if (exportResult == VcfExporter.ExportResult.EXPORT_FAIL) error("contacts export failed")
-                            writeEntry(zip, "contacts.vcf", buffer.toByteArray())
-                            parts += "${activity.getString(cat.labelRes)}: ${contacts.size}"
-                        }
-                    }
+            ordered.forEachIndexed { index, item ->
+                val done = index + 1L
+                onProgress(done, total, unit, "$unit $done/$total — ${context.getString(item.shortLabelRes)}")
+                parts += when (item) {
+                    Item.SETTINGS -> writeSettings(context, zip)
+                    Item.SETTINGS_FONTS -> writeFonts(context, zip)
+                    Item.CONTACTS -> writeContacts(context, zip, onProgress)
                 }
             }
-            parts.joinToString("・")
         }
-        done(result)
+        return parts.joinToString("・")
+    }
+
+    private fun writeSettings(context: Context, zip: ZipOutputStream): String {
+        writeEntry(zip, "settings.json", exportPrefs(context.getSharedPrefs(), PREFS_EXCLUDE).toByteArray())
+        return context.getString(Item.SETTINGS.shortLabelRes)
+    }
+
+    private fun writeFonts(context: Context, zip: ZipOutputStream): String =
+        "${context.getString(Item.SETTINGS_FONTS.shortLabelRes)}: ${exportFonts(context, zip)}"
+
+    private fun writeContacts(context: Context, zip: ZipOutputStream, onProgress: ProgressReporter): String {
+        val contacts = context.fetchAllContactsBlocking()
+        if (contacts.isEmpty()) error("no contacts to export")
+        val unit = context.getString(R.string.state_progress_unit_contacts)
+        val total = contacts.size.toLong()
+
+        // Export to memory first: VcfExporter reports OK once the vCards are built, so buffering keeps
+        // "produced data" separate from "the ZIP entry was written".
+        val buffer = ByteArrayOutputStream()
+        var exportResult: VcfExporter.ExportResult? = null
+        val exporter = VcfExporter { done, _ -> onProgress(done.toLong(), total, unit, "$unit $done/$total") }
+        exporter.exportContacts(
+            context = context,
+            outputStream = buffer,
+            contacts = contacts,
+            showExportingToast = false,
+        ) { exportResult = it }
+        if (exportResult == VcfExporter.ExportResult.EXPORT_FAIL) error("contacts export failed")
+        writeEntry(zip, "contacts.vcf", buffer.toByteArray())
+        return "${context.getString(Item.CONTACTS.shortLabelRes)}: ${contacts.size}"
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // HEADLESS DESTINATION (automation)
+    // ---------------------------------------------------------------------------------------------
+
+    /** A resolved headless export destination: where to write, what to call it, and how big it ended up. */
+    class Target(val displayPath: String, val open: () -> OutputStream, val size: () -> Long)
+
+    /** The configured export folder (a persisted SAF tree), or null when none was ever picked. */
+    fun configuredDir(context: Context): DocumentFile? =
+        context.getSharedPreferences(EXIM_PREFS, Context.MODE_PRIVATE).getString(EXIM_DIR_URI, null)
+            ?.let { runCatching { DocumentFile.fromTreeUri(context, Uri.parse(it)) }.getOrNull() }
+            ?.takeIf { it.isDirectory }
+
+    /** The raw persisted tree URI, for the Export/Import page's folder picker. */
+    fun configuredDirUri(context: Context): Uri? =
+        context.getSharedPreferences(EXIM_PREFS, Context.MODE_PRIVATE).getString(EXIM_DIR_URI, null)
+            ?.let { runCatching { Uri.parse(it) }.getOrNull() }
+
+    fun setConfiguredDirUri(context: Context, uri: Uri) {
+        context.getSharedPreferences(EXIM_PREFS, Context.MODE_PRIVATE).edit()
+            .putString(EXIM_DIR_URI, uri.toString())
+            .apply()
+    }
+
+    /**
+     * Resolve where a headless export writes. Directory precedence, per the automation contract:
+     * [pathOverride] (an absolute directory, created if missing) → the configured export folder →
+     * null, which the caller reports as "no-directory".
+     */
+    fun headlessTarget(context: Context, pathOverride: String): Target? {
+        val name = exportFileName()
+        if (pathOverride.isNotEmpty()) {
+            // /sdcard is a symlink; normalize so the MediaStore path checks inside the writer match.
+            val primary = Environment.getExternalStorageDirectory().absolutePath
+            val dir = pathOverride.replaceFirst(Regex("^/sdcard"), primary)
+            val file = File(dir, name)
+            file.parentFile?.mkdirs()
+            return Target(
+                displayPath = file.absolutePath,
+                open = { context.openBackupOutputStream(file, "application/zip") },
+                size = { file.length() },
+            )
+        }
+
+        val dir = configuredDir(context) ?: return null
+        val file = dir.createFile("application/zip", name) ?: error("cannot create a file in ${dir.name}")
+        return Target(
+            displayPath = displayPathOf(file.uri),
+            open = { context.contentResolver.openOutputStream(file.uri) ?: error("cannot open ${file.uri}") },
+            size = { file.length() },
+        )
+    }
+
+    /**
+     * Best-effort filesystem path for a SAF document ("primary:〇/x.zip" → "/storage/emulated/0/〇/x.zip"),
+     * so the automation reply names a path 白い熊 can actually open. Falls back to the URI.
+     */
+    private fun displayPathOf(uri: Uri): String {
+        val docId = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull() ?: return uri.toString()
+        val volume = docId.substringBefore(':', "")
+        val relative = docId.substringAfter(':', "")
+        if (volume.isEmpty() || relative.isEmpty()) return uri.toString()
+        val root = if (volume == "primary") {
+            Environment.getExternalStorageDirectory().absolutePath
+        } else {
+            "/storage/$volume"
+        }
+        return "$root/$relative"
     }
 
     private fun writeEntry(zip: ZipOutputStream, name: String, content: ByteArray) {
@@ -172,45 +302,55 @@ object SettingsExport {
     // IMPORT
     // ---------------------------------------------------------------------------------------------
 
-    /** Categories present in a ZIP (from its manifest, falling back to the entries found). */
-    fun categoriesIn(zip: ByteArray): Set<Cat> {
+    /** Items present in a ZIP (from its manifest, falling back to the entries actually found). */
+    fun categoriesIn(zip: ByteArray): Set<Item> {
         val files = readZip(zip)
         files["manifest.json"]?.let { mf ->
             val cats = runCatching { JSONObject(mf.decodeToString()).optJSONArray("categories") }.getOrNull()
             if (cats != null) {
-                val set = (0 until cats.length()).mapNotNull { Cat.byId(cats.optString(it)) }.toSet()
+                val set = (0 until cats.length()).mapNotNull { Item.byId(cats.optString(it)) }.toSet()
                 if (set.isNotEmpty()) return set
             }
         }
-        return Cat.entries.filter { files.containsKey(entryName(it)) }.toSet()
+        return Item.entries.filter { hasData(it, files) }.toSet()
     }
 
-    private fun entryName(cat: Cat) = when (cat) {
-        Cat.SETTINGS -> "settings.json"
-        Cat.CONTACTS -> "contacts.vcf"
+    // Older exports (and any ZIP with no usable manifest) are recognised by their entries: fonts were
+    // always written under fonts/, so a pre-sub-option ZIP still reports both settings and its fonts.
+    private fun hasData(item: Item, files: Map<String, ByteArray>) = when (item) {
+        Item.SETTINGS -> files.containsKey("settings.json")
+        Item.SETTINGS_FONTS -> files.keys.any { it.startsWith("fonts/") }
+        Item.CONTACTS -> files.containsKey("contacts.vcf")
     }
 
     /**
      * Apply the selected categories from a ZIP; absent ones are skipped. Runs on a background thread;
      * [done] reports a short per-category summary or the failure, on that background thread.
      */
-    fun import(activity: SimpleActivity, zip: ByteArray, cats: Set<Cat>, done: (Result<String>) -> Unit) {
+    fun import(activity: SimpleActivity, zip: ByteArray, cats: Set<Item>, done: (Result<String>) -> Unit) {
         ensureBackgroundThread {
             val result = runCatching {
                 val files = readZip(zip)
                 require(categoriesIn(zip).isNotEmpty()) { activity.getString(R.string.eim_import_none) }
                 val parts = mutableListOf<String>()
 
-                if (Cat.SETTINGS in cats) {
+                if (Item.SETTINGS in cats) {
                     files["settings.json"]?.let { data ->
                         val n = importPrefs(activity.getSharedPrefs(), data.decodeToString(), PREFS_EXCLUDE)
-                        val fonts = importFonts(activity, files)
-                        parts += activity.getString(Cat.SETTINGS.labelRes) + ": $n" +
-                            if (fonts > 0) " + $fonts fonts" else ""
+                        parts += activity.getString(Item.SETTINGS.shortLabelRes) + ": $n"
                     }
                 }
 
-                if (Cat.CONTACTS in cats) {
+                // Independently selectable: restoring the fonts without the prefs that reference them, or
+                // the prefs without the font files, are both valid choices.
+                if (Item.SETTINGS_FONTS in cats) {
+                    val fonts = importFonts(activity, files)
+                    if (fonts > 0) {
+                        parts += activity.getString(Item.SETTINGS_FONTS.shortLabelRes) + ": $fonts"
+                    }
+                }
+
+                if (Item.CONTACTS in cats) {
                     files["contacts.vcf"]?.let { data ->
                         val temp = java.io.File(activity.cacheDir, "eximport.vcf")
                         temp.writeBytes(data)
@@ -220,7 +360,7 @@ object SettingsExport {
                         )
                         temp.delete()
                         if (importResult == VcfImporter.ImportResult.IMPORT_FAIL) error("contacts import failed")
-                        parts += activity.getString(Cat.CONTACTS.labelRes) + ": " + importResult.name
+                        parts += activity.getString(Item.CONTACTS.shortLabelRes) + ": " + importResult.name
                     }
                 }
 

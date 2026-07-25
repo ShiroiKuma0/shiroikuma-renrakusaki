@@ -164,6 +164,28 @@ const val EXTRA_REPLY_RESULT = "result"
 const val AUTOMATION_ENABLED = "automation_enabled"
 const val AUTOMATION_TOKEN = "automation_token"
 
+// The 保存復元 state-export contract, implemented by receivers/StateExportReceiver: 自由作業盤's
+// 保存復元 project backs up every sister app in one run, firing EXPORT_STATE at each app so it writes
+// its own category ZIP headlessly (no Activity) and replies with the written path and size, plus
+// LIST_CATEGORIES so the picker can offer this app's categories. Same token gate and same plain
+// reply-broadcast channel as ACTION_BACKUP_CONTACTS above; "token", "path", "reply_action",
+// "reply_package" and "reply_id" are shared with it verbatim.
+const val ACTION_EXPORT_STATE = "shiroikuma.renrakusaki.action.EXPORT_STATE"
+const val ACTION_LIST_CATEGORIES = "shiroikuma.renrakusaki.action.LIST_CATEGORIES"
+const val EXTRA_EXPORT_ITEMS = "items"
+const val EXTRA_PROGRESS_ACTION = "progress_action"
+
+// Progress-broadcast payload. 白い熊's requirement: real counts, never a percentage — "text" is the
+// numbers-first line shown in 自由作業盤's notification, current/total/unit the structured form.
+const val EXTRA_PROGRESS_APP = "app"
+const val EXTRA_PROGRESS_TEXT = "text"
+const val EXTRA_PROGRESS_CURRENT = "current"
+const val EXTRA_PROGRESS_TOTAL = "total"
+const val EXTRA_PROGRESS_UNIT = "unit"
+
+// At most one progress broadcast per this many ms (the completion one is always sent).
+const val PROGRESS_THROTTLE_MS = 500L
+
 const val AUTO_BACKUP_CONTACT_SOURCES = "auto_backup_contact_sources"
 
 // extras used at third party intents
