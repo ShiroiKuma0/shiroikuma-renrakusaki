@@ -5,11 +5,21 @@
     <string name="eim_title">エクスポート / インポート</string>
     <string name="eim_dir">エクスポート先フォルダー</string>
     <string name="eim_dir_unset">未設定 — タップして選択</string>
-    <string name="eim_last">最終エクスポート</string>
+    <string name="eim_open">エクスポート / インポート…</string>
+    <string name="eim_hint">選択した区分を 1 つの ZIP に保存・読み込みします。</string>
+    <string name="eim_last_never">まだエクスポートしていません</string>
+    <string name="eim_last_at">最終エクスポート %s</string>
     <string name="eim_none">まだありません</string>
     <string name="eim_select_all">すべて選択</string>
-    <string name="eim_cat_settings">設定 — 色・フォント・レイアウト・オプション</string>
+    <string name="eim_cat_settings">設定 — 色・レイアウト・オプション</string>
+    <string name="eim_cat_fonts">読み込んだフォントファイル</string>
     <string name="eim_cat_contacts">連絡先（.vcf）</string>
+    <!-- 自動化の進捗表示に使う短い区分名（「区分 1/3 — 設定」） -->
+    <string name="eim_cat_settings_short">設定</string>
+    <string name="eim_cat_fonts_short">フォント</string>
+    <string name="eim_cat_contacts_short">連絡先</string>
+    <string name="state_progress_unit_category">区分</string>
+    <string name="state_progress_unit_contacts">連絡先</string>
     <string name="eim_export">エクスポート</string>
     <string name="eim_import">インポート…</string>
     <string name="eim_none_selected">何も選択されていません</string>
@@ -23,8 +33,12 @@
     <string name="eim_vcf_group">VCF</string>
     <!-- Automation intents (token-gated on-demand backup for the jiyusagyoban fork) -->
     <string name="automation">自動化</string>
-    <string name="enable_automation">自動化インテントを許可</string>
-    <string name="automation_token">自動化トークン — タップでコピー、長押しで再生成</string>
+    <string name="enable_automation">自動化エクスポート</string>
+    <string name="enable_automation_desc">姉妹アプリのタスクが、トークンで保護されたインテント経由でこのアプリのエクスポートを実行できます。</string>
+    <string name="automation_token">自動化トークン — タップでコピー</string>
+    <string name="automation_token_copied">トークンをクリップボードにコピーしました</string>
+    <string name="automation_token_regenerate">再生成</string>
+    <string name="automation_token_regenerate_warning">新しいトークンを生成しますか？ 白い熊 自由作業盤（や他のタスク）に貼り付け済みのコピーは、新しいトークンを貼り直すまで動作しなくなります。</string>
     <string name="automation_token_regenerated">トークンを再生成しました</string>
     <string name="all_files_access">全ファイルアクセス — Download/Documents 以外へのバックアップ用</string>
     <string name="all_files_access_granted">許可済み</string>

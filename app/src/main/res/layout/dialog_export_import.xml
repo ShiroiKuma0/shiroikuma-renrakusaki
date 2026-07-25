@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Export / Import panel: a hint line, then the category checklist (sub-options indented under
+     their parent) and the one-shot VCF actions, all added at runtime into export_import_holder. The
+     page itself keeps only the folder row and the row that opens this. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:id="@+id/export_import_holder"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="@dimen/medium_margin">
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/export_import_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:alpha="0.6"
+            android:paddingHorizontal="@dimen/activity_margin"
+            android:paddingBottom="@dimen/medium_margin" />
+
+    </LinearLayout>
+
+</ScrollView>

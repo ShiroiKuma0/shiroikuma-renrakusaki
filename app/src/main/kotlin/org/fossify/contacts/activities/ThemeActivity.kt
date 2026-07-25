@@ -1,17 +1,23 @@
 package org.fossify.contacts.activities
 
-import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.text.SpannableStringBuilder
+import android.text.Spanned
 import android.text.format.DateUtils
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.documentfile.provider.DocumentFile
 import androidx.core.widget.doAfterTextChanged
 import androidx.appcompat.app.AppCompatDelegate
@@ -20,8 +26,8 @@ import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
+import org.fossify.commons.extensions.adjustAlpha
 import org.fossify.commons.extensions.beGone
-import org.fossify.commons.extensions.copyToClipboard
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
@@ -38,6 +44,7 @@ import org.fossify.contacts.R
 import org.fossify.contacts.adapters.ContactsListFieldsAdapter
 import org.fossify.contacts.databinding.ActivityThemeBinding
 import org.fossify.contacts.databinding.DialogColumnSpacerBinding
+import org.fossify.contacts.databinding.DialogExportImportBinding
 import org.fossify.contacts.databinding.DialogPatternInputBinding
 import org.fossify.contacts.databinding.ItemThemeColorBinding
 import org.fossify.contacts.databinding.ItemThemeFieldsOrderBinding
@@ -47,6 +54,7 @@ import org.fossify.contacts.databinding.ItemThemeSubgroupBinding
 import org.fossify.contacts.databinding.ItemThemeSwitchBinding
 import org.fossify.contacts.databinding.ItemThemeTextBinding
 import org.fossify.contacts.databinding.ItemThemeThumbnailBinding
+import org.fossify.contacts.databinding.ItemThemeTokenBinding
 import org.fossify.contacts.databinding.ItemThemeValueBinding
 import org.fossify.contacts.dialogs.AlphaColorPickerDialog
 import org.fossify.contacts.dialogs.ExportContactsDialog
@@ -93,6 +101,20 @@ private const val INDENT_STEP_DP = 72
 private const val SAMPLE_THIS_YEAR_DAYS = 30
 private const val SAMPLE_OLDER_DAYS = 400
 
+// The page indents in 72dp steps; the narrower Export / Import panel steps in this instead.
+private const val DIALOG_INDENT_STEP_DP = 24
+
+// Vertical padding for every row, replacing the commons style's 20dp — the page is a long list of
+// one-liners, so it is packed tight rather than spaced like a handful of preference rows.
+private const val ROW_PADDING_VERTICAL_DP = 4
+
+// A row description renders at this share of the title's size, dimmed to this alpha.
+private const val DESCRIPTION_TEXT_SCALE = 0.85f
+private const val DESCRIPTION_ALPHA = 0.6f
+
+// How many hex characters of the automation token stay visible at each end.
+private const val TOKEN_ABBREVIATION_EDGE = 8
+
 // Every translation the app ships (mirrors the res/values-* locale dirs, plus English), as BCP-47 tags.
 // Offered by the "Application language" picker; display names render in each language itself.
 private val APP_LANGUAGE_TAGS = listOf(
@@ -117,7 +139,7 @@ class ThemeActivity : SimpleActivity() {
 
     // Export / Import (top section): category selection survives buildRows() rebuilds; the export
     // folder (a persisted SAF tree grant) lives in a device-local prefs file that is itself never exported.
-    private val eximSelected = SettingsExport.Cat.entries.toMutableSet()
+    private val eximSelected = SettingsExport.Item.entries.toMutableSet()
     private var ignoredExportContactSources = HashSet<String>()
 
     private val eximDirPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
@@ -173,7 +195,6 @@ class ThemeActivity : SimpleActivity() {
         val stepPx = (INDENT_STEP_DP * resources.displayMetrics.density).toInt()
 
         addExportImportSection(primaryColor, stepPx)
-        addAutomationSection(primaryColor, stepPx)
         addLanguageSection(primaryColor, stepPx)
         ThemeGroup.entries.forEach { addGroup(it, primaryColor, stepPx) }
     }
@@ -183,41 +204,91 @@ class ThemeActivity : SimpleActivity() {
     private fun addExportImportSection(primaryColor: Int, stepPx: Int) {
         addSectionHeader(getString(R.string.eim_title), primaryColor)
 
+        // Two rows only, as in the sister apps: where exports go, and the panel that does the work.
+        // Everything selectable — categories, their sub-options, the VCF one-shots — lives in the panel.
         addValueRow(getString(R.string.eim_dir), eximDir()?.name ?: getString(R.string.eim_dir_unset), stepPx) {
             eximDirPicker.launch(eximDirUri())
         }
-        addValueRow(getString(R.string.eim_last), lastExportText(), stepPx) {}
+        addValueRow(getString(R.string.eim_open), lastExportSummary(), stepPx) { showExportImportDialog() }
 
-        val catRows = HashMap<SettingsExport.Cat, ItemThemeSwitchBinding>()
-        addSwitchRow(getString(R.string.eim_select_all), eximSelected.containsAll(SettingsExport.Cat.entries), stepPx) { on ->
-            SettingsExport.Cat.entries.forEach { cat ->
-                if (on) eximSelected.add(cat) else eximSelected.remove(cat)
-                catRows[cat]?.themeSwitch?.isChecked = on
-            }
-        }
-        for (cat in SettingsExport.Cat.entries) {
-            catRows[cat] = addSwitchRow(getString(cat.labelRes), cat in eximSelected, stepPx * 2) { on ->
-                if (on) eximSelected.add(cat) else eximSelected.remove(cat)
-            }
-        }
-
-        addActionRow(getString(R.string.eim_export), stepPx) { onEximExport() }
-        addActionRow(getString(R.string.eim_import), stepPx) { onEximImport() }
-
-        // The stock one-shot VCF flows, kept as their own separated rows at the section's end.
-        addSubgroupHeader(getString(R.string.eim_vcf_group), primaryColor, stepPx)
-        addActionRow(getString(R.string.export_contacts_to_vcf), stepPx * 2) { startVcfExport() }
-        addActionRow(getString(R.string.import_contacts_from_vcf), stepPx * 2) { startVcfImport() }
+        // Automation sits directly below the export rows it drives — the placement every sister app
+        // shares, so 白い熊 finds it where backup lives.
+        addAutomationSubgroup(primaryColor, stepPx)
     }
 
-    private fun eximPrefs() = getSharedPreferences("renrakusaki_eximport", Context.MODE_PRIVATE)
+    /** The opener row's second line: when the newest export in the folder was written. */
+    private fun lastExportSummary(): String {
+        val last = lastExportText()
+        return if (last == getString(R.string.eim_none)) {
+            getString(R.string.eim_last_never)
+        } else {
+            getString(R.string.eim_last_at, last)
+        }
+    }
 
-    private fun eximDirUri(): Uri? =
-        eximPrefs().getString("dir_uri", null)?.let { runCatching { Uri.parse(it) }.getOrNull() }
+    /**
+     * The Export / Import panel: the category checklist (sub-options indented under their parent, and
+     * following its toggle), the one-shot VCF actions, and Export / Import / Cancel. The page's own
+     * section stays two rows deep — this is where the choosing happens.
+     */
+    private fun showExportImportDialog() {
+        val view = DialogExportImportBinding.inflate(layoutInflater)
+        val holder = view.exportImportHolder
+        view.exportImportHint.text = getString(R.string.eim_hint)
+        val primaryColor = getProperPrimaryColor()
+        val stepPx = (DIALOG_INDENT_STEP_DP * resources.displayMetrics.density).toInt()
 
-    private fun eximDir(): DocumentFile? =
-        eximDirUri()?.let { runCatching { DocumentFile.fromTreeUri(this, it) }.getOrNull() }
-            ?.takeIf { it.isDirectory }
+        val catRows = HashMap<SettingsExport.Item, ItemThemeSwitchBinding>()
+        addSwitchRow(
+            title = getString(R.string.eim_select_all),
+            checked = eximSelected.containsAll(SettingsExport.Item.entries),
+            indent = 0,
+            parent = holder,
+        ) { on ->
+            SettingsExport.Item.entries.forEach { item ->
+                if (on) eximSelected.add(item) else eximSelected.remove(item)
+                catRows[item]?.themeSwitch?.isChecked = on
+            }
+        }
+        for (item in SettingsExport.Item.entries.filter { it.isTopLevel }) {
+            catRows[item] = addSwitchRow(getString(item.labelRes), item in eximSelected, stepPx, parent = holder) { on ->
+                if (on) eximSelected.add(item) else eximSelected.remove(item)
+                item.children.forEach { child ->
+                    if (on) eximSelected.add(child) else eximSelected.remove(child)
+                    catRows[child]?.themeSwitch?.isChecked = on
+                }
+            }
+            for (child in item.children) {
+                val label = getString(child.labelRes)
+                catRows[child] = addSwitchRow(label, child in eximSelected, stepPx * 2, parent = holder) { on ->
+                    if (on) eximSelected.add(child) else eximSelected.remove(child)
+                }
+            }
+        }
+
+        var dialog: AlertDialog? = null
+        addSubgroupHeader(getString(R.string.eim_vcf_group), primaryColor, 0, holder)
+        addActionRow(getString(R.string.export_contacts_to_vcf), stepPx, holder) {
+            dialog?.dismiss()
+            startVcfExport()
+        }
+        addActionRow(getString(R.string.import_contacts_from_vcf), stepPx, holder) {
+            dialog?.dismiss()
+            startVcfImport()
+        }
+
+        getAlertDialogBuilder()
+            .setPositiveButton(R.string.eim_export) { _, _ -> onEximExport() }
+            .setNegativeButton(R.string.eim_import) { _, _ -> onEximImport() }
+            .setNeutralButton(org.fossify.commons.R.string.cancel, null)
+            .apply { setupDialogStuff(view.root, this, R.string.eim_title) { dialog = it } }
+    }
+
+    // The folder itself lives in SettingsExport, so this page and the headless automation export
+    // (StateExportReceiver) always resolve the same one.
+    private fun eximDirUri(): Uri? = SettingsExport.configuredDirUri(this)
+
+    private fun eximDir(): DocumentFile? = SettingsExport.configuredDir(this)
 
     private fun onEximDirPicked(uri: Uri) {
         runCatching {
@@ -225,7 +296,7 @@ class ThemeActivity : SimpleActivity() {
                 uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
         }
-        eximPrefs().edit().putString("dir_uri", uri.toString()).apply()
+        SettingsExport.setConfiguredDirUri(this, uri)
         buildRows()
     }
 
@@ -352,28 +423,51 @@ class ThemeActivity : SimpleActivity() {
         }
     }
 
-    // ---- Automation (the token-gated intent surface; see BackupContactsReceiver) ----
+    // ---- Automation: a subgroup of Export / Import, since every automation intent drives that export
+    // (see StateExportReceiver and BackupContactsReceiver) ----
 
-    private fun addAutomationSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.automation), primaryColor)
-        addSwitchRow(getString(R.string.enable_automation), config.automationEnabled, stepPx) {
+    private fun addAutomationSubgroup(primaryColor: Int, stepPx: Int) {
+        addSubgroupHeader(getString(R.string.automation), primaryColor, stepPx)
+
+        // Two rows, in the order every sister app uses: the master switch (default OFF), then the token.
+        addSwitchRow(
+            title = getString(R.string.enable_automation),
+            checked = config.automationEnabled,
+            indent = stepPx * 2,
+            description = getString(R.string.enable_automation_desc),
+        ) {
             config.automationEnabled = it
         }
-        val tokenRow = addValueRow(getString(R.string.automation_token), config.automationToken, stepPx) {
-            copyToClipboard(config.automationToken)
-        }
-        tokenRow.root.setOnLongClickListener {
-            tokenRow.themeValueValue.text = config.regenerateAutomationToken()
-            toast(R.string.automation_token_regenerated)
-            true
-        }
 
-        // All-files access: needed so a BACKUP_CONTACTS broadcast can write to an arbitrary absolute
-        // path (e.g. 白い熊's archive folder) outside Download/Documents. API 30+ only.
+        addTokenRow(
+            indent = stepPx * 2,
+            token = config.automationToken,
+            onCopy = {
+                // Not commons' copyToClipboard: that one toasts the value itself, which would put the
+                // full secret back on screen right after we deliberately abbreviated it.
+                getSystemService(ClipboardManager::class.java)
+                    .setPrimaryClip(ClipData.newPlainText(getString(R.string.automation_token), config.automationToken))
+                toast(R.string.automation_token_copied)
+            },
+            onRegenerate = { row ->
+                ConfirmationDialog(
+                    activity = this,
+                    message = getString(R.string.automation_token_regenerate_warning),
+                    positive = R.string.automation_token_regenerate,
+                    negative = org.fossify.commons.R.string.cancel,
+                ) {
+                    row.themeTokenValue.text = abbreviateToken(config.regenerateAutomationToken())
+                    toast(R.string.automation_token_regenerated)
+                }
+            },
+        )
+
+        // All-files access: needed so an automation broadcast can write to an arbitrary absolute path
+        // (e.g. 白い熊's archive folder) outside Download/Documents. API 30+ only.
         if (isRPlus()) {
             val granted = Environment.isExternalStorageManager()
             val state = getString(if (granted) R.string.all_files_access_granted else R.string.all_files_access_needed)
-            addValueRow(getString(R.string.all_files_access), state, stepPx) {
+            addValueRow(getString(R.string.all_files_access), state, stepPx * 2) {
                 try {
                     startActivity(
                         Intent(
@@ -659,10 +753,18 @@ class ThemeActivity : SimpleActivity() {
         }
     }
 
-    // Toggle row: the whole row is the tap target; the switch itself is non-interactive.
-    private fun addSwitchRow(title: String, checked: Boolean, indent: Int, onChange: (Boolean) -> Unit): ItemThemeSwitchBinding {
-        val b = ItemThemeSwitchBinding.inflate(layoutInflater, binding.themeHolder, false)
-        b.themeSwitchLabel.text = title
+    // Toggle row: the whole row is the tap target; the switch itself is non-interactive. [description],
+    // when given, becomes a dimmer second line under the title.
+    private fun addSwitchRow(
+        title: String,
+        checked: Boolean,
+        indent: Int,
+        description: String? = null,
+        parent: ViewGroup = binding.themeHolder,
+        onChange: (Boolean) -> Unit,
+    ): ItemThemeSwitchBinding {
+        val b = ItemThemeSwitchBinding.inflate(layoutInflater, parent, false)
+        b.themeSwitchLabel.text = if (description == null) title else titleWithDescription(title, description)
         b.themeSwitchLabel.setTextColor(getProperTextColor())
         b.themeSwitch.isChecked = checked
         b.root.setOnClickListener {
@@ -670,9 +772,52 @@ class ThemeActivity : SimpleActivity() {
             onChange(b.themeSwitch.isChecked)
         }
         indentRow(b.root, indent)
-        binding.themeHolder.addView(b.root)
+        parent.addView(b.root)
         return b
     }
+
+    // A row's explanation, as a smaller dimmed line below its title — the value rows' styling, without
+    // needing a second view in every switch layout.
+    private fun titleWithDescription(title: String, description: String): CharSequence =
+        SpannableStringBuilder(title).apply {
+            append("\n")
+            val start = length
+            append(description)
+            val dimmed = ForegroundColorSpan(getProperTextColor().adjustAlpha(DESCRIPTION_ALPHA))
+            setSpan(RelativeSizeSpan(DESCRIPTION_TEXT_SCALE), start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(dimmed, start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+    /**
+     * The automation-token row: label plus the abbreviated token, tapping anywhere copies the full token,
+     * and a Regenerate action on the right warns before invalidating pasted copies.
+     */
+    private fun addTokenRow(
+        indent: Int,
+        token: String,
+        onCopy: () -> Unit,
+        onRegenerate: (ItemThemeTokenBinding) -> Unit,
+    ) {
+        val b = ItemThemeTokenBinding.inflate(layoutInflater, binding.themeHolder, false)
+        b.themeTokenLabel.text = getString(R.string.automation_token)
+        b.themeTokenLabel.setTextColor(getProperTextColor())
+        b.themeTokenValue.text = abbreviateToken(token)
+        b.themeTokenValue.setTextColor(getProperTextColor())
+        b.themeTokenRegenerate.text = getString(R.string.automation_token_regenerate)
+        b.themeTokenRegenerate.setTextColor(getProperPrimaryColor())
+        b.root.setOnClickListener { onCopy() }
+        b.themeTokenRegenerate.setOnClickListener { onRegenerate(b) }
+        indentRow(b.root, indent)
+        binding.themeHolder.addView(b.root)
+    }
+
+    // Shown abbreviated so the secret is not left on screen; the tap still copies it in full.
+    private fun abbreviateToken(token: String): String =
+        if (token.length <= TOKEN_ABBREVIATION_EDGE * 2) {
+            token
+        } else {
+            token.take(TOKEN_ABBREVIATION_EDGE) + "…" + token.takeLast(TOKEN_ABBREVIATION_EDGE)
+        }
 
     private fun addValueRow(title: String, value: String, indent: Int, onClick: () -> Unit): ItemThemeValueBinding {
         val textColor = getProperTextColor()
@@ -688,14 +833,14 @@ class ThemeActivity : SimpleActivity() {
     }
 
     // Label-only tappable row (no value line) — used for one-shot actions like export/import.
-    private fun addActionRow(title: String, indent: Int, onClick: () -> Unit) {
-        val b = ItemThemeValueBinding.inflate(layoutInflater, binding.themeHolder, false)
+    private fun addActionRow(title: String, indent: Int, parent: ViewGroup = binding.themeHolder, onClick: () -> Unit) {
+        val b = ItemThemeValueBinding.inflate(layoutInflater, parent, false)
         b.themeValueLabel.text = title
         b.themeValueLabel.setTextColor(getProperTextColor())
         b.themeValueValue.beGone()
         b.root.setOnClickListener { onClick() }
         indentRow(b.root, indent)
-        binding.themeHolder.addView(b.root)
+        parent.addView(b.root)
     }
 
     // A sample timestamp for each age bracket, so pattern rows and the edit dialog show a live example.
@@ -835,10 +980,15 @@ class ThemeActivity : SimpleActivity() {
         parent.addView(b.root)
     }
 
+    /**
+     * Every row on this page (and in the Export / Import panel) passes through here, so this is also
+     * where the vertical rhythm is set. The commons row style pads 20dp above and below a single line of
+     * text — 40dp per row, which on a page this long is screens of whitespace — so the vertical padding
+     * is replaced with [ROW_PADDING_VERTICAL_DP] while the horizontal padding and the indent are kept.
+     */
     private fun indentRow(view: android.view.View, indent: Int) {
-        if (indent > 0) {
-            view.setPaddingRelative(view.paddingStart + indent, view.paddingTop, view.paddingEnd, view.paddingBottom)
-        }
+        val vertical = (ROW_PADDING_VERTICAL_DP * resources.displayMetrics.density).toInt()
+        view.setPaddingRelative(view.paddingStart + indent, vertical, view.paddingEnd, vertical)
     }
 
     private fun refreshSample(b: ItemThemeTextBinding, slot: ThemeSlot) {

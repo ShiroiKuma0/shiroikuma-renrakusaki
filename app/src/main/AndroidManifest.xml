@@ -264,9 +264,23 @@
              fired (ordered) before it switches the system locale. See BackupContactsReceiver. -->
         <receiver
             android:name=".receivers.BackupContactsReceiver"
-            android:exported="true">
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
             <intent-filter>
                 <action android:name="shiroikuma.renrakusaki.action.BACKUP_CONTACTS" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Fork: the 保存復元 state-export contract for 自由作業盤 — a headless category-ZIP export
+             plus the category list it builds its picker from. No android:permission: the caller cannot
+             hold one, so the automation token is the gate. See receivers/StateExportReceiver. -->
+        <receiver
+            android:name=".receivers.StateExportReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="shiroikuma.renrakusaki.action.EXPORT_STATE" />
+                <action android:name="shiroikuma.renrakusaki.action.LIST_CATEGORIES" />
             </intent-filter>
         </receiver>
 

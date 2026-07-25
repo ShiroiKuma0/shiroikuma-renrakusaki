@@ -5,11 +5,21 @@
     <string name="eim_title">Export / Import</string>
     <string name="eim_dir">Export folder</string>
     <string name="eim_dir_unset">Not set — tap to choose</string>
-    <string name="eim_last">Last export</string>
+    <string name="eim_open">Export / Import…</string>
+    <string name="eim_hint">Save or load the selected categories as one ZIP.</string>
+    <string name="eim_last_never">no export yet</string>
+    <string name="eim_last_at">last export %s</string>
     <string name="eim_none">none yet</string>
     <string name="eim_select_all">Select all</string>
-    <string name="eim_cat_settings">Settings — colors, fonts, layout, options</string>
+    <string name="eim_cat_settings">Settings — colors, layout, options</string>
+    <string name="eim_cat_fonts">Imported font files</string>
     <string name="eim_cat_contacts">Contacts (.vcf)</string>
+    <!-- Bare category nouns, used in the automation progress lines ("Categories 1/3 — Settings") -->
+    <string name="eim_cat_settings_short">Settings</string>
+    <string name="eim_cat_fonts_short">Fonts</string>
+    <string name="eim_cat_contacts_short">Contacts</string>
+    <string name="state_progress_unit_category">Categories</string>
+    <string name="state_progress_unit_contacts">Contacts</string>
     <string name="eim_export">Export</string>
     <string name="eim_import">Import…</string>
     <string name="eim_none_selected">Nothing selected</string>
@@ -23,8 +33,12 @@
     <string name="eim_vcf_group">VCF</string>
     <!-- Automation intents (token-gated on-demand backup for the jiyusagyoban fork) -->
     <string name="automation">Automation</string>
-    <string name="enable_automation">Allow automation intents</string>
-    <string name="automation_token">Automation token — tap to copy, hold to regenerate</string>
+    <string name="enable_automation">Automation export</string>
+    <string name="enable_automation_desc">Sister-app tasks may trigger this app\'s export through the token-gated intent.</string>
+    <string name="automation_token">Automation token — tap to copy</string>
+    <string name="automation_token_copied">Token copied to the clipboard</string>
+    <string name="automation_token_regenerate">Regenerate</string>
+    <string name="automation_token_regenerate_warning">Generate a new token? Copies already pasted into 白い熊 自由作業盤 — or any other task — stop working until the new token is pasted there.</string>
     <string name="automation_token_regenerated">Token regenerated</string>
     <string name="all_files_access">All files access — for backups outside Download/Documents</string>
     <string name="all_files_access_granted">Granted</string>
