@@ -6,11 +6,11 @@
 
 **A black-and-yellow, deeply customizable contacts app — your list, your layout, your colors.**
 
-A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, per-contact default SIM, settings + contacts export/import, and an automation backup broadcast for the companion task runner.
+A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, per-contact default SIM, category export/import, and a headless, token-gated backup the companion task runner drives.
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+67`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+75`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -37,12 +37,12 @@ Flip the list into detail mode and every contact shows its **most recent call an
 ---
 
 ## 📦 Export / Import
-Category-based export to a plain-file ZIP: `settings.json` with every preference (colors, fonts, layout, options) plus your **contacts as .vcf** — pick categories on both export and import, then restore on any device in two taps.
+One ZIP holds everything: `settings.json` with every preference (colors, fonts, layout, options), your imported font files, and your **contacts as .vcf**. A single panel does the choosing — tick whole categories or just their **sub-options**, then export or import; a remembered folder and the last-export time sit on the page itself. Backups are named `shiroikuma-renrakusaki_2026-07-25_18-58-23.zip`, so they sort by when you took them, and the build that wrote one is recorded inside.
 
 ---
 
-## 🤖 Automation backup broadcast
-A token-gated, exported `BACKUP_CONTACTS` broadcast lets the companion task runner (白い熊 自由作業盤) trigger a **full .vcf backup to any absolute path** before risky system operations — and get a verified `OK:<file>` / `ERROR:<reason>` reply over a plain reply broadcast, the one ACK channel that survives EMUI's broadcast mangling. Born from a real incident: an EMUI locale switch once wiped every contact.
+## 🤖 Headless backup, driven by automation
+Two token-gated broadcasts let the companion task runner (白い熊 自由作業盤) back this app up without ever opening it: it asks for the **category list**, then triggers the **same export the panel runs** — headlessly, into any absolute path — and gets back the written file's path and real size. While it works, it reports **real counts, never a percentage** (`連絡先 123/456`). A separate `BACKUP_CONTACTS` broadcast still does a straight .vcf dump before risky system operations. Every reply travels as a plain broadcast, the one ACK channel that survives EMUI's broadcast mangling — born from a real incident, when an EMUI locale switch wiped every contact.
 
 ---
 

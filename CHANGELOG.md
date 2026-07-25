@@ -4,6 +4,91 @@ This is a fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts). It
 release and layers our customizations on top; versions are `<upstream version>+<fork build>`. This
 file documents what the fork adds on top of stock — see upstream's own changelog for the base app.
 
+## [1.6.0+75] — 2026-07-25
+
+Everything added since `1.6.0+67`, still on **Fossify Contacts 1.6.0** (upstream has not cut a new
+release; `main` was synced to its latest maintenance commits).
+
+### The 保存復元 state-export contract
+白い熊 自由作業盤's 保存復元 project backs up every sister app in one run. This build implements its
+wire contract, so 連絡先 joins the batch.
+
+- **`shiroikuma.renrakusaki.action.EXPORT_STATE`** — runs the same category ZIP as the Export /
+  Import panel, **headlessly**: no Activity, no interaction. Extras: `token`, optional `path` (an
+  absolute directory that **overrides** the configured export folder, created if missing), optional
+  `items` (comma-separated category ids; absent means everything), optional `progress_action`, plus
+  `reply_action` / `reply_package` / `reply_id`. Directory precedence is `path` → the configured
+  export folder → `ERROR:no-directory`.
+- **`shiroikuma.renrakusaki.action.LIST_CATEGORIES`** — instant, token-gated; replies `OK:` plus one
+  `id<TAB>label` line per selectable item, a **sub-option** adding a third `parent-id` field after
+  its parent's line so the caller can render it indented and make it follow the parent's toggle.
+- **The reply:** `OK:<absolute path>|<bytes>|<human size>|<n> categories`, or `ERROR:<reason>` with
+  `automation disabled` and `bad token` reported distinctly. Exactly one terminal reply per request,
+  behind an `AtomicBoolean`, sent as a plain broadcast carrying `reply_id` + `result` with
+  `FLAG_INCLUDE_STOPPED_PACKAGES`. Both byte forms are computed here, since the caller cannot stat
+  the file.
+- **Progress broadcasts** while exporting — **real counts, never a percentage**: `text` is the
+  numbers-first line (`連絡先 123/456`, `区分 1/3 — 設定`) alongside `current` / `total` / `unit` as
+  structured extras, throttled to at most one per 500 ms with an unthrottled final one at
+  completion. Fed by a new per-contact callback on `VcfExporter`.
+- Verified live on the Mate XT: a headless export wrote a valid 4.7 MB ZIP to an overridden path,
+  `items` subsets and unknown ids behaved (unknown ids write **nothing**), the no-directory branch
+  replied without writing, progress fired 605 ms and 502 ms apart, and every one of ten requests
+  produced exactly one reply. The ordered-broadcast result is severed **even for a shell caller**
+  (dumpsys shows a phantom record finishing empty beside the real one) and app-originated extras come
+  back `STRIPPED`, so the reply text is readable only by the receiving app — which is precisely why
+  the contract mandates the reply broadcast.
+
+### Export / Import — sub-options and a single panel
+- **Sub-options:** the flat category enum became a parent/child model. `settings.fonts` is dotted
+  under `settings`, and picking a **parent alone means that category's own data only** — its parts
+  are separate ids, included only when asked for. Import applies the parts independently, so
+  restoring font files without the prefs that reference them (or the reverse) is a valid choice.
+- A **pre-sub-option ZIP is still recognised** by its entries, so older backups restore unchanged.
+- **The section is two rows** — the export folder, and the row that opens the panel (its value line
+  reports the last export). Everything selectable moved **into** the panel: the 全選択 master toggle,
+  the category checklist with sub-options indented under their parent, and the one-shot VCF actions.
+  The panel's buttons are Export / Import / Cancel. This matches the jami fork's layout.
+- **Backup filenames are now `shiroikuma-renrakusaki_<yyyy-MM-dd_HH-mm-ss>.zip`** — version-free, so
+  a backup is identified by when it was taken. The build that wrote it is recorded inside, as
+  `manifest.json`'s `appVersion`. Older version-bearing names still match the discovery prefix, so
+  the last-export line keeps finding them.
+- The export core is **callable headlessly** — `exportBlocking(context, items, out, onProgress)`
+  takes a `Context` instead of a `SimpleActivity`, with the panel and the receiver as two thin
+  callers rather than duplicated logic. The configured export folder moved into `SettingsExport`, so
+  both resolve the same one.
+
+### Automation UI
+- The automation controls live **inside the Export / Import section**, directly below the export
+  rows they drive — not in a section of their own — matching every sister app.
+- **A master switch** (default off) labelled 自動化エクスポート, with a one-line description
+  explaining that sister-app tasks may trigger this app's export through the token-gated intent.
+- **A token row** showing the token **abbreviated** (`ad81fc6f…7a44a0dc`), copying it **in full** on
+  tap with a confirmation toast, and carrying a **Regenerate** action on the right that warns pasted
+  copies stop working until the new token is pasted into 自由作業盤. Copying deliberately avoids
+  commons' `copyToClipboard`, which would toast the secret straight back onto the screen.
+- The token still never travels in a backup: `automation_token` and `automation_enabled` stay in
+  `PREFS_EXCLUDE`, verified by unzipping a headless export and grepping for the live token.
+
+### UI density
+- **Rows are packed tight.** `indentRow` — the choke point all fourteen row builders pass through —
+  now replaces the commons row style's 20 dp top/bottom padding with 4 dp, reclaiming 32 dp per row
+  across the whole 白い熊 連絡先 UI page and the Export / Import panel. Section headers keep their
+  spacing, since with rows this tight they are what separates one section from the next.
+
+### Fixes & packaging
+- `openBackupOutputStream` takes a **MIME type**, so a state ZIP written under `Download/` or
+  `Documents/` is no longer registered to MediaStore as `text/x-vcard`.
+- Both exported receivers carry `tools:ignore="ExportedReceiver"` — the caller cannot hold a
+  permission, so the token is the gate — which makes `lintFossRelease` pass again.
+- `VcfExporter`'s progress callback is a **constructor** parameter, leaving `exportContacts`'
+  signature (and its detekt baseline entries, which key on the full signature) untouched.
+- **Upstream sync:** `main` fast-forwarded onto the latest FossifyOrg/Contacts maintenance commits —
+  AGP 9.2.1 → 9.3.0, KSP 2.3.8 → 2.3.10, Gradle wrapper 9.5.1 → 9.6.1, refreshed lint baselines, and
+  Belarusian, Persian, French, Hungarian, Portuguese (Portugal) and Romanian translations. All 39
+  fork commits replayed with no conflicts; upstream still pins Commons 6.1.6, so the patched
+  `6.1.6-sk7` pin is unchanged.
+
 ## [1.6.0+67] — 2026-07-23
 
 Everything added since `1.6.0+44`, still on **Fossify Contacts 1.6.0**.
