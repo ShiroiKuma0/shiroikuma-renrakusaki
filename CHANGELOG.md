@@ -4,6 +4,64 @@ This is a fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts). It
 release and layers our customizations on top; versions are `<upstream version>+<fork build>`. This
 file documents what the fork adds on top of stock — see upstream's own changelog for the base app.
 
+## [1.6.0+76] — 2026-07-31
+
+Everything added since `1.6.0+75`, still on **Fossify Contacts 1.6.0**. Two changes to the 保存復元
+contract: the categories now state their own default, and a running export can be stopped from outside.
+
+### `LIST_CATEGORIES` states each category's default
+白い熊 自由作業盤's 保存復元 project redraws its backup-item picker from this app's reply every time it
+is opened, so whether an item starts ticked is this app's answer to give, not the picker's to guess.
+
+- **Every line is now `id<TAB>label<TAB>parent<TAB>on|off`** — the contract's optional fourth field.
+  The fields are positional, so the third is always present and **empty for a top-level item**; for a
+  sub-option it is still its parent's id, and the line still follows the parent's.
+- **Nothing in this app is `off`.** The rule is for data that is large, derived *and* re-creatable — a
+  regenerable thumbnail cache, downloaded map tiles — and every category here (settings, fonts,
+  contacts) is small and irreplaceable. Sending `on` still matters: it is the app stating a default
+  rather than the picker assuming one, and any category added later inherits a field already there.
+- `SettingsExport.Item` carries the answer as **`defaultOn`** (defaulting to `true`), with
+  `Item.defaultSelection` as the single source of "what starts ticked".
+- **The in-app Export / Import sheet seeds from the same flag**, so that sheet and the automation
+  picker open on identical ticks.
+- An **absent `items` extra** now resolves to `defaultSelection` rather than "every id" — identical
+  today, and still correct the moment anything goes `off`.
+
+### `CANCEL_EXPORT` — a running export can be stopped
+保存復元's 中止 button used to only stop *listening*, so a cancelled run carried on to the end and
+delivered a backup that had been stopped. It now fires a real cancel at the app.
+
+- **`shiroikuma.renrakusaki.action.CANCEL_EXPORT`**, a third action on the **same exported receiver**:
+  the export runs inside that receiver, so the stop signal arrives at a component the caller can
+  already reach — nothing has to start a non-exported service. Extras: `token` (the same gate as the
+  other two) and an optional `reply_id` (absent = the export that is running, unambiguous because two
+  at once are forbidden).
+- **Fire-and-forget:** it sends no reply of its own, not even `OK:`.
+- **Safe to send at any time.** With nothing running, after the export already finished, or naming a
+  different `reply_id`, it is a **silent no-op** — not an error, not a reply, not a crash.
+- **It unwinds at the next boundary, never mid-`write()`.** A `@Volatile` flag on the receiver's
+  companion — a `BroadcastReceiver` is a fresh instance per delivery, so the run's state cannot live
+  on the instance — is polled before every ZIP entry, and once more after the vCards are built, the
+  long part of a run, so a cancel during the contact conversion keeps all of it out of the archive.
+  No thread interruption, no `System.exit`.
+- **The terminal reply still arrives:** `ERROR:cancelled` for the original request, through the normal
+  reply broadcast, behind the same `AtomicBoolean` that already prevents a double-fire — sent even
+  though nobody may still be listening, since it is what proves the run ended rather than continuing
+  unseen.
+
+### A run that does not finish leaves nothing behind
+- **`Target.discard()`**, called from the `finally` that already handles every failure, so a cancel
+  and a real error end the same way: the destination is created before the first byte, so it is taken
+  back. The backup directory is left exactly as it was found, never holding a short ZIP that looks
+  like a backup.
+- Backing it, **`deleteBackupFile()`** undoes `openBackupOutputStream` through the same three writers
+  in the same order — persisted SAF grant, MediaStore row, plain file — because which one created the
+  file is not knowable afterwards, and `File.delete()` silently fails on a MediaStore-owned entry
+  under `Download/` or `Documents/`.
+- **No `.part` stage**, deliberately: MediaStore rewrites a `DISPLAY_NAME` whose extension disagrees
+  with the MIME type, so `…zip.part` would land as `…zip.part.zip`. Deleting the destination gives the
+  same guarantee the `.part` convention exists to provide.
+
 ## [1.6.0+75] — 2026-07-25
 
 Everything added since `1.6.0+67`, still on **Fossify Contacts 1.6.0** (upstream has not cut a new
