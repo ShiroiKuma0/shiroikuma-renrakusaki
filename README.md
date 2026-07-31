@@ -10,7 +10,7 @@ A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **majo
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+75`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+76`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -42,7 +42,7 @@ One ZIP holds everything: `settings.json` with every preference (colors, fonts, 
 ---
 
 ## 🤖 Headless backup, driven by automation
-Two token-gated broadcasts let the companion task runner (白い熊 自由作業盤) back this app up without ever opening it: it asks for the **category list**, then triggers the **same export the panel runs** — headlessly, into any absolute path — and gets back the written file's path and real size. While it works, it reports **real counts, never a percentage** (`連絡先 123/456`). A separate `BACKUP_CONTACTS` broadcast still does a straight .vcf dump before risky system operations. Every reply travels as a plain broadcast, the one ACK channel that survives EMUI's broadcast mangling — born from a real incident, when an EMUI locale switch wiped every contact.
+Three token-gated broadcasts let the companion task runner (白い熊 自由作業盤) back this app up without ever opening it: it asks for the **category list** — each item answering for itself whether it **starts ticked** — then triggers the **same export the panel runs**, headlessly, into any absolute path, and gets back the written file's path and real size. While it works, it reports **real counts, never a percentage** (`連絡先 123/456`), and a **cancel** stops it for real: the run unwinds at the next entry boundary, deletes what it had written, and answers the original request — so a cancelled backup leaves the folder exactly as it found it instead of quietly finishing. A separate `BACKUP_CONTACTS` broadcast still does a straight .vcf dump before risky system operations. Every reply travels as a plain broadcast, the one ACK channel that survives EMUI's broadcast mangling — born from a real incident, when an EMUI locale switch wiped every contact.
 
 ---
 
