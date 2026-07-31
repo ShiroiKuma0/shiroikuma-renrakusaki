@@ -281,6 +281,9 @@
             <intent-filter>
                 <action android:name="shiroikuma.renrakusaki.action.EXPORT_STATE" />
                 <action android:name="shiroikuma.renrakusaki.action.LIST_CATEGORIES" />
+                <!-- The stop signal rides the same exported receiver the export runs in, so the caller
+                     reaches it with what it already has — nothing has to start a non-exported service. -->
+                <action android:name="shiroikuma.renrakusaki.action.CANCEL_EXPORT" />
             </intent-filter>
         </receiver>
 

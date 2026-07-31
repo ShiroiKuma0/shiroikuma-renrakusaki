@@ -10,6 +10,7 @@ import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.core.app.AlarmManagerCompat
 import androidx.core.content.FileProvider
@@ -279,6 +280,38 @@ private fun Context.mediaStoreBackupOutputStream(exportFile: File, mimeType: Str
     }
     val uri = contentResolver.insert(collection, values) ?: return null
     return contentResolver.openOutputStream(uri, "wt")
+}
+
+// The undo of openBackupOutputStream, trying the same writers in the same order: a run that did not
+// finish — a failure, or an automation CANCEL_EXPORT — must leave the backup directory exactly as it
+// found it, never a short archive named like a real backup. Best-effort and silent by design: the
+// destination may never have been created, and a cancel is not the moment to raise a new error.
+internal fun Context.deleteBackupFile(exportFile: File) {
+    val path = exportFile.absolutePath
+    val viaSaf = runCatching {
+        hasProperStoredFirstParentUri(path) &&
+            DocumentsContract.deleteDocument(contentResolver, createDocumentUriUsingFirstParentTreeUri(path))
+    }.getOrDefault(false)
+    if (viaSaf || deleteMediaStoreBackupFile(exportFile)) {
+        return
+    }
+    runCatching { exportFile.delete() }
+}
+
+// MediaStore owns the row when the file went to Download/ or Documents/ without any permission, and
+// then it is the only handle we have on it — File.delete() would silently fail there.
+private fun Context.deleteMediaStoreBackupFile(exportFile: File): Boolean {
+    val primary = Environment.getExternalStorageDirectory().absolutePath
+    val parent = exportFile.parentFile?.absolutePath ?: return false
+    if (!parent.startsWith("$primary/")) {
+        return false
+    }
+
+    val relativePath = parent.removePrefix("$primary/").trimEnd('/')
+    val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+    val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} = ?"
+    val selectionArgs = arrayOf("$relativePath/", exportFile.name)
+    return runCatching { contentResolver.delete(collection, selection, selectionArgs) > 0 }.getOrDefault(false)
 }
 
 fun Context.copyUriToTempFile(uri: Uri, name: String): File? {

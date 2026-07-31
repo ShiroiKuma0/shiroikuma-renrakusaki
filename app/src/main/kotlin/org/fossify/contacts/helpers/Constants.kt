@@ -172,6 +172,13 @@ const val AUTOMATION_TOKEN = "automation_token"
 // "reply_package" and "reply_id" are shared with it verbatim.
 const val ACTION_EXPORT_STATE = "shiroikuma.renrakusaki.action.EXPORT_STATE"
 const val ACTION_LIST_CATEGORIES = "shiroikuma.renrakusaki.action.LIST_CATEGORIES"
+
+// Stop a running EXPORT_STATE from outside (contract addition, 2026-07-28): 保存復元's 中止 button used
+// to only stop listening, so a cancelled run carried on and delivered a backup 白い熊 had stopped.
+// Token-gated like the others, takes an optional "reply_id" (absent = the export that is running,
+// unambiguous because two at once are forbidden), sends no reply of its own, and is a silent no-op
+// when nothing is running or the export already finished.
+const val ACTION_CANCEL_EXPORT = "shiroikuma.renrakusaki.action.CANCEL_EXPORT"
 const val EXTRA_EXPORT_ITEMS = "items"
 const val EXTRA_PROGRESS_ACTION = "progress_action"
 

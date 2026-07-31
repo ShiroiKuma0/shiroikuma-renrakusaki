@@ -139,7 +139,9 @@ class ThemeActivity : SimpleActivity() {
 
     // Export / Import (top section): category selection survives buildRows() rebuilds; the export
     // folder (a persisted SAF tree grant) lives in a device-local prefs file that is itself never exported.
-    private val eximSelected = SettingsExport.Item.entries.toMutableSet()
+    // Seeded from the categories' own defaultOn flag — the same answer LIST_CATEGORIES sends 自由作業盤's
+    // picker, so this sheet and the automation one open on the same ticks.
+    private val eximSelected = SettingsExport.Item.defaultSelection.toMutableSet()
     private var ignoredExportContactSources = HashSet<String>()
 
     private val eximDirPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
