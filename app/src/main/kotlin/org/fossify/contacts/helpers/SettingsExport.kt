@@ -14,6 +14,7 @@ import org.fossify.contacts.BuildConfig
 import org.fossify.contacts.R
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.extensions.config
+import org.fossify.contacts.extensions.deleteBackupFile
 import org.fossify.contacts.extensions.fetchAllContactsBlocking
 import org.fossify.contacts.extensions.openBackupOutputStream
 import org.json.JSONArray
@@ -34,6 +35,13 @@ import java.util.zip.ZipOutputStream
  * the numbers-first line a caller displays ("連絡先 123/456"), never a percentage.
  */
 typealias ProgressReporter = (current: Long, total: Long, unit: String, text: String) -> Unit
+
+/**
+ * Thrown out of [SettingsExport.exportBlocking] when the caller's cancel signal goes up at an entry
+ * boundary — a normal unwind, not a failure. The caller deletes the partial file and reports it as a
+ * cancellation rather than an error.
+ */
+class ExportCancelledException : Exception("cancelled")
 
 /**
  * Category-based settings + contacts export/import, modeled on the kojiki fork's KojikiExport.
@@ -65,12 +73,19 @@ object SettingsExport {
      * through [parentId] and is dotted after it ("settings.fonts") — selecting a parent WITHOUT its parts
      * means that category's own data only. [labelRes] is the descriptive label shown in the picker
      * (in-app and in 自由作業盤), [shortLabelRes] the bare noun used in progress lines and summaries.
+     *
+     * [defaultOn] is whether the item STARTS TICKED in either picker — this app stating its own default
+     * instead of a picker assuming one (the automation contract's optional fourth `on|off` field of
+     * LIST_CATEGORIES). Nothing here is `off`: the rule is for data that is large, derived AND
+     * re-creatable (a thumbnail cache, downloaded tiles), and everything this app exports is small and
+     * irreplaceable. The flag exists so a later category can arrive `off` without touching either picker.
      */
     enum class Item(
         val id: String,
         val parentId: String?,
         @StringRes val labelRes: Int,
         @StringRes val shortLabelRes: Int,
+        val defaultOn: Boolean = true,
     ) {
         SETTINGS("settings", null, R.string.eim_cat_settings, R.string.eim_cat_settings_short),
         SETTINGS_FONTS("settings.fonts", "settings", R.string.eim_cat_fonts, R.string.eim_cat_fonts_short),
@@ -86,6 +101,12 @@ object SettingsExport {
 
             /** Parents first, each followed by its own parts — the order both pickers render. */
             val listed: List<Item> get() = entries.filter { it.isTopLevel }.flatMap { listOf(it) + it.children }
+
+            /**
+             * The items that start ticked — what both pickers open on, and what an automation export
+             * with no "items" extra means.
+             */
+            val defaultSelection: Set<Item> get() = entries.filter { it.defaultOn }.toSet()
         }
     }
 
@@ -124,12 +145,16 @@ object SettingsExport {
      * categories, writes the ZIP into [out] and reports real counts through [onProgress] (unthrottled;
      * the caller decides how often to surface them). Blocking, so call it on a background thread, and it
      * throws on every failure so both callers get a single error path. Returns a short human summary.
+     *
+     * [isCancelled] is polled at every entry boundary — never mid-`write()`, never by interrupting the
+     * thread — and unwinds the run with an [ExportCancelledException] the moment it goes up.
      */
     fun exportBlocking(
         context: Context,
         items: Set<Item>,
         out: OutputStream,
         onProgress: ProgressReporter = { _, _, _, _ -> },
+        isCancelled: () -> Boolean = { false },
     ): String {
         // Declaration order, not the caller's, so a ZIP's contents don't depend on how the set was built.
         val ordered = Item.listed.filter { it in items }
@@ -149,12 +174,13 @@ object SettingsExport {
             writeEntry(zip, "manifest.json", manifest.toString(2).toByteArray())
 
             ordered.forEachIndexed { index, item ->
+                if (isCancelled()) throw ExportCancelledException()
                 val done = index + 1L
                 onProgress(done, total, unit, "$unit $done/$total — ${context.getString(item.shortLabelRes)}")
                 parts += when (item) {
                     Item.SETTINGS -> writeSettings(context, zip)
                     Item.SETTINGS_FONTS -> writeFonts(context, zip)
-                    Item.CONTACTS -> writeContacts(context, zip, onProgress)
+                    Item.CONTACTS -> writeContacts(context, zip, onProgress, isCancelled)
                 }
             }
         }
@@ -169,7 +195,12 @@ object SettingsExport {
     private fun writeFonts(context: Context, zip: ZipOutputStream): String =
         "${context.getString(Item.SETTINGS_FONTS.shortLabelRes)}: ${exportFonts(context, zip)}"
 
-    private fun writeContacts(context: Context, zip: ZipOutputStream, onProgress: ProgressReporter): String {
+    private fun writeContacts(
+        context: Context,
+        zip: ZipOutputStream,
+        onProgress: ProgressReporter,
+        isCancelled: () -> Boolean,
+    ): String {
         val contacts = context.fetchAllContactsBlocking()
         if (contacts.isEmpty()) error("no contacts to export")
         val unit = context.getString(R.string.state_progress_unit_contacts)
@@ -187,6 +218,10 @@ object SettingsExport {
             showExportingToast = false,
         ) { exportResult = it }
         if (exportResult == VcfExporter.ExportResult.EXPORT_FAIL) error("contacts export failed")
+        // The boundary right before the biggest entry: building the vCards is the long part of a run, so
+        // a cancel that arrived during it unwinds here and none of them reach the ZIP. (The conversion
+        // itself is not interrupted — VcfExporter swallows exceptions from its own progress callback.)
+        if (isCancelled()) throw ExportCancelledException()
         writeEntry(zip, "contacts.vcf", buffer.toByteArray())
         return "${context.getString(Item.CONTACTS.shortLabelRes)}: ${contacts.size}"
     }
@@ -195,8 +230,18 @@ object SettingsExport {
     // HEADLESS DESTINATION (automation)
     // ---------------------------------------------------------------------------------------------
 
-    /** A resolved headless export destination: where to write, what to call it, and how big it ended up. */
-    class Target(val displayPath: String, val open: () -> OutputStream, val size: () -> Long)
+    /**
+     * A resolved headless export destination: where to write, what to call it, how big it ended up — and
+     * how to take it back. [discard] undoes a run that did not finish (a failure, or an automation
+     * CANCEL_EXPORT), so the backup directory is left exactly as it was found rather than holding a short
+     * ZIP that looks like a backup. Best-effort and silent: the file may never have been created at all.
+     */
+    class Target(
+        val displayPath: String,
+        val open: () -> OutputStream,
+        val size: () -> Long,
+        val discard: () -> Unit,
+    )
 
     /** The configured export folder (a persisted SAF tree), or null when none was ever picked. */
     fun configuredDir(context: Context): DocumentFile? =
@@ -232,6 +277,7 @@ object SettingsExport {
                 displayPath = file.absolutePath,
                 open = { context.openBackupOutputStream(file, "application/zip") },
                 size = { file.length() },
+                discard = { context.deleteBackupFile(file) },
             )
         }
 
@@ -241,6 +287,7 @@ object SettingsExport {
             displayPath = displayPathOf(file.uri),
             open = { context.contentResolver.openOutputStream(file.uri) ?: error("cannot open ${file.uri}") },
             size = { file.length() },
+            discard = { runCatching { file.delete() } },
         )
     }
 
