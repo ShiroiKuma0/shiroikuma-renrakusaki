@@ -71,6 +71,7 @@ import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_SPACING_DP
 import org.fossify.contacts.helpers.DETAIL_PATTERN_OLDER_PREFIX
 import org.fossify.contacts.helpers.DETAIL_PATTERN_TODAY_PREFIX
 import org.fossify.contacts.helpers.DETAIL_PATTERN_YEAR_PREFIX
+import org.fossify.contacts.helpers.MAX_PHOTO_ICON_OUTLINE_DP
 import org.fossify.contacts.helpers.MAX_SECTION_PADDING_DP
 import org.fossify.contacts.helpers.TIME_FORMAT_12H
 import org.fossify.contacts.helpers.TIME_FORMAT_24H
@@ -534,6 +535,10 @@ class ThemeActivity : SimpleActivity() {
             addRowsSection(primaryColor, stepPx)
             return
         }
+        if (group == ThemeGroup.PHOTO_ICONS) {
+            addPhotoIconsSection(primaryColor, stepPx)
+            return
+        }
 
         addSectionHeader(getString(group.labelRes), primaryColor)
 
@@ -681,6 +686,23 @@ class ThemeActivity : SimpleActivity() {
             config.contactsListRevision += 1
         }
         addColorRow(ThemeSlot.SECTION_DIVIDER, stepPx)
+    }
+
+    // The "Icons over the photo" section: what the contact screens' top-bar and action icons are painted
+    // in, plus the halo drawn behind them so they never merge into the photo underneath.
+    private fun addPhotoIconsSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.theme_group_photo_icons), primaryColor)
+        addColorRow(ThemeSlot.PHOTO_TOOLBAR_ICON, stepPx)
+        addColorRow(ThemeSlot.PHOTO_ACTION_ICON, stepPx)
+        addSlider(
+            getString(R.string.theme_photo_outline_thickness),
+            config.photoIconOutlineThickness,
+            MAX_PHOTO_ICON_OUTLINE_DP,
+            stepPx,
+        ) {
+            config.photoIconOutlineThickness = it
+        }
+        addColorRow(ThemeSlot.PHOTO_ICON_OUTLINE, stepPx)
     }
 
     private fun rebuildRowStyling(entries: List<RowFieldEntry>, stepPx: Int) {

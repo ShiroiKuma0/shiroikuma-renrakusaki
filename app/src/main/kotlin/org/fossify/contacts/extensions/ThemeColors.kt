@@ -28,6 +28,7 @@ enum class ThemeGroup(@StringRes val labelRes: Int) {
     SEARCH(R.string.theme_group_search),
     TABS(R.string.theme_group_tabs),
     TOPBAR(R.string.theme_group_topbar),
+    PHOTO_ICONS(R.string.theme_group_photo_icons),
     SECTIONS(R.string.theme_sections_group),
     ROWS(R.string.theme_group_rows),
     LISTS(R.string.theme_group_lists),
@@ -67,6 +68,13 @@ enum class ThemeSlot(
     // Top bar (secondary screens: Settings, this page, group contacts…)
     TOPBAR_TITLE("theme_topbar_title", ThemeGroup.TOPBAR, R.string.theme_topbar_title),
     TOPBAR_NAV("theme_topbar_nav", ThemeGroup.TOPBAR, R.string.theme_topbar_nav),
+
+    // Icons drawn over a contact's photo, on the view and edit contact screens: the top bar's icons
+    // (back arrow, edit, share, delete, ⋮) and the actions on the photo's bottom edge (favorite, call,
+    // SMS, email, change photo), each over a halo in the outline color so they never merge into the photo.
+    PHOTO_TOOLBAR_ICON("theme_photo_toolbar_icon", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_toolbar_icon),
+    PHOTO_ACTION_ICON("theme_photo_action_icon", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_action_icon),
+    PHOTO_ICON_OUTLINE("theme_photo_icon_outline", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_icon_outline),
 
     // Contact lists — one subgroup per tab (name + phone number + fast-scroller)
     CONTACT_NAME(
@@ -186,6 +194,11 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     // Top bar: title + back arrow contrast the primary-coloured toolbar by default
     ThemeSlot.TOPBAR_TITLE -> themeColor(ThemeSlot.PRIMARY).getContrastColor()
     ThemeSlot.TOPBAR_NAV -> themeColor(ThemeSlot.PRIMARY).getContrastColor()
+
+    // Icons over the contact photo: the accent, haloed in the background color so they stay legible
+    // over a photo painted in that same accent (the default placeholder).
+    ThemeSlot.PHOTO_TOOLBAR_ICON, ThemeSlot.PHOTO_ACTION_ICON -> themeColor(ThemeSlot.PRIMARY)
+    ThemeSlot.PHOTO_ICON_OUTLINE -> themeColor(ThemeSlot.BACKGROUND)
 
     // Per-tab list colors all inherit from the foundation text / primary by default.
     // Numbers inherit the muted secondary text (the rows render at full opacity, so the slot

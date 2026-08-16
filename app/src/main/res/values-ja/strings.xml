@@ -156,6 +156,12 @@
     <!-- 上部バーの項目（設定・本ページ・グループ連絡先のツールバー） -->
     <string name="theme_topbar_title">タイトル</string>
     <string name="theme_topbar_nav">戻る矢印</string>
+    <!-- 連絡先の写真の上に描かれるアイコン（表示・編集画面） -->
+    <string name="theme_group_photo_icons">写真の上のアイコン</string>
+    <string name="theme_photo_toolbar_icon">上部バーのアイコン（戻る・編集・共有・削除・⋮）</string>
+    <string name="theme_photo_action_icon">操作アイコン（お気に入り・通話・SMS・メール・写真）</string>
+    <string name="theme_photo_outline_thickness">縁取りの太さ</string>
+    <string name="theme_photo_icon_outline">縁取りの色</string>
     <!-- リストの項目（連絡先・お気に入り・グループの各サブグループに表示） -->
     <string name="theme_slot_name">名前</string>
     <string name="theme_slot_number">電話番号</string>

@@ -119,6 +119,12 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(CONTACTS_SECTION_PADDING, DEFAULT_SECTION_PADDING_DP)
         set(value) = prefs.edit().putInt(CONTACTS_SECTION_PADDING, value).apply()
 
+    // Halo drawn behind the icons that sit on top of a contact's photo, in dp (0 = no halo).
+    var photoIconOutlineThickness: Int
+        get() = prefs.getInt(PHOTO_ICON_OUTLINE_THICKNESS, DEFAULT_PHOTO_ICON_OUTLINE_DP)
+            .coerceIn(0, MAX_PHOTO_ICON_OUTLINE_DP)
+        set(value) = prefs.edit().putInt(PHOTO_ICON_OUTLINE_THICKNESS, value).apply()
+
     var autoBackupContactSources: Set<String>
         get() = prefs.getStringSet(AUTO_BACKUP_CONTACT_SOURCES, setOf())!!
         set(autoBackupContactSources) = prefs.edit().remove(AUTO_BACKUP_CONTACT_SOURCES).putStringSet(AUTO_BACKUP_CONTACT_SOURCES, autoBackupContactSources)

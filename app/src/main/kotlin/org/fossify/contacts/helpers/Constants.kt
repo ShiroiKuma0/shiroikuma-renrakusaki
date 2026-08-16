@@ -112,6 +112,14 @@ const val ALL_CONTACT_FIELDS = SHOW_PREFIX_FIELD or SHOW_FIRST_NAME_FIELD or SHO
     SHOW_EVENTS_FIELD or SHOW_NOTES_FIELD or SHOW_ORGANIZATION_FIELD or SHOW_WEBSITES_FIELD or
     SHOW_GROUPS_FIELD or SHOW_CONTACT_SOURCE_FIELD or SHOW_RINGTONE_FIELD
 
+// Icons drawn on top of a contact's photo (the contact screen's top-bar icons and the action icons
+// sitting on the photo's bottom edge): the width of the halo drawn behind them, in dp (0 = no halo).
+// A contact photo is often a solid placeholder in the accent color, which a same-colored icon
+// disappears into — the halo is what keeps them apart.
+const val PHOTO_ICON_OUTLINE_THICKNESS = "photo_icon_outline_thickness"
+const val DEFAULT_PHOTO_ICON_OUTLINE_DP = 2
+const val MAX_PHOTO_ICON_OUTLINE_DP = 8
+
 // Granular theming
 const val THEME_V1_SEEDED = "theme_v1_seeded"
 const val PURE_YELLOW_MIGRATED = "pure_yellow_migrated" // one-time #FFEB3B → #FFFF00 rewrite done

@@ -182,6 +182,12 @@
     <!-- Top bar slots (Settings / this page / group contacts toolbars) -->
     <string name="theme_topbar_title">Title</string>
     <string name="theme_topbar_nav">Back arrow</string>
+    <!-- Icons drawn over the contact photo (view + edit contact screens) -->
+    <string name="theme_group_photo_icons">Icons over the photo</string>
+    <string name="theme_photo_toolbar_icon">Top-bar icons (back, edit, share, delete, ⋮)</string>
+    <string name="theme_photo_action_icon">Action icons (favorite, call, SMS, email, photo)</string>
+    <string name="theme_photo_outline_thickness">Outline thickness</string>
+    <string name="theme_photo_icon_outline">Outline color</string>
     <!-- List slots (shown under a Contacts/Favorites/Groups subgroup) -->
     <string name="theme_slot_name">Name</string>
     <string name="theme_slot_number">Phone number</string>

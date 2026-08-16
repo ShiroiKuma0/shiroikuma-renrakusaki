@@ -3,6 +3,7 @@ package org.fossify.contacts.activities
 import android.content.ActivityNotFoundException
 import android.content.ContentUris
 import android.content.Intent
+import android.graphics.drawable.Drawable
 import android.media.AudioManager
 import android.media.RingtoneManager
 import android.net.Uri
@@ -242,6 +243,12 @@ class ViewContactActivity : ContactActivity() {
 
         updateTextColors(binding.contactScrollview)
         binding.contactToolbar.menu.findItem(R.id.open_with).isVisible = contact?.isPrivate() == false
+
+        // Fork: everything drawn over the photo gets its own color plus a halo (the favorite star is
+        // haloed in getStarDrawable, since it is re-set on every toggle).
+        applyPhotoOverlayIcons(
+            binding.contactToolbar, binding.contactSendSms, binding.contactStartCall, binding.contactSendEmail
+        )
     }
 
     private fun setupViewContact() {
@@ -848,8 +855,15 @@ class ViewContactActivity : ContactActivity() {
         }
     }
 
-    private fun getStarDrawable(on: Boolean) =
-        resources.getDrawable(if (on) org.fossify.commons.R.drawable.ic_star_vector else org.fossify.commons.R.drawable.ic_star_outline_vector)
+    // Fork: haloed like every other icon drawn over the photo (see applyPhotoOverlayIcons).
+    private fun getStarDrawable(on: Boolean): Drawable? {
+        val star = if (on) {
+            org.fossify.commons.R.drawable.ic_star_vector
+        } else {
+            org.fossify.commons.R.drawable.ic_star_outline_vector
+        }
+        return photoOverlayIcon(resources.getDrawable(star), themeColor(ThemeSlot.PHOTO_ACTION_ICON))
+    }
 
     private fun hideBigContactPhoto() {
         binding.contactPhotoBig.animate().alpha(0f).withEndAction { binding.contactPhotoBig.beGone() }.start()

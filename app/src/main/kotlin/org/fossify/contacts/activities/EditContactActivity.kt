@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
 import android.media.AudioManager
 import android.media.RingtoneManager
 import android.net.Uri
@@ -122,9 +123,13 @@ import org.fossify.contacts.dialogs.CustomLabelDialog
 import org.fossify.contacts.dialogs.ManageVisibleFieldsDialog
 import org.fossify.contacts.dialogs.MyDatePickerDialog
 import org.fossify.contacts.dialogs.SelectGroupsDialog
+import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.extensions.applyPhotoOverlayIcons
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.getCachePhotoUri
+import org.fossify.contacts.extensions.photoOverlayIcon
 import org.fossify.contacts.extensions.showContactSourcePicker
+import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.helpers.ADD_NEW_CONTACT_NUMBER
 import org.fossify.contacts.helpers.IS_FROM_SIMPLE_CONTACTS
 import org.fossify.contacts.helpers.KEY_EMAIL
@@ -380,6 +385,10 @@ class EditContactActivity : ContactActivity() {
             findItem(R.id.share).isVisible = contact?.id != 0
             findItem(R.id.open_with).isVisible = contact?.id != 0 && contact?.isPrivate() == false
         }
+
+        // Fork: the icons drawn over the photo get their own color plus a halo (the favorite star is
+        // haloed in getStarDrawable, since it is re-set on every toggle).
+        applyPhotoOverlayIcons(binding.contactToolbar, binding.contactChangePhoto)
     }
 
     override fun onBackPressedCompat(): Boolean {
@@ -1688,8 +1697,15 @@ class EditContactActivity : ContactActivity() {
 
     private fun isContactStarred() = binding.contactToggleFavorite.tag == 1
 
-    private fun getStarDrawable(on: Boolean) =
-        resources.getDrawable(if (on) org.fossify.commons.R.drawable.ic_star_vector else org.fossify.commons.R.drawable.ic_star_outline_vector)
+    // Fork: haloed like every other icon drawn over the photo (see applyPhotoOverlayIcons).
+    private fun getStarDrawable(on: Boolean): Drawable? {
+        val star = if (on) {
+            org.fossify.commons.R.drawable.ic_star_vector
+        } else {
+            org.fossify.commons.R.drawable.ic_star_outline_vector
+        }
+        return photoOverlayIcon(resources.getDrawable(star), themeColor(ThemeSlot.PHOTO_ACTION_ICON))
+    }
 
     private fun trySetPhoto() {
         val items = arrayListOf(
