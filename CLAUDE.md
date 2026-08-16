@@ -28,10 +28,11 @@ This repo is a fork. Read this section before building, branching, or rebasing.
 Defined in `gradle.properties` and consumed by `app/build.gradle.kts`:
 
 - `VERSION_NAME` / `VERSION_CODE` mirror the **upstream** release we are based on (currently `1.6.0` / `13`).
-- `BUILD_NUMBER` is **our** increment on top of that upstream version. It starts at `1` for the first build of a given upstream version.
-- Displayed version name = `VERSION_NAME+BUILD_NUMBER` (e.g. `1.6.0+1`).
-- Effective version code = `VERSION_CODE * 10000 + BUILD_NUMBER` (e.g. `13 * 10000 + 1 = 130001`). The `* 10000` leaves room for many fork builds between upstream bumps while staying monotonically increasing.
-- APK filename = `shiroikuma-renrakusaki_<VERSION_NAME>+<BUILD_NUMBER>_arm64-v8a.apk` (e.g. `shiroikuma-renrakusaki_1.6.0+1_arm64-v8a.apk`).
+- `BUILD_NUMBER` is **our** increment on top of that upstream version. It starts at `1` for the first build of a given upstream version. It is stored in `gradle.properties` as a plain int (`BUILD_NUMBER=79`) — the padding below is applied when the name is built, so the auto-increment stays a simple integer rewrite.
+- **Every name the counter appears in pads it to three digits** (`+001`, `+079`) so version names, `~/tmp` file lists and release tags sort in build order instead of lexically (`+100` before `+79`). This is the global `/after-build` rule; `app/build.gradle.kts` renders it once into `forkVersionName`.
+- Displayed version name = `VERSION_NAME+<BUILD_NUMBER padded to 3>` (e.g. `1.6.0+001`).
+- Effective version code = `VERSION_CODE * 10000 + BUILD_NUMBER` (e.g. `13 * 10000 + 1 = 130001`), using the **unpadded** counter. The `* 10000` leaves room for many fork builds between upstream bumps while staying monotonically increasing.
+- APK filename = `shiroikuma-renrakusaki_<VERSION_NAME>+<BUILD_NUMBER padded to 3>_arm64-v8a.apk` (e.g. `shiroikuma-renrakusaki_1.6.0+001_arm64-v8a.apk`).
 
 `BUILD_NUMBER` auto-increments after every successful `./gradlew buildFoss` run (the task rewrites `gradle.properties`). So the committed `BUILD_NUMBER` always points at the **next** build to be produced.
 

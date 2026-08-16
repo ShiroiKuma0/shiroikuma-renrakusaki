@@ -22,7 +22,12 @@ fun hasSigningVars(): Boolean {
             && providers.environmentVariable("SIGNING_STORE_PASSWORD").orNull != null
 }
 
-val forkVersionName = "${project.property("VERSION_NAME")}+${project.property("BUILD_NUMBER")}"
+// Our build counter on top of the upstream version. gradle.properties keeps it as a plain int (the
+// auto-increment below rewrites it), but every name it appears in renders it zero-padded to three
+// digits — 1.6.0+079, not 1.6.0+79 — so version names, APK file lists and release tags sort in build
+// order instead of lexically (+100 before +79).
+val forkBuildNumber = project.property("BUILD_NUMBER").toString().toInt()
+val forkVersionName = "${project.property("VERSION_NAME")}+%03d".format(forkBuildNumber)
 
 base {
     archivesName = "shiroikuma-renrakusaki_${forkVersionName}_arm64-v8a"
@@ -36,8 +41,7 @@ android {
         minSdk = project.libs.versions.app.build.minimumSDK.get().toInt()
         targetSdk = project.libs.versions.app.build.targetSDK.get().toInt()
         versionName = forkVersionName
-        versionCode = project.property("VERSION_CODE").toString().toInt() * 10000 +
-                project.property("BUILD_NUMBER").toString().toInt()
+        versionCode = project.property("VERSION_CODE").toString().toInt() * 10000 + forkBuildNumber
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
@@ -168,9 +172,9 @@ tasks.register("buildFoss") {
             """.trimIndent()).inheritIO().start().waitFor()
         }
 
-        // Auto-increment BUILD_NUMBER for next build
+        // Auto-increment BUILD_NUMBER for next build (stored unpadded; only names pad it)
         val propsFile = rootProject.file("gradle.properties")
-        val currentBuildNumber = project.property("BUILD_NUMBER").toString().toInt()
+        val currentBuildNumber = forkBuildNumber
         val nextBuildNumber = currentBuildNumber + 1
         propsFile.writeText(propsFile.readText().replace(
             "BUILD_NUMBER=$currentBuildNumber",
