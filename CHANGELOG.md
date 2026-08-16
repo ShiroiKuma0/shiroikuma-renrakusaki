@@ -1,8 +1,46 @@
 # Changelog — 白い熊 連絡先
 
 This is a fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts). It tracks an upstream
-release and layers our customizations on top; versions are `<upstream version>+<fork build>`. This
-file documents what the fork adds on top of stock — see upstream's own changelog for the base app.
+release and layers our customizations on top; versions are `<upstream version>+<fork build>`.
+
+**This file carries both histories.** The fork's releases come first, newest first, each saying which
+upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
+never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
+
+## [1.6.0+079] — 2026-08-16
+
+Everything added since `1.6.0+76`, still on **Fossify Contacts 1.6.0**. One visible change and one to
+how builds are named. From this release the fork's build counter is **zero-padded to three digits**,
+so `1.6.0+76` is followed by `1.6.0+079` — the earlier tags stay as they were published.
+
+### 写真の上のアイコン — the icons over a contact's photo stop merging into it
+A contact screen draws its icons straight on top of the photo, and on this palette a photo-less
+contact is a solid pure-yellow placeholder — so a yellow icon over it was invisible, and stock white
+was the only thing that read. Those icons are now the accent, over a halo in the background color.
+
+- **The halo is the icon's own shape, not a box.** The glyph is stamped 16 times around a circle of
+  the halo's radius in the outline color, then drawn on top in its fill color; at every width offered
+  the stamps overlap, so the ring reads as one solid edge that traces the arrow, the star, the ⋮.
+- **Covered on the view *and* edit screens:** the top bar's back arrow, edit, share, delete and
+  overflow icons, plus the actions on the photo's bottom edge — favorite, call, SMS, email, and the
+  edit screen's change-photo camera.
+- **Re-entering a screen never thickens it.** The composed icon keeps the drawable it was built from,
+  so the repaint that runs on every resume re-renders from the original instead of haloing the halo.
+- The field icons *below* the photo are deliberately untouched — they sit on the background and
+  already follow the foundation text color.
+- **New section in 白い熊 連絡先 UI: 写真の上のアイコン**, between 上部バー and 頭文字セクション —
+  a color for the top-bar icons, a color for the action icons, the halo's **thickness in dp**
+  (0–8, default 2; 0 turns it off) and the halo's **color**. The two icon colors inherit from
+  PRIMARY and the halo from BACKGROUND, so the palette still cascades until a slot is overridden.
+
+### The fork build counter is zero-padded to three digits
+- **Every name the counter appears in now renders `+079`, not `+79`** — the version shown in the app,
+  the APK filename, and the release tag cut from it. They sort in build order instead of lexically,
+  where `+100` came before `+79`. It also puts this repo in line with the sister apps, which had
+  already migrated.
+- `gradle.properties` deliberately keeps the plain integer (the build task's auto-increment rewrites
+  that literal), and `versionCode` still computes as `VERSION_CODE * 10000 + BUILD_NUMBER`, so
+  upgrade ordering is untouched. The padding is applied once, where the version name is built.
 
 ## [1.6.0+76] — 2026-07-31
 
@@ -257,3 +295,150 @@ on top of stock.
 - Removed the Commons "fake version" sideloading dialog app-wide — first neutralized at the splash and
   app-wide, then obsoleted entirely by linking the patched Commons.
 - De-branded the GitHub new-issue form to this fork.
+
+---
+
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [1.6.0] - 2026-01-30
+### Added
+- Added support for custom fonts
+
+### Changed
+- Tapping contact photo in lists now launches the contact details page ([#452])
+- Updated translations
+
+### Fixed
+- Fixed incorrect spacing between prefix and last name ([#157])
+
+## [1.5.0] - 2025-12-16
+### Changed
+- Updated translations
+
+### Fixed
+- Fixed invisible navigation bars in contact viewer ([#415])
+- Fixed search highlighting for characters with accents and diacritics ([#12])
+
+## [1.4.0] - 2025-10-29
+### Changed
+- Compatibility updates for Android 15 & 16
+- Search query is now preserved when switching tabs
+- Updated translations
+
+## [1.3.0] - 2025-10-09
+### Added
+- Support for importing contacts from vCards shared by other apps ([#321])
+
+### Changed
+- Updated translations
+
+### Fixed
+- Fixed search not matching full phone numbers
+
+## [1.2.5] - 2025-09-09
+### Changed
+- Updated translations
+
+### Fixed
+- Fixed contacts edits being silently discarded when using navigation arrow ([#360])
+
+## [1.2.4] - 2025-07-31
+### Changed
+- Updated translations
+
+### Fixed
+- Fixed issue with contacts not displaying when syncing via DAVx⁵ ([#339])
+
+## [1.2.3] - 2025-07-23
+### Changed
+- All contact exports now use the vCard 4.0 format
+- Preference category labels now use sentence case
+- Updated translations
+
+### Fixed
+- Filtering contacts now works correctly on the favorites tab ([#78])
+
+## [1.2.2] - 2025-06-17
+### Changed
+- Updated translations
+
+### Fixed
+- Fixed invisible preferred number indicator in light themes ([#289])
+
+## [1.2.1] - 2025-06-03
+### Changed
+- Updated translations
+
+### Fixed
+- Fixed crash on startup due to private contacts ([#281])
+- Fixed crash when creating new contacts
+
+## [1.2.0] - 2025-05-31
+### Added
+- Support for structured addresses ([#30])
+- Dialog for choosing contact source when editing a merged contact ([#201])
+
+### Changed
+- Updated translations
+
+## [1.1.0] - 2024-10-28
+### Added
+- Added an option to display formatted phone numbers
+- Added a favorite button for contacts in groups
+
+### Changed
+- Replaced checkboxes with switches
+- Other minor bug fixes and improvements
+- Added more translations
+
+### Removed
+- Removed support for Android 7 and older versions
+
+### Fixed
+- Fixed issue with contacts not displaying on Android 14 and above
+- Fixed data loss when deleting contacts with identical names
+- Fixed corrupted automatic backups
+- Fixed low-quality photo exports in vCards
+- Fixed overlap between the floating action button and list items
+
+## [1.0.1] - 2024-01-17
+### Fixed
+- Fixed vcf importer
+
+## [1.0.0] - 2024-01-17
+### Added
+- Initial release
+
+[#12]: https://github.com/FossifyOrg/Contacts/issues/12
+[#30]: https://github.com/FossifyOrg/Contacts/issues/30
+[#78]: https://github.com/FossifyOrg/Contacts/issues/78
+[#157]: https://github.com/FossifyOrg/Contacts/issues/157
+[#201]: https://github.com/FossifyOrg/Contacts/issues/201
+[#281]: https://github.com/FossifyOrg/Contacts/issues/281
+[#289]: https://github.com/FossifyOrg/Contacts/issues/289
+[#321]: https://github.com/FossifyOrg/Contacts/issues/321
+[#339]: https://github.com/FossifyOrg/Contacts/issues/339
+[#360]: https://github.com/FossifyOrg/Contacts/issues/360
+[#415]: https://github.com/FossifyOrg/Contacts/issues/415
+[#452]: https://github.com/FossifyOrg/Contacts/issues/452
+
+[Unreleased]: https://github.com/FossifyOrg/Contacts/compare/1.6.0...HEAD
+[1.6.0]: https://github.com/FossifyOrg/Contacts/compare/1.5.0...1.6.0
+[1.5.0]: https://github.com/FossifyOrg/Contacts/compare/1.4.0...1.5.0
+[1.4.0]: https://github.com/FossifyOrg/Contacts/compare/1.3.0...1.4.0
+[1.3.0]: https://github.com/FossifyOrg/Contacts/compare/1.2.5...1.3.0
+[1.2.5]: https://github.com/FossifyOrg/Contacts/compare/1.2.4...1.2.5
+[1.2.4]: https://github.com/FossifyOrg/Contacts/compare/1.2.3...1.2.4
+[1.2.3]: https://github.com/FossifyOrg/Contacts/compare/1.2.2...1.2.3
+[1.2.2]: https://github.com/FossifyOrg/Contacts/compare/1.2.1...1.2.2
+[1.2.1]: https://github.com/FossifyOrg/Contacts/compare/1.2.0...1.2.1
+[1.2.0]: https://github.com/FossifyOrg/Contacts/compare/1.1.0...1.2.0
+[1.1.0]: https://github.com/FossifyOrg/Contacts/compare/1.0.1...1.1.0
+[1.0.1]: https://github.com/FossifyOrg/Contacts/compare/1.0.0...1.0.1
+[1.0.0]: https://github.com/FossifyOrg/Contacts/releases/tag/1.0.0
