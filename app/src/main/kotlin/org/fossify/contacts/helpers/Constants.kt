@@ -170,6 +170,13 @@ const val EXTRA_REPLY_PACKAGE = "reply_package"
 const val EXTRA_REPLY_ID = "reply_id"
 const val EXTRA_REPLY_RESULT = "result"
 const val AUTOMATION_ENABLED = "automation_enabled"
+
+// Contract v2 (2026-09-04): the token became optional. The master switch above now defaults ON and this
+// decides whether a caller must also present the secret — default OFF. The pair exists because a pasted
+// secret cannot survive a wipe, and the case the family now serves is 応用管理 restoring apps AND their
+// data onto a clean phone, where nothing has been pasted anywhere yet. Both are read by exactly one
+// gate, Config.refuseAutomation.
+const val AUTOMATION_REQUIRE_TOKEN = "automation_require_token"
 const val AUTOMATION_TOKEN = "automation_token"
 
 // The 保存復元 state-export contract, implemented by receivers/StateExportReceiver: 自由作業盤's

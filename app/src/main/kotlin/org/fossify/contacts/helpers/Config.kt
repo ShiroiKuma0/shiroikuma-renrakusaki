@@ -194,11 +194,24 @@ class Config(context: Context) : BaseConfig(context) {
         .mapNotNull { (key, value) -> (value as? Int)?.let { key.removePrefix(SIM_SLOT_PREFIX) to it } }
         .toMap()
 
-    // External-automation intent surface (BackupContactsReceiver): a master switch plus a shared secret
-    // that every automation broadcast must carry. Same model as the jami fork's AutomationPrefs.
+    // External-automation surface (the receivers in receivers/, and the automation/ data door): a master
+    // switch, an optional shared secret, and one gate that reads both — see refuseAutomation below.
+    //
+    // Contract v2 flipped this default from false to true. v1 shipped every app closed, which is wrong
+    // for where this is going: 応用管理 restores apps and their data onto a CLEAN phone, where nothing has
+    // been configured and nobody has pasted anything. A gate that only works once the phone is already
+    // set up is no gate for setting the phone up. The switch stays — it is the only way to close one app
+    // off, and a feature that can be turned on but never off is one 白い熊 cannot retreat from.
     var automationEnabled: Boolean
-        get() = prefs.getBoolean(AUTOMATION_ENABLED, false)
+        get() = prefs.getBoolean(AUTOMATION_ENABLED, true)
         set(value) = prefs.edit().putBoolean(AUTOMATION_ENABLED, value).apply()
+
+    // Whether a caller must ALSO present the token. Default off: with the data door (automation/) checking
+    // the caller's package, uid and pinned signing certificate, the secret buys nothing on the identified
+    // path and costs a clean-phone restore everything.
+    var automationRequireToken: Boolean
+        get() = prefs.getBoolean(AUTOMATION_REQUIRE_TOKEN, false)
+        set(value) = prefs.edit().putBoolean(AUTOMATION_REQUIRE_TOKEN, value).apply()
 
     // The shared secret; generated on first read so the settings row always shows a value.
     val automationToken: String
@@ -211,10 +224,29 @@ class Config(context: Context) : BaseConfig(context) {
         return token
     }
 
-    // True when the caller's token matches the stored secret (constant-time). The enabled check is
-    // kept separate so callers can report "disabled" and "bad token" as distinct failures.
+    // True when the caller's token matches the stored secret (constant-time). Kept separate from the
+    // enabled check so the gate below can report "disabled" and "bad token" as distinct failures.
     fun isAutomationTokenValid(token: String?): Boolean {
         if (token.isNullOrEmpty()) return false
         return MessageDigest.isEqual(token.toByteArray(), automationToken.toByteArray())
+    }
+
+    /**
+     * THE automation gate — null means proceed, anything else is the exact ERROR: line to answer with.
+     *
+     * Every entry point goes through this one function: BackupContactsReceiver, StateExportReceiver and
+     * AutomationProvider. Writing the two checks out at each of them is how "disabled" and "bad token"
+     * drift apart across a family of forty-two apps, and the strings are the family's shared vocabulary.
+     *
+     * **A token handed to an app that does not require one is IGNORED, never an error.** Tokens live in
+     * task arguments and workspace variables that outlive the setting they were pasted for; a caller
+     * still sending one — because it was configured last year, or because another app in the same batch
+     * does want one — must be served. Refusing it would turn "白い熊 turned a switch off" into "half the
+     * batch mysteriously fails", which is precisely the friction the switch exists to remove.
+     */
+    fun refuseAutomation(candidate: String?): String? = when {
+        !automationEnabled -> "ERROR:automation disabled"
+        automationRequireToken && !isAutomationTokenValid(candidate) -> "ERROR:bad token"
+        else -> null
     }
 }

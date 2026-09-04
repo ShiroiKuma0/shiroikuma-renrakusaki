@@ -84,13 +84,20 @@ class BackupContactsReceiver : BroadcastReceiver() {
             val config = context.config
             val token = intent.getStringExtra(EXTRA_AUTOMATION_TOKEN)
             val path = intent.getStringExtra(EXTRA_BACKUP_PATH)?.trim().orEmpty()
-            Log.i(TAG, "received: enabled=${config.automationEnabled}, tokenLen=${token?.length ?: 0}, path=$path, reply=$replyAction/$replyId")
+            Log.i(
+                TAG,
+                "received: enabled=${config.automationEnabled}, requireToken=${config.automationRequireToken}, " +
+                    "tokenLen=${token?.length ?: 0}, path=$path, reply=$replyAction/$replyId"
+            )
+
+            // The one gate, shared with StateExportReceiver and AutomationProvider (contract v2 §2). The
+            // action name and the OK:/ERROR: grammar are unchanged — 自由作業盤 keys on those — but the two
+            // refusal lines are now the family's shared wording rather than this fork's own prose, so all
+            // forty-two apps answer a closed switch identically.
+            val refusal = config.refuseAutomation(token)
 
             when {
-                !config.automationEnabled ->
-                    finishWith("ERROR: automation is OFF — enable it in 白い熊 連絡先 → Settings → 自動化")
-                !config.isAutomationTokenValid(token) ->
-                    finishWith("ERROR: wrong token — copy the current one from 白い熊 連絡先 → Settings → 自動化")
+                refusal != null -> finishWith(refusal)
                 path.isEmpty() -> finishWith("ERROR: missing $EXTRA_BACKUP_PATH extra")
                 !path.startsWith("/") -> finishWith("ERROR: $EXTRA_BACKUP_PATH must be an absolute path")
                 else -> appContext.backupContactsToPath(path) { success, result ->

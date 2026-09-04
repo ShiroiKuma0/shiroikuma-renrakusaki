@@ -12,7 +12,6 @@ import org.fossify.commons.helpers.FontHelper
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.contacts.BuildConfig
 import org.fossify.contacts.R
-import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.deleteBackupFile
 import org.fossify.contacts.extensions.fetchAllContactsBlocking
@@ -116,10 +115,12 @@ object SettingsExport {
     private const val EXIM_PREFS = "renrakusaki_eximport"
     private const val EXIM_DIR_URI = "dir_uri"
 
-    // Device-local keys never carried across an export: the automation shared secret AND its enable
-    // switch (each device owns its own security state — a restore must never silently flip automation
-    // on/off or overwrite the token), per-device timestamps, and one-time version markers.
-    private val PREFS_EXCLUDE = setOf(AUTOMATION_TOKEN, AUTOMATION_ENABLED, "last_auto_backup_time", "last_version")
+    // Device-local keys never carried across an export: the automation shared secret, its enable switch
+    // AND the switch that decides whether the secret is required (each device owns its own security state
+    // — a restore must never silently flip automation on/off, relax the token requirement, or overwrite
+    // the token), per-device timestamps, and one-time version markers.
+    private val PREFS_EXCLUDE =
+        setOf(AUTOMATION_TOKEN, AUTOMATION_ENABLED, AUTOMATION_REQUIRE_TOKEN, "last_auto_backup_time", "last_version")
 
     /** "shiroikuma-renrakusaki_2026-07-25_18-58-23.zip" — app name, then when it was taken. */
     fun exportFileName(): String =
@@ -373,8 +374,12 @@ object SettingsExport {
     /**
      * Apply the selected categories from a ZIP; absent ones are skipped. Runs on a background thread;
      * [done] reports a short per-category summary or the failure, on that background thread.
+     *
+     * [activity] is a plain [Context], not an Activity: contract v2's data door (automation/) imports
+     * headlessly from a foreground service, with no Activity anywhere in the process. Nothing here ever
+     * needed more than a Context — it reads resources, prefs, the cache dir and the contacts provider.
      */
-    fun import(activity: SimpleActivity, zip: ByteArray, cats: Set<Item>, done: (Result<String>) -> Unit) {
+    fun import(activity: Context, zip: ByteArray, cats: Set<Item>, done: (Result<String>) -> Unit) {
         ensureBackgroundThread {
             val result = runCatching {
                 val files = readZip(zip)

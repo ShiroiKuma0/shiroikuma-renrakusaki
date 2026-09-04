@@ -25,6 +25,13 @@
          once per device via Settings → 自動化 → All files access. -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
+    <!-- Fork, contract v2 §2a: the data door's export/import runs in a foreground service, because a
+         backgrounded app writing for minutes is frozen mid-stream on this phone — which yields a truncated
+         archive underneath a success reply, the one failure indistinguishable from a good backup until the
+         day it is restored. specialUse because none of the platform's categories describes it. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
     <uses-permission
         android:name="android.permission.USE_FINGERPRINT"
         tools:node="remove" />
@@ -42,6 +49,16 @@
     <queries>
         <package android:name="org.fossify.contacts.debug" />
         <package android:name="org.fossify.contacts" />
+
+        <!-- Fork, contract v2 §2a: BOTH automation callers, or our reply is never heard. Every reply and
+             progress broadcast this app sends uses setPackage(), and on Android 11+ setPackage() to a
+             package we cannot see fails SILENTLY — the export runs, writes correctly, and is never heard
+             of. Until 2026-09-04 this element named only the two upstream Fossify packages, so 自由作業盤
+             (which drives the 保存復元 batch and the BACKUP_CONTACTS call that guards the ja⇄en locale
+             switch) and 応用管理 were both invisible to us. A third caller is a one-line addition here —
+             deliberately not QUERY_ALL_PACKAGES, which is Play-policy-restricted and buys nothing. -->
+        <package android:name="shiroikuma.oyokanri" />
+        <package android:name="shiroikuma.jiyusagyoban" />
 
         <!-- Required for loading contact accounts -->
         <intent>
@@ -286,6 +303,42 @@
                 <action android:name="shiroikuma.renrakusaki.action.CANCEL_EXPORT" />
             </intent-filter>
         </receiver>
+
+        <!-- Fork, contract v2 §2a: the data door. Exported with NO android:permission, and this time for
+             a real reason rather than v1's: a custom permission would have to be `normal` (any app may
+             hold it) or `signature` (impossible — every app in this family has its own keystore, 42 of
+             them). Neither buys anything AutomationCallers does not already do, and it checks the caller
+             three ways — exact package name (never a prefix), uid cross-check, and a pinned signing
+             certificate. `import` lives ONLY here: it overwrites this app's data, and the exported
+             receivers above have no idea who is calling them. -->
+        <provider
+            android:name=".automation.AutomationProvider"
+            android:authorities="${applicationId}.automation"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
+
+        <service
+            android:name=".automation.AutomationDataService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Automation data export/import" />
+        </service>
+
+        <!-- Capability discovery, read WITHOUT waking this app: 応用管理 builds its list across every
+             installed package at once and must answer "can this app be backed up" for an app that is
+             currently frozen — and a frozen app cannot be asked anything. An app without these entries is
+             simply not offered for data backup or restore; that is the opt-out. -->
+        <meta-data
+            android:name="shiroikuma.automation.contract"
+            android:value="2" />
+        <meta-data
+            android:name="shiroikuma.automation.format"
+            android:value="1" />
+        <meta-data
+            android:name="shiroikuma.automation.min_format"
+            android:value="1" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -34,12 +34,16 @@
     <!-- Automation intents (token-gated on-demand backup for the jiyusagyoban fork) -->
     <string name="automation">自動化</string>
     <string name="enable_automation">自動化エクスポート</string>
-    <string name="enable_automation_desc">姉妹アプリのタスクが、トークンで保護されたインテント経由でこのアプリのエクスポートを実行できます。</string>
+    <string name="enable_automation_desc">姉妹アプリがこのアプリのエクスポートを実行し、データをバックアップできます。</string>
+    <string name="automation_require_token">認証トークンを使う？</string>
+    <string name="automation_require_token_desc">オフ：どの姉妹アプリでも自動化を実行できます。オン：呼び出し側は下のトークンも提示する必要があります。データ扉はどちらの場合も呼び出し元の身元と署名を確認します。</string>
     <string name="automation_token">自動化トークン — タップでコピー</string>
     <string name="automation_token_copied">トークンをクリップボードにコピーしました</string>
     <string name="automation_token_regenerate">再生成</string>
     <string name="automation_token_regenerate_warning">新しいトークンを生成しますか？ 白い熊 自由作業盤（や他のタスク）に貼り付け済みのコピーは、新しいトークンを貼り直すまで動作しなくなります。</string>
     <string name="automation_token_regenerated">トークンを再生成しました</string>
+    <string name="automation_data_exporting">アプリデータを書き出しています…</string>
+    <string name="automation_data_importing">アプリデータを戻しています…</string>
     <string name="all_files_access">全ファイルアクセス — Download/Documents 以外へのバックアップ用</string>
     <string name="all_files_access_granted">許可済み</string>
     <string name="all_files_access_needed">未許可 — タップして許可</string>

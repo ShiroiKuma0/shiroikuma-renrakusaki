@@ -1,5 +1,6 @@
 package org.fossify.contacts.helpers
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.provider.ContactsContract.CommonDataKinds
@@ -24,7 +25,6 @@ import org.fossify.commons.models.contacts.Event
 import org.fossify.commons.models.contacts.Group
 import org.fossify.commons.models.contacts.IM
 import org.fossify.commons.models.contacts.Organization
-import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.extensions.getCachePhotoUri
 import org.fossify.contacts.helpers.VcfImporter.ImportResult.IMPORT_FAIL
 import org.fossify.contacts.helpers.VcfImporter.ImportResult.IMPORT_OK
@@ -35,7 +35,13 @@ import java.net.URLDecoder
 import java.time.LocalDate
 import java.util.Locale
 
-class VcfImporter(val activity: SimpleActivity) {
+/**
+ * [activity] is a plain [Context], not an Activity. It was a `SimpleActivity` until contract v2's data
+ * door (automation/) needed to import headlessly from a foreground service, with no Activity in the
+ * process at all — and nothing here ever needed more than a Context: it opens assets, touches the groups
+ * DB, writes a cache photo and toasts an error, all Context-level.
+ */
+class VcfImporter(val activity: Context) {
     enum class ImportResult {
         IMPORT_FAIL, IMPORT_OK, IMPORT_PARTIAL
     }

@@ -432,7 +432,11 @@ class ThemeActivity : SimpleActivity() {
     private fun addAutomationSubgroup(primaryColor: Int, stepPx: Int) {
         addSubgroupHeader(getString(R.string.automation), primaryColor, stepPx)
 
-        // Two rows, in the order every sister app uses: the master switch (default OFF), then the token.
+        // Three rows now, in the order every sister app uses (contract v2 §2): the master switch — default
+        // ON, since 応用管理 must be able to restore this app onto a clean phone where nothing has been
+        // configured — then the switch that decides whether a token is required at all (default OFF), then
+        // the token itself, shown ONLY when it is being asked for. A 48-character secret sitting under an
+        // off switch invites 白い熊 to paste it somewhere it will do nothing.
         addSwitchRow(
             title = getString(R.string.enable_automation),
             checked = config.automationEnabled,
@@ -442,28 +446,42 @@ class ThemeActivity : SimpleActivity() {
             config.automationEnabled = it
         }
 
-        addTokenRow(
+        addSwitchRow(
+            title = getString(R.string.automation_require_token),
+            checked = config.automationRequireToken,
             indent = stepPx * 2,
-            token = config.automationToken,
-            onCopy = {
-                // Not commons' copyToClipboard: that one toasts the value itself, which would put the
-                // full secret back on screen right after we deliberately abbreviated it.
-                getSystemService(ClipboardManager::class.java)
-                    .setPrimaryClip(ClipData.newPlainText(getString(R.string.automation_token), config.automationToken))
-                toast(R.string.automation_token_copied)
-            },
-            onRegenerate = { row ->
-                ConfirmationDialog(
-                    activity = this,
-                    message = getString(R.string.automation_token_regenerate_warning),
-                    positive = R.string.automation_token_regenerate,
-                    negative = org.fossify.commons.R.string.cancel,
-                ) {
-                    row.themeTokenValue.text = abbreviateToken(config.regenerateAutomationToken())
-                    toast(R.string.automation_token_regenerated)
-                }
-            },
-        )
+            description = getString(R.string.automation_require_token_desc),
+        ) {
+            config.automationRequireToken = it
+            // Rebuild so the token row below appears or disappears with the switch that governs it.
+            buildRows()
+        }
+
+        if (config.automationRequireToken) {
+            addTokenRow(
+                indent = stepPx * 2,
+                token = config.automationToken,
+                onCopy = {
+                    // Not commons' copyToClipboard: that one toasts the value itself, which would put the
+                    // full secret back on screen right after we deliberately abbreviated it.
+                    getSystemService(ClipboardManager::class.java).setPrimaryClip(
+                        ClipData.newPlainText(getString(R.string.automation_token), config.automationToken)
+                    )
+                    toast(R.string.automation_token_copied)
+                },
+                onRegenerate = { row ->
+                    ConfirmationDialog(
+                        activity = this,
+                        message = getString(R.string.automation_token_regenerate_warning),
+                        positive = R.string.automation_token_regenerate,
+                        negative = org.fossify.commons.R.string.cancel,
+                    ) {
+                        row.themeTokenValue.text = abbreviateToken(config.regenerateAutomationToken())
+                        toast(R.string.automation_token_regenerated)
+                    }
+                },
+            )
+        }
 
         // All-files access: needed so an automation broadcast can write to an arbitrary absolute path
         // (e.g. 白い熊's archive folder) outside Download/Documents. API 30+ only.

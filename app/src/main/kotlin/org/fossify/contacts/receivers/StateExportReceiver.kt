@@ -164,8 +164,9 @@ class StateExportReceiver : BroadcastReceiver() {
     private fun cancelExport(context: Context, intent: Intent) {
         val config = context.config
         val token = intent.getStringExtra(EXTRA_AUTOMATION_TOKEN)
-        if (!config.automationEnabled || !config.isAutomationTokenValid(token)) {
-            Log.i(TAG, "cancel refused: enabled=${config.automationEnabled}, tokenLen=${token?.length ?: 0}")
+        val refusal = config.refuseAutomation(token)
+        if (refusal != null) {
+            Log.i(TAG, "cancel refused: $refusal")
             return
         }
 
@@ -198,13 +199,15 @@ class StateExportReceiver : BroadcastReceiver() {
         val cats = parseItems(itemsRaw)
         Log.i(
             TAG,
-            "received $action: enabled=${config.automationEnabled}, tokenLen=${token?.length ?: 0}, " +
-                "items=$itemsRaw, path=$path"
+            "received $action: enabled=${config.automationEnabled}, requireToken=${config.automationRequireToken}, " +
+                "tokenLen=${token?.length ?: 0}, items=$itemsRaw, path=$path"
         )
 
+        // The one gate, shared with BackupContactsReceiver and AutomationProvider. A token sent to an app
+        // that does not require one lands here and is ignored, never refused (contract v2 §2).
+        config.refuseAutomation(token)?.let { return Request.Done(it) }
+
         return when {
-            !config.automationEnabled -> Request.Done("ERROR:automation disabled")
-            !config.isAutomationTokenValid(token) -> Request.Done("ERROR:bad token")
             action == ACTION_LIST_CATEGORIES -> Request.Done(categoryList(context))
             cats == null -> Request.Done("ERROR:unknown category in items: $itemsRaw")
             path.isNotEmpty() && !path.startsWith("/") ->
