@@ -6,11 +6,11 @@
 
 **A black-and-yellow, deeply customizable contacts app — your list, your layout, your colors.**
 
-A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, per-contact default SIM, category export/import, and a headless, token-gated backup the companion task runner drives.
+A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, per-contact default SIM, category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+079`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+080`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -41,8 +41,12 @@ One ZIP holds everything: `settings.json` with every preference (colors, fonts, 
 
 ---
 
-## 🤖 Headless backup, driven by automation
-Three token-gated broadcasts let the companion task runner (白い熊 自由作業盤) back this app up without ever opening it: it asks for the **category list** — each item answering for itself whether it **starts ticked** — then triggers the **same export the panel runs**, headlessly, into any absolute path, and gets back the written file's path and real size. While it works, it reports **real counts, never a percentage** (`連絡先 123/456`), and a **cancel** stops it for real: the run unwinds at the next entry boundary, deletes what it had written, and answers the original request — so a cancelled backup leaves the folder exactly as it found it instead of quietly finishing. A separate `BACKUP_CONTACTS` broadcast still does a straight .vcf dump before risky system operations. Every reply travels as a plain broadcast, the one ACK channel that survives EMUI's broadcast mangling — born from a real incident, when an EMUI locale switch wiped every contact.
+## 🤖 Headless backup, and a door that survives a wipe
+Broadcasts let the companion task runner (白い熊 自由作業盤) back this app up without ever opening it: it asks for the **category list** — each item answering for itself whether it **starts ticked** — then triggers the **same export the panel runs**, headlessly, into any absolute path, and gets back the written file's path and real size. While it works, it reports **real counts, never a percentage** (`連絡先 123/456`), and a **cancel** stops it for real: the run unwinds at the next entry boundary, deletes what it had written, and answers the original request, so a cancelled backup leaves the folder exactly as it found it. A separate `BACKUP_CONTACTS` broadcast still does a straight .vcf dump before risky system operations — born from a real incident, when an EMUI locale switch wiped every contact.
+
+**The authorization token is now optional, and off by default.** A pasted secret cannot survive a wipe, which is precisely the situation this is for. Automation is on out of the box; if you want the old behavior, 「認証トークンを使う？」 in the Export / Import section turns the token back on, and the token itself only appears once you ask for it.
+
+**A wiped phone can now be put back.** Alongside the broadcasts sits a **data door** — a provider the app-manager fork (白い熊 応用管理) calls to describe what this app holds, stream an export straight into the backup it is assembling, and put it back afterwards. It writes into a **file handle the caller opens**, so the backup stays encrypted and checksummed as a whole rather than having a stray plaintext file dropped into it. Nothing anonymous gets in: a caller is checked by **exact package name, kernel-reported uid, and a pinned signing certificate**, and **restoring is only ever possible through that door** — never over a broadcast any app on the phone could send.
 
 ---
 

@@ -7,6 +7,72 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+080] — 2026-09-04
+
+Everything added since `1.6.0+079`, still on **Fossify Contacts 1.6.0**. This release implements the
+sister-app automation contract **v2**, and fixes a long-standing defect that had been quietly breaking
+the one automation this app is asked for most.
+
+### 自由作業盤's language switch was never hearing our answer — fixed
+The companion task runner's **Japanese⇄English switch** asks this app to back the contacts up first and
+refuses to run unless that backup reports success. It has been reading a **silence** rather than an
+answer, on every attempt.
+
+- The manifest's `<queries>` element listed only the two upstream Fossify packages — the ones kept so
+  this fork installs side-by-side. **Neither automation caller was named.**
+- Every reply this app sends is a broadcast aimed at the caller with `setPackage(…)`, and since Android
+  11 a `setPackage` to a package the sender cannot *see* is discarded **silently**. The export ran, wrote
+  the right file, reported the right result — into nothing.
+- It is the failure that passes every test that does not check whether the answer arrived, and the
+  element being *present* is why an audit of the manifest missed it.
+- **Both callers (白い熊 自由作業盤 and 白い熊 応用管理) are now named**, with the reason recorded in the
+  manifest so it is not trimmed back later.
+
+### The authorization token is now optional — and off by default
+A pasted 48-character secret cannot survive a wipe, and restoring this app onto a clean phone is exactly
+the case the automation now exists to serve. A gate that only works once the phone is already set up is
+no gate for setting the phone up.
+
+- **Automation is now ON by default**; the master switch stays, because being able to close one app off
+  is the point of having a switch at all.
+- **New: 「認証トークンを使う？」, default OFF** — in 白い熊 連絡先 UI → **Export / Import** → 自動化,
+  directly under 「自動化エクスポート」.
+- **The token row is hidden unless that switch is on.** A secret sitting under an off switch only invites
+  being pasted somewhere it will do nothing.
+- **A token sent to the app when it is not required is ignored, never refused.** Tokens outlive the
+  setting they were pasted for, and half a backup batch failing because one app's switch moved is exactly
+  the friction the change removes.
+- All three entry points — `BACKUP_CONTACTS`, `EXPORT_STATE`/`LIST_CATEGORIES`/`CANCEL_EXPORT`, and the
+  new data door — now answer through **one** gate, so "disabled" and "bad token" cannot drift apart.
+- The new preference is **excluded from export**, alongside the token and the enable switch: restoring a
+  backup must never quietly relax this device's own security state.
+
+### A wiped phone can be put back — the data door
+A new provider lets the app-manager fork (白い熊 応用管理) back up this app's *data*, not just its APK,
+and restore it onto a phone where nothing has been set up yet.
+
+- **`describe` · `export` · `import` · `cancel`.** `describe` answers what this app holds without
+  exporting anything, so a list can be drawn — and compatibility judged — before any bytes move.
+- **Callers are identified three ways: exact package name (never a prefix), the uid the kernel reports,
+  and a pinned signing certificate.** A package name is not a namespace anyone owns, so a prefix test
+  would have been weaker than the token it replaces.
+- **The payload travels through a file handle the caller opens**, not a path. The backup is encrypted and
+  checksummed per file it knows about, so a file dropped in from outside would sit in plaintext inside an
+  otherwise encrypted archive and be unverified rather than verified.
+- **Restoring exists only here.** It is never reachable by broadcast: an import overwrites this app's
+  data, and the broadcast surface cannot tell who is calling.
+- Long work runs in a foreground service, because a backgrounded app writing for minutes is frozen
+  mid-stream on this phone — which yields a truncated archive underneath a success reply, the one failure
+  indistinguishable from a good backup until the day it is needed.
+- A refusal is always returned as a message, never thrown across the boundary.
+
+### Known limitation — restoring contacts onto a *freshly installed* app
+Settings and fonts restore onto a clean phone without ceremony. **Contacts cannot**, yet: writing them
+goes through the system contacts provider, which needs the `WRITE_CONTACTS` runtime permission, and an
+app that has just been installed and never opened holds no runtime permissions at all. The import fails
+honestly rather than reporting a success it did not achieve — but it will fail until the permission is
+granted by hand. Granting it, or opening the app once and granting it there, is enough.
+
 ## [1.6.0+079] — 2026-08-16
 
 Everything added since `1.6.0+76`, still on **Fossify Contacts 1.6.0**. One visible change and one to
