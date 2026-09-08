@@ -10,7 +10,7 @@ A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **majo
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+080`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+081`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -27,7 +27,7 @@ The list stops being a fixed single column. **Choose which fields show, reorder 
 ---
 
 ## 🇯🇵 Japanese-aware sorting & letter sections
-Contacts sort and group the way a Japanese address book should: kana readings bucket into **gojūon rows** (あ か さ た な は ま や ら わ — voiced, semi-voiced and small kana folded into their base row), Latin names follow A–Z, and everything else lands in ＃. The provider's **phonetic reading (フリガナ)** drives it all — editable right in the contact editor — with **per-contact sort-field overrides** (reading, nickname, organization) and fully themeable **letter-section headers** (underline, dividers, padding, colors).
+Contacts sort and group the way a Japanese address book should: kana readings bucket into **gojūon rows** (あ か さ た な は ま や ら わ — voiced, semi-voiced and small kana folded into their base row), Latin names follow A–Z, and everything else lands in ＃. The provider's **phonetic reading (フリガナ)** drives it all — editable right in the contact editor — with **per-contact sort-field overrides** (reading, nickname, organization) and fully themeable **letter-section headers** (underline, dividers, padding, colors). Readings and overrides **survive a backup and restore**: the reading is written into every exported vCard (as `SORT-AS` and as the `X-PHONETIC-*` properties Android itself uses) and read back on import, so a new phone rebuilds the same gojūon order rather than scattering your kana contacts into ＃.
 
 ---
 

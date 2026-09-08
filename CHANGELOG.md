@@ -7,6 +7,48 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+081] — 2026-09-08
+
+Everything added since `1.6.0+080`, still on **Fossify Contacts 1.6.0**. One release, one defect: a
+backup taken with this app did not carry the フリガナ, so every restore quietly rebuilt the address book
+in the wrong order.
+
+### The reading (フリガナ) now survives a backup and restore
+Restoring onto a new phone left the kana rows nearly empty — contacts belonging under さ, は or ま turned
+up in ＃ or under their Latin name, and the gojūon ordering the whole list is built around was gone.
+Nothing was lost from the contacts themselves; the reading simply never left the old phone.
+
+- **The reading lives only in the provider's phonetic-name columns**, which the underlying contact model
+  does not carry — so the vCard writer had never seen it and wrote an `N` line with no reading in it.
+  Every route out of the app funnels through that one writer: the in-app .vcf export, the
+  `BACKUP_CONTACTS` broadcast, and the `contacts.vcf` inside a category ZIP.
+- **Exports now carry it two ways.** `SORT-AS` on `N` is the vCard 4.0 standard, but it collapses a
+  reading into a single opaque sort key; the `X-PHONETIC-LAST-/MIDDLE-/FIRST-NAME` properties — what
+  Android's own exporter, Google Contacts and the Japanese phone makers write — keep the
+  family・middle・given split intact. Both go into every card, so a backup reads correctly either way.
+- **Imports read them back and write the phonetic columns**, preferring the split X- form and falling
+  back to `SORT-AS` / `SORT-STRING`. A reading that arrives as one string is split the way the contact
+  editor splits one you type, so the two always agree.
+- The reading is attached to the row just inserted **only after the name on that row is checked against
+  what was written** — a sync running in the background cannot be handed someone else's reading.
+
+### Per-contact sort-field overrides survive a restore too
+The same defect in a different place. **「並び替え」 overrides** — sort this contact by its reading,
+nickname or organization — were stored under the contacts provider's **lookup key**, which every device
+mints for itself. They rode along inside a backup and then matched nothing on the new phone, silently:
+an override that misses looks exactly like no override at all.
+
+- Overrides are now keyed by the contact's **display name**, falling back to its first phone number and
+  then to its id — all of which come through a vCard round trip unchanged.
+- **Existing overrides move across automatically** on the next contacts refresh, so nothing has to be
+  set a second time on a phone that already has them.
+
+### For an address book already restored
+A phone restored from an older backup cannot get its readings back — they were never in that file.
+Install this build on **both** phones, take a fresh backup on the old one, and import it on the new one
+**after deleting the contacts already restored there**: an import only ever adds, so restoring on top of
+them gives you every contact twice.
+
 ## [1.6.0+080] — 2026-09-04
 
 Everything added since `1.6.0+079`, still on **Fossify Contacts 1.6.0**. This release implements the
