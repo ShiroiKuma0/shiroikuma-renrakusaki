@@ -49,6 +49,7 @@ import org.fossify.contacts.helpers.ALL_TABS_MASK
 import org.fossify.contacts.helpers.OPEN_TAB_INTENT_EXTRA
 import org.fossify.contacts.helpers.loadContactEvents
 import org.fossify.contacts.helpers.loadContactExtras
+import org.fossify.contacts.helpers.migrateSortFieldKeys
 import org.fossify.contacts.helpers.tabsList
 import org.fossify.contacts.interfaces.RefreshContactsListener
 import java.util.Arrays
@@ -677,9 +678,11 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             }
 
             // Refresh readings (フリガナ) + lookup keys first — the grouped list buckets and sorts by
-            // them — and the last-call/last-SMS data the 詳 detail rows show.
+            // them — and the last-call/last-SMS data the 詳 detail rows show. The rekey pass rides
+            // along: it needs both the lookup keys just loaded and the contacts they belong to.
             ensureBackgroundThread {
                 loadContactExtras()
+                migrateSortFieldKeys(contacts)
                 loadContactEvents()
                 runOnUiThread {
                     if (isDestroyed || isFinishing) {

@@ -134,11 +134,12 @@ import org.fossify.contacts.helpers.ADD_NEW_CONTACT_NUMBER
 import org.fossify.contacts.helpers.IS_FROM_SIMPLE_CONTACTS
 import org.fossify.contacts.helpers.KEY_EMAIL
 import org.fossify.contacts.helpers.KEY_NAME
+import org.fossify.contacts.helpers.PhoneticName
 import org.fossify.contacts.helpers.SORT_FIELD_DEFAULT
 import org.fossify.contacts.helpers.SORT_FIELD_NICKNAME
 import org.fossify.contacts.helpers.SORT_FIELD_ORGANIZATION
 import org.fossify.contacts.helpers.SORT_FIELD_READING
-import org.fossify.contacts.helpers.fallbackSortFieldKey
+import org.fossify.contacts.helpers.sortFieldKeyFor
 import java.util.LinkedList
 import java.util.Locale
 
@@ -598,8 +599,8 @@ class EditContactActivity : ContactActivity() {
     }
 
     // Fork: phonetic reading (フリガナ, provider phonetic-name columns) + per-contact sort-field
-    // override (app-side, keyed by the provider lookup key). Existing non-private contacts only —
-    // a new contact has no raw id / lookup key yet, so the rows appear once it is saved and reopened.
+    // override (app-side, keyed device-independently by sortFieldKeyFor). Existing non-private
+    // contacts only — a new contact has no raw id yet, so the rows appear once it is saved and reopened.
     private fun setupReadingAndSortBy() {
         val isExistingProviderContact = contact!!.id != 0 && !contact!!.isPrivate()
         binding.contactReading.beVisibleIf(isExistingProviderContact)
@@ -609,8 +610,9 @@ class EditContactActivity : ContactActivity() {
         }
 
         val rawId = contact!!.id
+        sortFieldKey = sortFieldKeyFor(contact!!)
         ensureBackgroundThread {
-            loadReadingAndLookupKey(rawId)
+            loadReading(rawId)
             runOnUiThread {
                 if (isDestroyed || isFinishing) {
                     return@runOnUiThread
@@ -623,11 +625,9 @@ class EditContactActivity : ContactActivity() {
     }
 
     @Suppress("TooGenericExceptionCaught", "SwallowedException") // a failed query just leaves the row empty
-    private fun loadReadingAndLookupKey(rawId: Int) {
-        sortFieldKey = fallbackSortFieldKey(contact!!.contactId)
+    private fun loadReading(rawId: Int) {
         originalReading = ""
         val projection = arrayOf(
-            ContactsContract.Data.LOOKUP_KEY,
             StructuredName.PHONETIC_FAMILY_NAME,
             StructuredName.PHONETIC_MIDDLE_NAME,
             StructuredName.PHONETIC_GIVEN_NAME,
@@ -638,10 +638,11 @@ class EditContactActivity : ContactActivity() {
             contentResolver.query(ContactsContract.Data.CONTENT_URI, projection, selection, args, null)
                 ?.use { cursor ->
                     if (cursor.moveToFirst()) {
-                        cursor.getString(0)?.let { sortFieldKey = it }
-                        originalReading = listOfNotNull(cursor.getString(1), cursor.getString(2), cursor.getString(3))
-                            .filter { it.isNotEmpty() }
-                            .joinToString(" ")
+                        originalReading = PhoneticName(
+                            family = cursor.getString(0).orEmpty(),
+                            middle = cursor.getString(1).orEmpty(),
+                            given = cursor.getString(2).orEmpty(),
+                        ).joined()
                     }
                 }
         } catch (e: Exception) {
@@ -684,12 +685,11 @@ class EditContactActivity : ContactActivity() {
             return
         }
 
-        val tokens = reading.split(Regex("\\s+")).filter { it.isNotEmpty() }
-        val middle = if (tokens.size >= 3) tokens.subList(1, tokens.size - 1).joinToString(" ") else ""
+        val phonetic = PhoneticName.fromJoined(reading)
         val values = ContentValues().apply {
-            put(StructuredName.PHONETIC_FAMILY_NAME, tokens.firstOrNull().orEmpty())
-            put(StructuredName.PHONETIC_MIDDLE_NAME, middle)
-            put(StructuredName.PHONETIC_GIVEN_NAME, if (tokens.size >= 2) tokens.last() else "")
+            put(StructuredName.PHONETIC_FAMILY_NAME, phonetic.family)
+            put(StructuredName.PHONETIC_MIDDLE_NAME, phonetic.middle)
+            put(StructuredName.PHONETIC_GIVEN_NAME, phonetic.given)
         }
         val selection = "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
         val args = arrayOf(contact!!.id.toString(), StructuredName.CONTENT_ITEM_TYPE)

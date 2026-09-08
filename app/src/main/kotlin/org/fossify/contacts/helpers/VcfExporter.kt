@@ -53,6 +53,10 @@ class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _,
                 context.toast(org.fossify.commons.R.string.exporting)
             }
 
+            // フリガナ lives in provider columns the commons Contact model doesn't carry, so it takes
+            // a query of its own — one for the whole run, keyed by raw contact id.
+            val phoneticNames = context.loadPhoneticNames()
+
             val cards = ArrayList<VCard>()
             for (contact in contacts) {
                 val card = VCard()
@@ -68,13 +72,38 @@ class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _,
                     .joinToString(separator = " ")
                 card.formattedName = FormattedName(formattedName)
 
+                // A private (device-only) contact has no provider row, so it can hold no reading —
+                // and its id comes from another table, which could otherwise collide with a raw id.
+                val phonetic = if (contact.isPrivate()) null else phoneticNames[contact.id]
+
                 StructuredName().apply {
                     prefixes.add(contact.prefix)
                     given = contact.firstName
                     additionalNames.add(contact.middleName)
                     family = contact.surname
                     suffixes.add(contact.suffix)
+                    if (phonetic != null) {
+                        // The two-argument form emits SORT-AS="family,given"; with only one part
+                        // filled in it would emit a stray empty component, so pass the joined string.
+                        if (phonetic.family.isNotEmpty() && phonetic.given.isNotEmpty()) {
+                            setSortAs(phonetic.family, phonetic.given)
+                        } else {
+                            setSortAs(phonetic.joined())
+                        }
+                    }
                     card.structuredName = this
+                }
+
+                if (phonetic != null) {
+                    if (phonetic.family.isNotEmpty()) {
+                        card.addExtendedProperty(X_PHONETIC_LAST_NAME, phonetic.family)
+                    }
+                    if (phonetic.middle.isNotEmpty()) {
+                        card.addExtendedProperty(X_PHONETIC_MIDDLE_NAME, phonetic.middle)
+                    }
+                    if (phonetic.given.isNotEmpty()) {
+                        card.addExtendedProperty(X_PHONETIC_FIRST_NAME, phonetic.given)
+                    }
                 }
 
                 if (contact.nickname.isNotEmpty()) {

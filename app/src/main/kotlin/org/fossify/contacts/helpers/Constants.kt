@@ -127,9 +127,11 @@ const val THEME_UNSET = Int.MIN_VALUE // a slot with this stored value follows i
 const val PALETTE_BLACK = 0xFF000000.toInt()
 const val PALETTE_YELLOW = 0xFFFFFF00.toInt()
 
-// Per-contact sort-field override: one entry per contact (keyed by the provider lookup key, or the
-// "contact:<contactId>" fallback), value = which field supplies the sort/bucketing key in the grouped
-// Contacts list. Absent/DEFAULT = reading if present, else the name per the global sort setting.
+// Per-contact sort-field override: one entry per contact (keyed device-independently by
+// sortFieldKeyFor — "name:", "num:" or the "contact:<contactId>" fallback), value = which field
+// supplies the sort/bucketing key in the grouped Contacts list. Absent/DEFAULT = reading if present,
+// else the name per the global sort setting. Entries older builds wrote under the provider lookup key
+// are moved onto the new keys by migrateSortFieldKeys on every contacts refresh.
 const val SORT_FIELD_PREFIX = "sort_field_"
 const val SORT_FIELD_DEFAULT = 0
 const val SORT_FIELD_READING = 1
@@ -239,6 +241,15 @@ const val WORK_FAX = "WORK;FAX"
 const val HOME_FAX = "HOME;FAX"
 const val PAGER = "PAGER"
 const val MOBILE = "MOBILE"
+
+// フリガナ in a vCard. The standard route is SORT-AS on N (vCard 4.0; ez-vcard turns it into a
+// SORT-STRING property when the card is written as 3.0), but that carries the reading as one opaque
+// sort key. These extended properties are what Android's own vCard exporter, Google Contacts and the
+// Japanese phone makers write and read, and they keep the family/middle/given split intact — so we
+// write both and prefer these on import.
+const val X_PHONETIC_LAST_NAME = "X-PHONETIC-LAST-NAME"
+const val X_PHONETIC_MIDDLE_NAME = "X-PHONETIC-MIDDLE-NAME"
+const val X_PHONETIC_FIRST_NAME = "X-PHONETIC-FIRST-NAME"
 
 // IMs not supported by Ez-vcard
 const val HANGOUTS = "Hangouts"
