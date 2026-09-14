@@ -135,11 +135,42 @@ Then set this app's `commons` pin to `<ver>-sk1`. The patched AAR lives only in 
 ## Tab hand-off from our Phone fork (denwa)
 
 Our Phone fork (`shiroikuma.denwa`, repo `~/git/shiroikuma-denwa`) launches this app's `MainActivity`
-directly when its Contacts/Favorites tabs are tapped, passing the `shiroikuma_open_tab` int extra
-(a commons `TAB_*` mask) to pick the tab. `OPEN_TAB_INTENT_EXTRA` (helpers/Constants.kt) defines the
-name and `MainActivity.takeRequestedTab()` consumes it — at first init and in `onNewIntent` (denwa sends
-`CLEAR_TOP or SINGLE_TOP`, so a running instance gets it there). Keep the extra name in sync with the
-denwa repo if it ever changes.
+directly when its Contacts/Favorites tabs are tapped. The contract is two int extras, both defined in
+`helpers/Constants.kt` here and in denwa's `helpers/Constants.kt` there — **keep the names in sync
+across the two repos**:
+
+| extra | ours | denwa's | meaning |
+| --- | --- | --- | --- |
+| `shiroikuma_open_tab` | `OPEN_TAB_INTENT_EXTRA` | `CONTACTS_APP_OPEN_TAB_EXTRA` | which tab to open (a commons `TAB_*` mask). Bidirectional: denwa sends it to us, we send it back with `TAB_CALL_HISTORY`. |
+| `shiroikuma_dialer_tabs` | `DIALER_TABS_INTENT_EXTRA` | `CONTACTS_APP_DIALER_TABS_EXTRA` | denwa's own visible-tab mask. Non-zero = this launch came from the dialer's bottom bar. |
+
+### Wearing denwa's bottom bar
+
+When `shiroikuma_dialer_tabs` arrives non-zero, `MainActivity` keeps rendering our contacts UI but
+**wears denwa's tab set for the life of that activity instance** — Contacts | Favorites | Recents,
+built from denwa's mask so both bars match tab-for-tab even when 白い熊 hides one of them in denwa.
+Groups drops out of the bar *and* the pager for that session; launched from our own launcher icon the
+app is untouched. The point is that Recents never vanishes, so the dialer is always one tap away.
+
+- `dialerTabsMask` holds the mode; `takeDialerTabs()` consumes the extra the way `takeRequestedTab()`
+  does (read, then `removeExtra`), and `onSaveInstanceState` carries it through a recreate.
+- `barTabs` is the bar (denwa's `dialerTabsList` order during a hand-off, our `tabsList` otherwise);
+  `pagerTabsMask` is the subset that are real pages — everything the bar shows `and ALL_TABS_MASK`.
+- Recents is a **launcher, not a page**: `tabSelectedAction` intercepts it, calls `launchDialerApp()`
+  (extensions/Activity.kt) and posts the selection back to the page we stay on. We never `finish()`,
+  so alternating taps are a warm task swap; the start uses `ActivityOptions.makeCustomAnimation(0, 0)`
+  so it reads as a tab change rather than an app switch.
+- The Recents entry borrows commons' `ic_clock_vector` / `ic_clock_filled_vector` and
+  `R.string.call_history_tab` — exactly what denwa's own bar uses, so no new resources on either side.
+- `onNewIntent` `recreate()`s when the mask changes (denwa handing off to an already-running instance,
+  or a plain launch dropping the mode), because the bar's shape is decided once at setup. Note this
+  only fires when the intent is actually delivered: tapping our launcher icon while the task is already
+  alive resumes it without an `onNewIntent`, so a hand-off session keeps denwa's bar until it is
+  backed out of.
+- `<queries>` in the manifest names `shiroikuma.denwa` and `shiroikuma.denwa.debug` — without package
+  visibility the hand-back start fails on Android 11+.
+
+The feature is only visible with **both** halves installed; denwa ships the sending side.
 
 ## Commit convention — no Claude attribution
 

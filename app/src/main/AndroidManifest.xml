@@ -60,6 +60,13 @@
         <package android:name="shiroikuma.oyokanri" />
         <package android:name="shiroikuma.jiyusagyoban" />
 
+        <!-- Fork: the denwa hand-off. When 白い熊 enters this app from the dialer's bottom bar we wear
+             denwa's tab set, and its Recents entry starts denwa's MainActivity back again. On Android 11+
+             an invisible package makes that start fail, so both ids are named here — the mirror of denwa's
+             own <queries> for our two ids. -->
+        <package android:name="shiroikuma.denwa" />
+        <package android:name="shiroikuma.denwa.debug" />
+
         <!-- Required for loading contact accounts -->
         <intent>
             <action android:name="android.accounts.AccountAuthenticator" />

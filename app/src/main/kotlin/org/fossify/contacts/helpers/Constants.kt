@@ -18,6 +18,7 @@ import org.fossify.commons.helpers.SHOW_STRUCTURED_ADDRESSES_FIELD
 import org.fossify.commons.helpers.SHOW_SUFFIX_FIELD
 import org.fossify.commons.helpers.SHOW_SURNAME_FIELD
 import org.fossify.commons.helpers.SHOW_WEBSITES_FIELD
+import org.fossify.commons.helpers.TAB_CALL_HISTORY
 import org.fossify.commons.helpers.TAB_CONTACTS
 import org.fossify.commons.helpers.TAB_FAVORITES
 import org.fossify.commons.helpers.TAB_GROUPS
@@ -57,6 +58,21 @@ const val MAX_CONTACTS_LIST_DIVIDER_DP = 12
 // Int extra (a commons TAB_* mask) telling MainActivity which tab to open;
 // sent by our Phone fork (shiroikuma-denwa) when its Contacts/Favorites tabs hand off to this app.
 const val OPEN_TAB_INTENT_EXTRA = "shiroikuma_open_tab"
+
+// Int extra carrying denwa's own visible-tab mask (commons TAB_* bits), sent alongside
+// OPEN_TAB_INTENT_EXTRA. Non-zero marks a launch that came from the dialer's bottom bar: MainActivity
+// then wears denwa's tab set — Contacts | Favorites | Recents — so Recents stays one tap away instead
+// of vanishing behind our own bar. Kept in sync with denwa's CONTACTS_APP_DIALER_TABS_EXTRA.
+const val DIALER_TABS_INTENT_EXTRA = "shiroikuma_dialer_tabs"
+
+// The dialer's bottom bar in its own order — a mirror of denwa's `tabsList`, so the two bars lay the
+// same tabs out in the same places. TAB_CALL_HISTORY is the one entry that is not a page of ours: it
+// only hands back to denwa, and it sits last, so our pages keep the bar's own positions.
+val dialerTabsList = arrayListOf(TAB_CONTACTS, TAB_FAVORITES, TAB_CALL_HISTORY)
+
+// Our Phone fork, release then debug — the mirror of denwa's `contactsAppPackages`.
+val dialerAppPackages = arrayListOf("shiroikuma.denwa", "shiroikuma.denwa.debug")
+const val DIALER_APP_MAIN_ACTIVITY = "org.fossify.phone.activities.MainActivity"
 
 // Contact thumbnail (photo) size in the main Contacts list rows, in dp.
 const val CONTACTS_LIST_THUMBNAIL_SIZE = "contacts_list_thumbnail_size"

@@ -1,6 +1,8 @@
 package org.fossify.contacts.extensions
 
 import android.app.Activity
+import android.app.ActivityOptions
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.view.children
@@ -13,6 +15,7 @@ import org.fossify.commons.extensions.getPublicContactSourceSync
 import org.fossify.commons.extensions.getTempFile
 import org.fossify.commons.extensions.getVisibleContactSources
 import org.fossify.commons.extensions.hideKeyboard
+import org.fossify.commons.extensions.isPackageInstalled
 import org.fossify.commons.extensions.launchActivityIntent
 import org.fossify.commons.extensions.sharePathIntent
 import org.fossify.commons.extensions.showErrorToast
@@ -38,6 +41,9 @@ import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.activities.ViewContactActivity
 import org.fossify.contacts.dialogs.ImportContactsDialog
 import org.fossify.contacts.helpers.DEFAULT_FILE_NAME
+import org.fossify.contacts.helpers.DIALER_APP_MAIN_ACTIVITY
+import org.fossify.contacts.helpers.OPEN_TAB_INTENT_EXTRA
+import org.fossify.contacts.helpers.dialerAppPackages
 import org.fossify.contacts.helpers.VcfExporter
 
 fun SimpleActivity.startCallIntent(recipient: String) {
@@ -220,4 +226,27 @@ fun BaseSimpleActivity.applyTopBarColors(appbar: MyAppBarLayout) {
     toolbar.setTitleTextColor(themeColor(ThemeSlot.TOPBAR_TITLE))
     toolbar.navigationIcon?.applyColorFilter(themeColor(ThemeSlot.TOPBAR_NAV))
     toolbar.overflowIcon?.applyColorFilter(themeColor(ThemeSlot.TOPBAR_TITLE))
+}
+
+// Our Phone fork (denwa), release then debug — the mirror of denwa's getInstalledContactsAppPackage().
+fun Context.getInstalledDialerAppPackage() = dialerAppPackages.firstOrNull { isPackageInstalled(it) }
+
+// Hands back to denwa on the given tab (a commons TAB_* mask), for the Recents entry denwa's bottom bar
+// lends us during a hand-off session. Targets its MainActivity directly — the launcher intent would not
+// deliver the extra when the app is already running — and swaps with no animation, so a tap on the shared
+// bar reads as a tab change rather than an app switch. We are deliberately left running: both activities
+// stay alive, which is what makes alternating taps a warm task swap.
+fun Activity.launchDialerApp(tab: Int) {
+    val dialerPackage = getInstalledDialerAppPackage() ?: return
+    Intent().apply {
+        setClassName(dialerPackage, DIALER_APP_MAIN_ACTIVITY)
+        putExtra(OPEN_TAB_INTENT_EXTRA, tab)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        try {
+            val noAnimation = ActivityOptions.makeCustomAnimation(this@launchDialerApp, 0, 0).toBundle()
+            startActivity(this, noAnimation)
+        } catch (e: Exception) {
+            showErrorToast(e)
+        }
+    }
 }

@@ -5,10 +5,13 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
@@ -40,13 +43,16 @@ import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.applyThemeFont
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.handleGenericContactClick
+import org.fossify.contacts.extensions.launchDialerApp
 import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.extensions.tryImportContactsFromFile
 import org.fossify.contacts.fragments.ContactsFragment
 import org.fossify.contacts.fragments.FavoritesFragment
 import org.fossify.contacts.fragments.MyViewPagerFragment
 import org.fossify.contacts.helpers.ALL_TABS_MASK
+import org.fossify.contacts.helpers.DIALER_TABS_INTENT_EXTRA
 import org.fossify.contacts.helpers.OPEN_TAB_INTENT_EXTRA
+import org.fossify.contacts.helpers.dialerTabsList
 import org.fossify.contacts.helpers.loadContactEvents
 import org.fossify.contacts.helpers.loadContactExtras
 import org.fossify.contacts.helpers.migrateSortFieldKeys
@@ -59,6 +65,10 @@ private const val SEARCH_BAR_CORNER_RADIUS_DP = 16f
 private const val INACTIVE_COLUMN_BUTTON_ALPHA = 0.35f
 private const val SEARCH_BAR_STROKE_DP = 2
 
+// Survives a recreate (process death, or the deliberate rebuild in onNewIntent) so a hand-off
+// session does not drop back to our own bottom bar underneath 白い熊.
+private const val DIALER_TABS_STATE_KEY = "dialer_tabs_mask"
+
 class MainActivity : SimpleActivity(), RefreshContactsListener {
     private var werePermissionsHandled = false
     private var isFirstResume = true
@@ -70,6 +80,23 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
     private var storedFontSize = 0
     private var storedShowTabs = 0
     private var storedContactsListRevision = 0
+
+    // Non-zero while this activity instance was entered from denwa's bottom bar: denwa's own visible-tab
+    // mask (commons TAB_* bits). The bar then wears denwa's tab set instead of ours — Groups drops out,
+    // Recents comes in — so getting back to the dialer never means backing out of this app.
+    private var dialerTabsMask = 0
+
+    // The TAB_* masks the bottom bar shows, in bar order: denwa's list during a hand-off, ours otherwise.
+    private val barTabs: List<Int>
+        get() = if (dialerTabsMask != 0) {
+            dialerTabsList.filter { dialerTabsMask and it != 0 }
+        } else {
+            tabsList.filter { config.showTabs and it != 0 }
+        }
+
+    // The bar tabs that are actually pages of ours — the bar minus Recents, which only launches denwa.
+    private val pagerTabsMask: Int
+        get() = (if (dialerTabsMask != 0) dialerTabsMask else config.showTabs) and ALL_TABS_MASK
 
     // The "contacts per row" toolbar buttons (一 二 三 四 → 1–4 columns, 詳 → detail rows with
     // last-call / last-SMS lines), left of the sort/filter/overflow icons.
@@ -84,6 +111,9 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         appLaunched(BuildConfig.APPLICATION_ID)
+        // Decided before anything reads the tab set: a launch from denwa's bottom bar wears denwa's tabs
+        // for the life of this instance.
+        dialerTabsMask = sanitizeDialerTabs(takeDialerTabs() ?: savedInstanceState?.getInt(DIALER_TABS_STATE_KEY) ?: 0)
         setupOptionsMenu()
         refreshMenuItems()
         setupEdgeToEdge(
@@ -95,9 +125,28 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         checkWhatsNewDialog()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(DIALER_TABS_STATE_KEY, dialerTabsMask)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+
+        // The bar's shape is fixed at setup, so a launch that changes it — the dialer's tab set arriving,
+        // or a plain launch dropping it — rebuilds the activity on the new shape. The field is set first
+        // so the state this recreate saves already carries the new mode, and the intent keeps its extras,
+        // so the fresh onCreate() consumes them exactly as a cold start does.
+        val wantedDialerTabs = sanitizeDialerTabs(intent.getIntExtra(DIALER_TABS_INTENT_EXTRA, 0))
+        if (wantedDialerTabs != dialerTabsMask) {
+            dialerTabsMask = wantedDialerTabs
+            config.lastUsedViewPagerPage = 0
+            recreate()
+            return
+        }
+
+        intent.removeExtra(DIALER_TABS_INTENT_EXTRA)
         takeRequestedTab()?.let {
             binding.viewPager.currentItem = it
         }
@@ -125,7 +174,9 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             return
         }
 
-        if (storedShowTabs != config.showTabs) {
+        // In a hand-off session the bar comes from denwa, not from config.showTabs — restarting on a
+        // change to ours would only throw the session away (the intent extras are already consumed).
+        if (dialerTabsMask == 0 && storedShowTabs != config.showTabs) {
             config.lastUsedViewPagerPage = 0
             finish()
             startActivity(intent)
@@ -458,7 +509,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
     }
 
     private fun getCurrentFragment(): MyViewPagerFragment<*>? {
-        val showTabs = config.showTabs
+        val showTabs = pagerTabsMask
         val fragments = arrayListOf<MyViewPagerFragment<*>>()
         if (showTabs and TAB_CONTACTS != 0) {
             fragments.add(findViewById(R.id.contacts_fragment))
@@ -496,43 +547,47 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
     private fun getInactiveTabIndexes(activeIndex: Int) = (0 until binding.mainTabsHolder.tabCount).filter { it != activeIndex }
 
-    private fun getSelectedTabDrawableIds(): ArrayList<Int> {
-        val showTabs = config.showTabs
-        val icons = ArrayList<Int>()
-
-        if (showTabs and TAB_CONTACTS != 0) {
-            icons.add(org.fossify.commons.R.drawable.ic_person_vector)
+    // Indexed by bar position, not by page: in a hand-off the bar carries one more entry (Recents) than
+    // the pager has pages, and setupTabColors() walks every bar position.
+    private fun getSelectedTabDrawableIds() = barTabs.map {
+        when (it) {
+            TAB_CONTACTS -> org.fossify.commons.R.drawable.ic_person_vector
+            TAB_FAVORITES -> org.fossify.commons.R.drawable.ic_star_vector
+            TAB_CALL_HISTORY -> org.fossify.commons.R.drawable.ic_clock_filled_vector
+            else -> org.fossify.commons.R.drawable.ic_people_vector
         }
-
-        if (showTabs and TAB_FAVORITES != 0) {
-            icons.add(org.fossify.commons.R.drawable.ic_star_vector)
-        }
-
-        if (showTabs and TAB_GROUPS != 0) {
-            icons.add(org.fossify.commons.R.drawable.ic_people_vector)
-        }
-
-        return icons
     }
 
-    private fun getDeselectedTabDrawableIds(): ArrayList<Int> {
-        val showTabs = config.showTabs
-        val icons = ArrayList<Int>()
-
-        if (showTabs and TAB_CONTACTS != 0) {
-            icons.add(org.fossify.commons.R.drawable.ic_person_outline_vector)
+    private fun getDeselectedTabDrawableIds() = barTabs.map {
+        when (it) {
+            TAB_CONTACTS -> org.fossify.commons.R.drawable.ic_person_outline_vector
+            TAB_FAVORITES -> org.fossify.commons.R.drawable.ic_star_outline_vector
+            TAB_CALL_HISTORY -> org.fossify.commons.R.drawable.ic_clock_vector
+            else -> org.fossify.commons.R.drawable.ic_people_outline_vector
         }
-
-        if (showTabs and TAB_FAVORITES != 0) {
-            icons.add(org.fossify.commons.R.drawable.ic_star_outline_vector)
-        }
-
-        if (showTabs and TAB_GROUPS != 0) {
-            icons.add(org.fossify.commons.R.drawable.ic_people_outline_vector)
-        }
-
-        return icons
     }
+
+    // Bar icon and label by TAB_* mask. Recents deliberately borrows denwa's own clock icon and
+    // "call history" label, so no new resources are needed and the two bars are pixel-identical.
+    private fun getBarTabIcon(tabMask: Int): Drawable {
+        val drawableId = when (tabMask) {
+            TAB_CONTACTS -> org.fossify.commons.R.drawable.ic_person_vector
+            TAB_FAVORITES -> org.fossify.commons.R.drawable.ic_star_vector
+            TAB_CALL_HISTORY -> org.fossify.commons.R.drawable.ic_clock_vector
+            else -> org.fossify.commons.R.drawable.ic_people_vector
+        }
+
+        return resources.getColoredDrawableWithColor(drawableId, getProperTextColor())
+    }
+
+    private fun getBarTabLabel(tabMask: Int) = resources.getString(
+        when (tabMask) {
+            TAB_CONTACTS -> org.fossify.commons.R.string.contacts_tab
+            TAB_FAVORITES -> org.fossify.commons.R.string.favorites_tab
+            TAB_CALL_HISTORY -> org.fossify.commons.R.string.call_history_tab
+            else -> org.fossify.commons.R.string.groups_tab
+        }
+    )
 
     private fun initFragments() {
         binding.viewPager.offscreenPageLimit = tabsList.size - 1
@@ -582,17 +637,15 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
     private fun setupTabs() {
         binding.mainTabsHolder.removeAllTabs()
-        tabsList.forEachIndexed { index, value ->
-            if (config.showTabs and value != 0) {
-                binding.mainTabsHolder.newTab().setCustomView(org.fossify.commons.R.layout.bottom_tablayout_item).apply tab@{
-                    customView?.let {
-                        BottomTablayoutItemBinding.bind(it)
-                    }?.apply {
-                        tabItemIcon.setImageDrawable(getTabIcon(index))
-                        tabItemLabel.text = getTabLabel(index)
-                        AutofitHelper.create(tabItemLabel)
-                        binding.mainTabsHolder.addTab(this@tab)
-                    }
+        barTabs.forEach { tabMask ->
+            binding.mainTabsHolder.newTab().setCustomView(org.fossify.commons.R.layout.bottom_tablayout_item).apply tab@{
+                customView?.let {
+                    BottomTablayoutItemBinding.bind(it)
+                }?.apply {
+                    tabItemIcon.setImageDrawable(getBarTabIcon(tabMask))
+                    tabItemLabel.text = getBarTabLabel(tabMask)
+                    AutofitHelper.create(tabItemLabel)
+                    binding.mainTabsHolder.addTab(this@tab)
                 }
             }
         }
@@ -602,6 +655,16 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
                 updateBottomTabItemColors(it.customView, false, getDeselectedTabDrawableIds()[it.position])
             },
             tabSelectedAction = {
+                // Recents is a launcher, not a page: it hands back to denwa and bounces the selection to
+                // the page we are actually staying on, the way denwa does for its own hand-off tabs.
+                if (barTabs.getOrNull(it.position) == TAB_CALL_HISTORY) {
+                    launchDialerApp(TAB_CALL_HISTORY)
+                    Handler(Looper.getMainLooper()).post {
+                        binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.select()
+                    }
+                    return@onTabSelectionChanged
+                }
+
                 getCurrentFragment()?.onSearchQueryChanged(binding.mainMenu.getCurrentQuery())
                 binding.viewPager.currentItem = it.position
                 updateBottomTabItemColors(it.customView, true, getSelectedTabDrawableIds()[it.position])
@@ -667,7 +730,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         isGettingContacts = true
 
         if (binding.viewPager.adapter == null) {
-            binding.viewPager.adapter = ViewPagerAdapter(this, tabsList, config.showTabs)
+            binding.viewPager.adapter = ViewPagerAdapter(this, tabsList, pagerTabsMask)
             binding.viewPager.currentItem = takeRequestedTab() ?: getDefaultTab()
         }
 
@@ -742,19 +805,35 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         }
 
         intent.removeExtra(OPEN_TAB_INTENT_EXTRA)
-        if (config.showTabs and wantedTab == 0) {
+        val showTabs = pagerTabsMask
+        if (showTabs and wantedTab == 0) {
             return null
         }
 
         return when (wantedTab) {
             TAB_CONTACTS -> 0
-            TAB_FAVORITES -> if (config.showTabs and TAB_CONTACTS != 0) 1 else 0
+            TAB_FAVORITES -> if (showTabs and TAB_CONTACTS != 0) 1 else 0
             else -> null
         }
     }
 
+    // Denwa's own visible-tab mask, sent with DIALER_TABS_INTENT_EXTRA when this launch came from the
+    // dialer's bottom bar. Consumed on use like takeRequestedTab(); null when absent.
+    private fun takeDialerTabs(): Int? {
+        val mask = intent.getIntExtra(DIALER_TABS_INTENT_EXTRA, 0)
+        if (mask == 0) {
+            return null
+        }
+
+        intent.removeExtra(DIALER_TABS_INTENT_EXTRA)
+        return mask
+    }
+
+    // A dialer mask holding none of our own pages would leave the pager empty, so it is no hand-off at all.
+    private fun sanitizeDialerTabs(mask: Int) = if (mask and ALL_TABS_MASK != 0) mask else 0
+
     private fun getDefaultTab(): Int {
-        val showTabsMask = config.showTabs
+        val showTabsMask = pagerTabsMask
         return when (config.defaultTab) {
             TAB_LAST_USED -> config.lastUsedViewPagerPage
             TAB_CONTACTS -> 0
