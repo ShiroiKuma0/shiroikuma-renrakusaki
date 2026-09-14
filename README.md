@@ -10,7 +10,7 @@ A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **majo
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+082`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+083`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -57,8 +57,8 @@ On a dual-SIM phone, pin a preferred SIM to any contact: a **SIM badge** shows i
 
 ---
 
-## 🔗 Tab hand-off from the Phone fork
-Our companion Phone fork (`shiroikuma.denwa`) launches this app straight to the **Contacts** or **Favorites** tab — tap a tab there and you land exactly where you expect here, with no extra hop.
+## 🔗 Tab hand-off from the Phone fork — and the dialer's own bar
+Our companion Phone fork (`shiroikuma.denwa`) launches this app straight to the **Contacts** or **Favorites** tab — tap a tab there and you land exactly where you expect here, with no extra hop. And when you arrive that way, **this app wears the dialer's bottom bar**: Contacts | Favorites | **Recents**, built from the dialer's own visible tabs so the two bars match tab for tab. Recents is always one tap away instead of vanishing behind our bar, and tapping it swaps back with no animation and nothing shut down — the two apps trade places like tabs of one app. Groups steps aside for that visit only; opened from its own launcher icon, this app looks exactly as it always did.
 
 ---
 

@@ -7,6 +7,37 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+083] — 2026-09-14
+
+Everything added since `1.6.0+082`, still on **Fossify Contacts 1.6.0**. One feature, and it takes
+both forks: entered from the dialer, this app now wears the dialer's bottom bar.
+
+### Entered from the dialer, wear the dialer's bar
+Tapping 白い熊 電話's Contacts or Favorites tab already handed off to this app — but we arrived
+wearing our own bar, so **the Recents tab vanished** and the only way back to the call history was to
+back out of 連絡先 entirely. The tab set is now borrowed for the length of that visit.
+
+- **The bar comes from the dialer, not from us.** The dialer sends its own visible-tab mask alongside
+  the tab it wants, and the bar is laid out from that mask in the dialer's order — **Contacts |
+  Favorites | Recents** — so the two bars match **tab for tab**, even when a tab is switched off over
+  there. Groups steps out of both the bar and the pager for that session.
+- **Opened from its own launcher icon, this app is untouched** — Contacts | Favorites | Groups,
+  exactly as before. The borrowed bar belongs to the hand-off and to nothing else.
+- **Recents is a doorway, not a page.** Tapping it starts the dialer on its call history and bounces
+  the selection back to the page you were on. The swap carries **no animation** and **nothing is shut
+  down**, so both apps stay warm and alternating taps read as tabs of one app rather than two app
+  launches.
+- **Pixel-identical, by construction.** The Recents entry borrows the dialer's own clock icon and
+  「通話履歴」 label from shared code, so nothing new is drawn on either side and the two bars cannot
+  drift apart.
+- The mode lasts for **the life of the screen**: it survives a rotation or a trip through the
+  background, and a hand-off into an already-running instance rebuilds the bar on the new shape.
+  One edge to know: tapping this app's **launcher icon while it is already running** resumes it as it
+  stands, so a hand-off session keeps the dialer's bar (and its hidden Groups tab) until you back out
+  of the app.
+
+Needs **both** forks installed — 白い熊 電話 `1.11.1+072` or later ships the sending side.
+
 ## [1.6.0+082] — 2026-09-14
 
 Everything added since `1.6.0+081`, still on **Fossify Contacts 1.6.0**. The companion defect to the
