@@ -7,6 +7,59 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+082] — 2026-09-14
+
+Everything added since `1.6.0+081`, still on **Fossify Contacts 1.6.0**. The companion defect to the
+last release: a backup carried the contacts but not what the app knows *about* them, so a restored
+phone came up with an empty Favorites tab.
+
+### Favourites survive a backup and restore
+A restored address book had no favourites at all — every contact came back unstarred, and the
+Favorites tab was simply empty. The star was lost twice over: the exporter never wrote it, and the
+importer wrote a hardcoded "not a favourite" over whatever arrived.
+
+- **vCard has no property for a favourite** — the format never had the idea, and its `PREF` marks one
+  phone number over another rather than one contact over another. Starred contacts now carry
+  **`X-FAVORITE`**, written for every route out of the app: the in-app .vcf export, the
+  `BACKUP_CONTACTS` broadcast, and the `contacts.vcf` inside a category ZIP.
+- **Imports read it back leniently** — under `X-FAVOURITE` and `X-ANDROID-STARRED` as well as our own
+  spelling, and counting any value but an explicit no, since some exporters write the property bare.
+- Nothing else was needed underneath: the contact layer already read the star from the provider and
+  wrote it back after an insert. Only the file in between had nothing to say.
+
+### A contact's custom ringtone comes across — when it still exists
+Per-contact ringtones were dropped on the way out and overwritten with "none" on the way back in.
+They now travel as **`X-CUSTOM-RINGTONE`**, and are restored **only if the URI still names something
+on the importing phone**.
+
+- A ringtone URI is a device-local id: `content://media/…/audio/media/1234` points at a different
+  track — or at nothing — once the card is opened on another phone, and a contact holding a dead one
+  **rings silently**. An unresolvable URI is dropped, and the contact keeps the default ringtone.
+- The check asks the media provider for the track's type rather than trying to open it, because a
+  provider must answer that whatever permissions the caller holds — so a missing media permission
+  cannot make a live ringtone look dead. The stock default-ringtone pointers are accepted as they are.
+
+### Every other kind of date survives too
+vCard names no date but a birthday and an anniversary, so an **「その他」 or custom-labelled event** had
+nowhere to go and was quietly dropped. Those now travel as **`X-EVENT`** carrying the provider's own
+string verbatim, so both a full date and a recurring day-and-month come back exactly as they went out.
+
+### Contacts with no phone number are no longer left out of a backup
+A display filter was deciding what went into a file. **「電話番号のある連絡先のみ表示」** — a setting about
+what the *list* shows — was also being applied to exports, and a contact with only an e-mail address or
+only an address was left out of the backup **without a word**.
+
+- It hit the **automatic backup always**, and a **manual export whenever every source was ticked**.
+- All three paths that gather contacts for a file now ignore it: the manual export, the per-source
+  counts in the export dialog — so the number beside each source matches what actually gets written —
+  and the automatic backup.
+
+### For an address book already restored
+A backup taken before this build has no favourite, ringtone or extra date in it to find, and may be
+missing number-less contacts entirely. Install this build on **both** phones, take a fresh backup on
+the old one, and import it on the new one **after deleting the contacts already restored there** — an
+import only ever adds, so restoring on top of them gives you every contact twice.
+
 ## [1.6.0+081] — 2026-09-08
 
 Everything added since `1.6.0+080`, still on **Fossify Contacts 1.6.0**. One release, one defect: a

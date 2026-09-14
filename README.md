@@ -10,7 +10,7 @@ A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **majo
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+081`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+082`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -38,6 +38,8 @@ Flip the list into detail mode and every contact shows its **most recent call an
 
 ## 📦 Export / Import
 One ZIP holds everything: `settings.json` with every preference (colors, fonts, layout, options), your imported font files, and your **contacts as .vcf**. A single panel does the choosing — tick whole categories or just their **sub-options**, then export or import; a remembered folder and the last-export time sit on the page itself. Backups are named `shiroikuma-renrakusaki_2026-07-25_18-58-23.zip`, so they sort by when you took them, and the build that wrote one is recorded inside.
+
+**A restore brings back what the app knows about a contact, not just the contact.** vCard has no room for a favourite, a custom ringtone, or any date but a birthday and an anniversary — so those are written as properties of our own and read back on import: your **Favorites tab comes back populated**, ringtones return (and a ringtone whose track no longer exists on the new phone is dropped rather than left ringing silently), 「その他」 dates survive, and the フリガナ rebuilds the same gojūon order. A contact with no phone number is never left out of a backup — the setting about what the *list* shows no longer decides what a file gets.
 
 ---
 
