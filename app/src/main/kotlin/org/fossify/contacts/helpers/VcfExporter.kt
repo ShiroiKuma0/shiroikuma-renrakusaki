@@ -149,6 +149,15 @@ class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _,
                                 card.anniversaries.add(Anniversary(date))
                             }
                         }
+                    } else {
+                        // vCard names no date but BDAY and ANNIVERSARY, so Android's "other" and
+                        // custom-label events had nowhere to go and were dropped. The provider's own
+                        // string is written verbatim: a full date and a --MM-DD one both come back
+                        // exactly as they went out.
+                        if (event.value.isNotEmpty()) {
+                            card.addExtendedProperty(X_EVENT, event.value)
+                                .setParameter(X_EVENT_TYPE_PARAM, getEventTypeLabel(event.type))
+                        }
                     }
                 }
 
@@ -235,6 +244,17 @@ class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _,
                     card.categories = groupList
                 }
 
+                if (contact.starred == 1) {
+                    card.addExtendedProperty(X_FAVORITE, "1")
+                }
+
+                // The URI is device-local — it is the importing phone that decides whether it still
+                // names anything — so it is written as it stands and judged on the way back in.
+                val ringtone = contact.ringtone?.trim().orEmpty()
+                if (ringtone.isNotEmpty()) {
+                    card.addExtendedProperty(X_CUSTOM_RINGTONE, ringtone)
+                }
+
                 cards.add(card)
                 contactsExported++
                 onProgress(contactsExported, contacts.size)
@@ -272,6 +292,14 @@ class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _,
         Email.TYPE_MOBILE -> MOBILE
         Email.TYPE_OTHER -> OTHER
         else -> label
+    }
+
+    private fun getEventTypeLabel(type: Int) = when (type) {
+        Event.TYPE_OTHER -> OTHER
+        Event.TYPE_CUSTOM -> CUSTOM
+        // Not a type this app can make, but a foreign importer's might: keep the raw id rather than
+        // flatten it to "other", so a re-export of an imported card is still the card that arrived.
+        else -> type.toString()
     }
 
     private fun getAddressTypeLabel(type: Int, label: String) = when (type) {

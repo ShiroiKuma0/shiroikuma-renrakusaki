@@ -403,7 +403,15 @@ class ThemeActivity : SimpleActivity() {
     }
 
     private fun exportContactsTo(ignoredContactSources: HashSet<String>, outputStream: OutputStream?) {
-        ContactsHelper(this).getContacts(true, false, ignoredContactSources) { contacts ->
+        // showOnlyContactsWithNumbers is a display filter, and commons applies it to an export too
+        // whenever the ignore set is empty — i.e. exactly when every source is ticked. Left at its
+        // default it silently drops every number-less contact from the file.
+        ContactsHelper(this).getContacts(
+            getAll = true,
+            gettingDuplicates = false,
+            ignoredContactSources = ignoredContactSources,
+            showOnlyContactsWithNumbers = false,
+        ) { contacts ->
             if (contacts.isEmpty()) {
                 toast(org.fossify.commons.R.string.no_entries_for_exporting)
             } else {

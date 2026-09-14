@@ -1,5 +1,6 @@
 package org.fossify.contacts.helpers
 
+import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -10,6 +11,7 @@ import android.provider.ContactsContract.CommonDataKinds.Im
 import android.provider.ContactsContract.CommonDataKinds.Phone
 import android.provider.ContactsContract.CommonDataKinds.StructuredPostal
 import android.widget.Toast
+import androidx.core.net.toUri
 import ezvcard.Ezvcard
 import ezvcard.VCard
 import ezvcard.util.PartialDate
@@ -36,6 +38,13 @@ import java.io.FileOutputStream
 import java.net.URLDecoder
 import java.time.LocalDate
 import java.util.Locale
+
+// SettingsProvider, where the stock "default ringtone" pointers live.
+private const val SETTINGS_AUTHORITY = "settings"
+
+// An explicit no on a favourite flag. Anything else — including a bare property with no value at all,
+// which is how some exporters write it — marks the contact as a favourite.
+private val FALSE_VALUES = setOf("0", "false", "no")
 
 /**
  * [activity] is a plain [Context], not an Activity. It was a `SimpleActivity` until contract v2's data
@@ -197,7 +206,15 @@ class VcfImporter(val activity: Context) {
                     events.add(event)
                 }
 
-                val starred = 0
+                // Android's "other" and custom-label events, which vCard has no property for.
+                ezContact.getExtendedProperties(X_EVENT).forEach { property ->
+                    val value = property.value?.trim().orEmpty()
+                    if (value.isNotEmpty()) {
+                        events.add(Event(value, getEventTypeId(property.getParameter(X_EVENT_TYPE_PARAM))))
+                    }
+                }
+
+                val starred = if (isFavorite(ezContact)) 1 else 0
                 val contactId = 0
                 val notes = ezContact.notes.firstOrNull()?.value ?: ""
                 val groups = getContactGroups(ezContact)
@@ -217,7 +234,7 @@ class VcfImporter(val activity: Context) {
                     photoUri = thumbnailUri
                 }
 
-                val ringtone = null
+                val ringtone = getResolvableRingtone(ezContact)
 
                 val IMs = ArrayList<IM>()
                 ezContact.impps.forEach {
@@ -387,6 +404,60 @@ class VcfImporter(val activity: Context) {
         } catch (e: Exception) {
             return
         }
+    }
+
+    /**
+     * Whether the card marks a favourite. vCard has no property for one, so this reads the property our
+     * exporter writes plus the spellings other exporters use, and treats anything but an explicit no as
+     * a yes. Until it existed every import landed unstarred, and a restored phone came up with an empty
+     * Favorites tab.
+     */
+    private fun isFavorite(ezContact: VCard) = X_FAVORITE_NAMES.any { name ->
+        ezContact.getExtendedProperties(name).any {
+            it.value.orEmpty().trim().lowercase(Locale.getDefault()) !in FALSE_VALUES
+        }
+    }
+
+    /**
+     * The custom ringtone, but only if it still names something on THIS phone. A ringtone URI is a
+     * device-local id — content://media/external/audio/media/1234 points at a different track, or at
+     * nothing, once the card is imported elsewhere — and a contact carrying a dead one rings silently.
+     * So an unresolvable URI is dropped and the contact keeps the default ringtone.
+     *
+     * getType() is the probe deliberately: a provider must answer it whatever permissions the caller
+     * holds, so a missing READ_MEDIA_AUDIO cannot make a live ringtone look dead.
+     */
+    @Suppress("TooGenericExceptionCaught", "SwallowedException") // a ringtone is not worth failing an import over
+    private fun getResolvableRingtone(ezContact: VCard): String? {
+        val value = ezContact.getExtendedProperty(X_CUSTOM_RINGTONE)?.value?.trim().orEmpty()
+        if (value.isEmpty()) {
+            return null
+        }
+
+        return try {
+            val uri = value.toUri()
+            val resolves = when (uri.scheme?.lowercase(Locale.getDefault())) {
+                // The stock default-ringtone pointers answer no MIME type, and need no probe: they
+                // name the same thing on every device.
+                ContentResolver.SCHEME_CONTENT ->
+                    uri.authority == SETTINGS_AUTHORITY || activity.contentResolver.getType(uri) != null
+
+                ContentResolver.SCHEME_FILE -> File(uri.path.orEmpty()).exists()
+                ContentResolver.SCHEME_ANDROID_RESOURCE -> activity.contentResolver.getType(uri) != null
+                else -> false
+            }
+
+            if (resolves) value else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun getEventTypeId(type: String?) = when (type?.uppercase(Locale.getDefault())) {
+        OTHER -> CommonDataKinds.Event.TYPE_OTHER
+        CUSTOM -> CommonDataKinds.Event.TYPE_CUSTOM
+        // A type id this app cannot make, written by whatever exported the card: keep it as it came.
+        else -> type?.toIntOrNull() ?: CommonDataKinds.Event.TYPE_OTHER
     }
 
     private fun formatDateToDayCode(date: LocalDate): String {

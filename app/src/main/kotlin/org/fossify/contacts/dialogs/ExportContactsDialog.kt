@@ -48,7 +48,8 @@ class ExportContactsDialog(
                 processDataIfReady(this)
             }
 
-            ContactsHelper(activity).getContacts(getAll = true) { contacts ->
+            // Counted the way they are exported — see the same flag in ThemeActivity.exportContactsTo.
+            ContactsHelper(activity).getContacts(getAll = true, showOnlyContactsWithNumbers = false) { contacts ->
                 contacts.mapTo(this@ExportContactsDialog.contacts) { it.copy() }
                 isContactsReady = true
                 processDataIfReady(this)

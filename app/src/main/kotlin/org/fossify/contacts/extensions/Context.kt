@@ -88,12 +88,16 @@ fun Context.backupContacts() {
     require(isRPlus())
     ensureBackgroundThread {
         val config = config
-        ContactsHelper(this).getContactsToExport(selectedContactSources = config.autoBackupContactSources) { contactsToBackup ->
+        // Not commons' getContactsToExport(): it inherits the showOnlyContactsWithNumbers display
+        // filter, which would drop every number-less contact from the backup. The source filter it
+        // applies is the one line below.
+        ContactsHelper(this).getContacts(getAll = true, showOnlyContactsWithNumbers = false) { allContacts ->
+            val contactsToBackup = allContacts.filter { it.source in config.autoBackupContactSources }
             if (contactsToBackup.isEmpty()) {
                 toast(org.fossify.commons.R.string.no_entries_for_exporting)
                 config.lastAutoBackupTime = DateTime.now().millis
                 scheduleNextAutomaticBackup()
-                return@getContactsToExport
+                return@getContacts
             }
 
 
@@ -138,7 +142,7 @@ fun Context.backupContacts() {
             } catch (e: Exception) {
                 showErrorToast(e)
                 scheduleNextAutomaticBackup()
-                return@getContactsToExport
+                return@getContacts
             }
 
             VcfExporter().exportContacts(

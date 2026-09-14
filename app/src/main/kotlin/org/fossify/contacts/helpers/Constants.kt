@@ -241,6 +241,7 @@ const val WORK_FAX = "WORK;FAX"
 const val HOME_FAX = "HOME;FAX"
 const val PAGER = "PAGER"
 const val MOBILE = "MOBILE"
+const val CUSTOM = "CUSTOM"
 
 // フリガナ in a vCard. The standard route is SORT-AS on N (vCard 4.0; ez-vcard turns it into a
 // SORT-STRING property when the card is written as 3.0), but that carries the reading as one opaque
@@ -250,6 +251,17 @@ const val MOBILE = "MOBILE"
 const val X_PHONETIC_LAST_NAME = "X-PHONETIC-LAST-NAME"
 const val X_PHONETIC_MIDDLE_NAME = "X-PHONETIC-MIDDLE-NAME"
 const val X_PHONETIC_FIRST_NAME = "X-PHONETIC-FIRST-NAME"
+
+// A favourite, a custom ringtone, and the events vCard has no property for. Nothing standard covers
+// these — the format has no notion of a favourite, PREF is per-property rather than per-card, and
+// BDAY and ANNIVERSARY are the only dates it names — so everything else fell out of a round trip
+// through our own export. Written only when there is something to write. On import the favourite is
+// read leniently, under the other spellings a foreign export might use as well as our own.
+const val X_FAVORITE = "X-FAVORITE"
+val X_FAVORITE_NAMES = listOf(X_FAVORITE, "X-FAVOURITE", "X-ANDROID-STARRED")
+const val X_CUSTOM_RINGTONE = "X-CUSTOM-RINGTONE"
+const val X_EVENT = "X-EVENT"
+const val X_EVENT_TYPE_PARAM = "TYPE"
 
 // IMs not supported by Ez-vcard
 const val HANGOUTS = "Hangouts"
