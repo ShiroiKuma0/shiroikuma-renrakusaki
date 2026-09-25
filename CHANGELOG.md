@@ -7,6 +7,57 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+086] — 2026-09-25
+
+Everything added since `1.6.0+083`, still on **Fossify Contacts 1.6.0**. The フリガナ a contact is
+sorted and searched by finally has an editor that matches the way Android stores it — and the rest of
+the fields stop hiding behind a settings dialog.
+
+### A reading field per name item, the way every other editor has it
+The editor offered **one** joined 「フリガナ」 box: whatever was typed into it was split on whitespace
+and the parts *guessed* into the provider's three phonetic columns — first token the family name, last
+the given name. A two-word reading came out right by luck; anything else came out wrong. And the box
+appeared only on a contact that had already been saved, so a new contact could not be given a reading
+at all.
+
+- **Three fields now, one under each name field** — 名のフリガナ under 名, ミドルネームのフリガナ
+  under ミドルネーム, 姓のフリガナ under 姓 — mapping **one field to one column**
+  (`PHONETIC_GIVEN_NAME` / `PHONETIC_MIDDLE_NAME` / `PHONETIC_FAMILY_NAME`). Nothing is split on the
+  way in and nothing is reassembled on the way out. They ask the keyboard for phonetic input, so kana
+  is one tap away.
+- **They are there on a new contact too.** The contact layer reports only success, not the new row's
+  id, so the reading is written immediately after the insert onto the newest name row — identified by
+  the name that was just saved, and dropped rather than misapplied if anything else slipped in
+  between. That is the same careful path the vCard import already used; it is now one shared routine
+  instead of two copies.
+- **Each field follows its own name field**, so a reading appears together with the name item it
+  belongs to — including when the pill below unfolds a hidden one.
+- A contact stored **on the device only** still shows none of them: that row lives in the local
+  database, which has no phonetic columns at all.
+
+### The reading on the contact screen
+Viewing a contact now shows its **reading under the name**, joined in the order names are displayed in
+(姓 first when that is how you read them), copyable on a long press like every other field, and simply
+absent when there is nothing stored. Until now the reading was invisible everywhere except the editor,
+even though it decides where the contact sits in the list.
+
+### A pill that unfolds every field
+Which fields the editor draws is a saved mask, buried in 表示する項目の管理 — so prefix, middle name,
+suffix, nickname, IM, website and ringtone were effectively invisible unless you went and ticked them.
+A **pill at the bottom of the editor** now unfolds the lot for **that screen only**, and folds them
+back on a second tap. The saved mask is never written, so the everyday editor stays short. The
+structured-address *mode* is deliberately left alone — those rows are built in one shape or the other
+when the screen opens, and switching them mid-edit would throw away what had been typed.
+
+### Fixes & behavior
+- **A reading typed on its own is no longer lost.** It lives outside the contact record, so changing
+  only the reading and backing out used to discard it without ever showing the "save before closing?"
+  prompt.
+- **Moving a contact to another storage source keeps its reading.** That move is an insert plus a
+  delete, and the reading stayed behind on the row that was deleted.
+- Three switches in Settings, all **on** by default, next to the existing "show all saved fields":
+  the pill, the reading fields, and the reading on the contact screen.
+
 ## [1.6.0+083] — 2026-09-14
 
 Everything added since `1.6.0+082`, still on **Fossify Contacts 1.6.0**. One feature, and it takes
