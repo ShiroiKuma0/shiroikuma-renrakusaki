@@ -126,6 +126,24 @@
                 android:textSize="@dimen/bigger_text_size"
                 android:tooltipText="John Doe" />
 
+            <!-- Fork: the name's reading (フリガナ), joined from the provider's phonetic columns in the
+                 same order the name above is displayed in. Shares the name's icon column; gone when the
+                 contact has no reading stored. -->
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/contact_reading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/contact_name"
+                android:layout_toEndOf="@+id/contact_name_image"
+                android:background="?attr/selectableItemBackground"
+                android:maxLines="2"
+                android:paddingStart="@dimen/small_margin"
+                android:paddingEnd="@dimen/normal_margin"
+                android:paddingBottom="@dimen/normal_margin"
+                android:textSize="@dimen/normal_text_size"
+                android:visibility="gone"
+                tools:text="やまだ たろう" />
+
             <ImageView
                 android:id="@+id/contact_numbers_image"
                 android:layout_width="@dimen/contact_icons_size"
@@ -273,7 +291,7 @@
                 android:id="@+id/contact_numbers_holder"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@+id/contact_name"
+                android:layout_below="@+id/contact_reading"
                 android:layout_toEndOf="@+id/contact_numbers_image"
                 android:orientation="vertical"
                 android:visibility="gone" />

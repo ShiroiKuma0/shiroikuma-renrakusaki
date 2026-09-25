@@ -34,6 +34,9 @@ class SettingsActivity : SimpleActivity() {
         setupCustomizeColors()
         setupManageShownContactFields()
         setupShowAllFieldsWhenViewing()
+        setupShowRevealFieldsPill()
+        setupShowReadingFields()
+        setupShowReadingWhenViewing()
         setupManageShownTabs()
         setupFontSize()
         setupUseEnglish()
@@ -87,6 +90,30 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsShowAllFieldsWhenViewingHolder.setOnClickListener {
             binding.settingsShowAllFieldsWhenViewing.toggle()
             config.showAllFieldsWhenViewing = binding.settingsShowAllFieldsWhenViewing.isChecked
+        }
+    }
+
+    private fun setupShowRevealFieldsPill() {
+        binding.settingsShowRevealFieldsPill.isChecked = config.showRevealFieldsPill
+        binding.settingsShowRevealFieldsPillHolder.setOnClickListener {
+            binding.settingsShowRevealFieldsPill.toggle()
+            config.showRevealFieldsPill = binding.settingsShowRevealFieldsPill.isChecked
+        }
+    }
+
+    private fun setupShowReadingFields() {
+        binding.settingsShowReadingFields.isChecked = config.showReadingFields
+        binding.settingsShowReadingFieldsHolder.setOnClickListener {
+            binding.settingsShowReadingFields.toggle()
+            config.showReadingFields = binding.settingsShowReadingFields.isChecked
+        }
+    }
+
+    private fun setupShowReadingWhenViewing() {
+        binding.settingsShowReadingWhenViewing.isChecked = config.showReadingWhenViewing
+        binding.settingsShowReadingWhenViewingHolder.setOnClickListener {
+            binding.settingsShowReadingWhenViewing.toggle()
+            config.showReadingWhenViewing = binding.settingsShowReadingWhenViewing.isChecked
         }
     }
 

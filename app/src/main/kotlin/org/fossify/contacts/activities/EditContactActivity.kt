@@ -139,7 +139,10 @@ import org.fossify.contacts.helpers.SORT_FIELD_DEFAULT
 import org.fossify.contacts.helpers.SORT_FIELD_NICKNAME
 import org.fossify.contacts.helpers.SORT_FIELD_ORGANIZATION
 import org.fossify.contacts.helpers.SORT_FIELD_READING
+import org.fossify.contacts.helpers.ALL_CONTACT_FIELDS
+import org.fossify.contacts.helpers.loadPhoneticName
 import org.fossify.contacts.helpers.sortFieldKeyFor
+import org.fossify.contacts.helpers.writePhoneticNameOnLatestContact
 import java.util.LinkedList
 import java.util.Locale
 
@@ -154,6 +157,9 @@ class EditContactActivity : ContactActivity() {
         private const val REMOVE_PHOTO = 3
 
         private const val AUTO_COMPLETE_DELAY = 5000L
+
+        // Instance-state key of the reveal pill's state — a rotation keeps the fields it unfolded.
+        private const val REVEAL_ALL_FIELDS = "reveal_all_fields"
     }
 
     private var mLastSavePromptTS = 0L
@@ -161,11 +167,17 @@ class EditContactActivity : ContactActivity() {
     private var lastPhotoIntentUri: Uri? = null
     private var isSaving = false
 
-    // Fork: reading (フリガナ) + sort-field state. originalReading null = not loaded (nothing to save);
-    // pendingReading is captured on the UI thread when saving; sortFieldKey identifies the contact in Config.
-    private var originalReading: String? = null
-    private var pendingReading: String? = null
+    // Fork: reading (フリガナ) + sort-field state. originalPhonetic null = not loaded, which means there
+    // is nothing to save — writing then would erase a stored reading the query never came back with.
+    // pendingPhonetic is captured on the UI thread when saving; sortFieldKey identifies the contact in Config.
+    private var originalPhonetic: PhoneticName? = null
+    private var pendingPhonetic: PhoneticName? = null
     private var sortFieldKey = ""
+
+    // Fork: the reveal pill's state — every field shown for the life of this screen. Deliberately not
+    // a Config value: the saved "Manage shown contact fields" mask is 白い熊's everyday screen, and a
+    // one-off look at everything must not quietly redefine it.
+    private var revealAllFields = false
     private var isThirdPartyIntent = false
     private var highlightLastPhoneNumber = false
     private var highlightLastEmail = false
@@ -186,6 +198,9 @@ class EditContactActivity : ContactActivity() {
             padBottomImeAndSystem = listOf(binding.contactScrollview)
         )
         setupMenu()
+
+        // Read before the contact loads: gotContact() applies the field visibility this decides.
+        revealAllFields = savedInstanceState?.getBoolean(REVEAL_ALL_FIELDS) == true
 
         val action = intent.action
         isThirdPartyIntent = action == Intent.ACTION_EDIT || action == Intent.ACTION_INSERT || action == ADD_NEW_CONTACT_NUMBER
@@ -211,6 +226,11 @@ class EditContactActivity : ContactActivity() {
         } else {
             initContact()
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(REVEAL_ALL_FIELDS, revealAllFields)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
@@ -344,7 +364,8 @@ class EditContactActivity : ContactActivity() {
             binding.contactImsAddNew.background,
             binding.contactEventsAddNew.background,
             binding.contactWebsitesAddNew.background,
-            binding.contactGroupsAddNew.background
+            binding.contactGroupsAddNew.background,
+            binding.contactRevealFields.background
         ).forEach {
             it.applyColorFilter(textColor)
         }
@@ -360,6 +381,7 @@ class EditContactActivity : ContactActivity() {
         binding.contactWebsitesAddNew.setOnClickListener { addNewWebsiteField() }
         binding.contactGroupsAddNew.setOnClickListener { showSelectGroupsDialog() }
         binding.contactSource.setOnClickListener { showSelectContactSourceDialog() }
+        binding.contactRevealFields.setOnClickListener { toggleRevealAllFields() }
 
         binding.contactChangePhoto.setOnLongClickListener { toast(R.string.change_photo); true; }
 
@@ -377,6 +399,8 @@ class EditContactActivity : ContactActivity() {
         }
 
         updateTextColors(binding.contactScrollview)
+        // After updateTextColors, which would otherwise repaint the pill in the plain text colour.
+        updateRevealPill()
         numberViewToColor?.setTextColor(properPrimaryColor)
         emailViewToColor?.setTextColor(properPrimaryColor)
         wasActivityInitialized = true
@@ -458,7 +482,15 @@ class EditContactActivity : ContactActivity() {
         }
     }
 
-    private fun hasContactChanged() = contact != null && contact != fillContactValues() || originalRingtone != contact?.ringtone
+    private fun hasContactChanged() = contact != null && contact != fillContactValues() ||
+        originalRingtone != contact?.ringtone || hasReadingChanged()
+
+    // The readings live outside the commons Contact model, so they are compared on their own — without
+    // this, typing only a reading and backing out loses it with no save prompt ever shown.
+    private fun hasReadingChanged(): Boolean {
+        val original = originalPhonetic ?: return false
+        return canHoldReading() && phoneticFromFields() != original
+    }
 
     private fun openWith() {
         Intent().apply {
@@ -517,9 +549,30 @@ class EditContactActivity : ContactActivity() {
         }
     }
 
+    // Fork: which fields this screen shows — the saved mask, or everything while the reveal pill is on.
+    // The structured-address *mode* is deliberately left as configured: the address rows are bound to
+    // one shape or the other at setup time, so flipping it mid-edit would need a rebind and would drop
+    // whatever has been typed into them.
+    private fun fieldsToShow(): Int {
+        val savedFields = config.showContactFields
+        if (!revealAllFields) {
+            return savedFields
+        }
+
+        val revealable = ALL_CONTACT_FIELDS and SHOW_STRUCTURED_ADDRESSES_FIELD.inv()
+        return revealable or (savedFields and SHOW_STRUCTURED_ADDRESSES_FIELD)
+    }
+
     private fun setupFieldVisibility() {
-        val showFields = config.showContactFields
-        if (showFields and (SHOW_PREFIX_FIELD or SHOW_FIRST_NAME_FIELD or SHOW_MIDDLE_NAME_FIELD or SHOW_SURNAME_FIELD or SHOW_SUFFIX_FIELD) == 0) {
+        val showFields = fieldsToShow()
+        val nameFields = SHOW_PREFIX_FIELD or SHOW_FIRST_NAME_FIELD or SHOW_MIDDLE_NAME_FIELD or
+            SHOW_SURNAME_FIELD or SHOW_SUFFIX_FIELD
+        val showsAnyNameField = showFields and nameFields != 0
+        // Invisible rather than gone, in both directions: every row of the name block is laid out
+        // toEndOf this icon, and the pill can bring the name fields back mid-screen.
+        if (showsAnyNameField) {
+            binding.contactNameImage.beVisible()
+        } else {
             binding.contactNameImage.beInvisible()
         }
 
@@ -580,6 +633,50 @@ class EditContactActivity : ContactActivity() {
         val isRingtoneVisible = showFields and SHOW_RINGTONE_FIELD != 0
         binding.contactRingtone.beVisibleIf(isRingtoneVisible)
         binding.contactRingtoneImage.beVisibleIf(isRingtoneVisible)
+
+        updateReadingVisibility()
+        updateRevealPill()
+    }
+
+    // Fork: a reading (フリガナ) field under each name field, one per provider phonetic column, the way
+    // every Japanese contacts editor has them. Each follows its own name field, so the reveal pill
+    // brings a hidden name field back with its reading attached. All three need a contact the provider
+    // can hold phonetic columns for: a private contact lives in the local DB, which has none.
+    // The sort-by override needs a saved contact to key itself on.
+    private fun updateReadingVisibility() {
+        val showFields = fieldsToShow()
+        val showReadings = canHoldReading() && config.showReadingFields
+        binding.contactPhoneticFirstName.beVisibleIf(showReadings && showFields and SHOW_FIRST_NAME_FIELD != 0)
+        binding.contactPhoneticMiddleName.beVisibleIf(showReadings && showFields and SHOW_MIDDLE_NAME_FIELD != 0)
+        binding.contactPhoneticSurname.beVisibleIf(showReadings && showFields and SHOW_SURNAME_FIELD != 0)
+        binding.contactSortBy.beVisibleIf(canHoldReading() && (contact?.id ?: 0) != 0)
+    }
+
+    // Whether this contact can carry a reading at all — only a provider contact has phonetic columns.
+    private fun canHoldReading() = contact?.isPrivate() == false
+
+    // The three fields as the provider's three columns. One field per column, so nothing is split and
+    // nothing is guessed — which is the whole point of having three of them.
+    private fun phoneticFromFields() = PhoneticName(
+        family = binding.contactPhoneticSurname.value.trim(),
+        middle = binding.contactPhoneticMiddleName.value.trim(),
+        given = binding.contactPhoneticFirstName.value.trim(),
+    )
+
+    // The pill itself: shown unless its Settings switch is off, labelled with what the next tap does.
+    private fun updateRevealPill() {
+        binding.contactRevealFields.apply {
+            beVisibleIf(config.showRevealFieldsPill)
+            text = getString(if (revealAllFields) R.string.reveal_fewer_fields else R.string.reveal_all_fields)
+            setTextColor(getProperPrimaryColor())
+        }
+    }
+
+    // Unfold every field for this screen alone. The saved mask is left as it is, so the next contact
+    // opens in the short form again — this is a look, not a preference.
+    private fun toggleRevealAllFields() {
+        revealAllFields = !revealAllFields
+        setupFieldVisibility()
     }
 
     private fun setupEditContact() {
@@ -598,13 +695,12 @@ class EditContactActivity : ContactActivity() {
         setupContactSource()
     }
 
-    // Fork: phonetic reading (フリガナ, provider phonetic-name columns) + per-contact sort-field
-    // override (app-side, keyed device-independently by sortFieldKeyFor). Existing non-private
-    // contacts only — a new contact has no raw id yet, so the rows appear once it is saved and reopened.
+    // Fork: the readings (フリガナ, the provider's phonetic-name columns) + the per-contact sort-field
+    // override (app-side, keyed device-independently by sortFieldKeyFor). A new contact has no provider
+    // row to read from — its fields start empty and are written right after the insert.
     private fun setupReadingAndSortBy() {
+        updateReadingVisibility()
         val isExistingProviderContact = contact!!.id != 0 && !contact!!.isPrivate()
-        binding.contactReading.beVisibleIf(isExistingProviderContact)
-        binding.contactSortBy.beVisibleIf(isExistingProviderContact)
         if (!isExistingProviderContact) {
             return
         }
@@ -617,37 +713,32 @@ class EditContactActivity : ContactActivity() {
                 if (isDestroyed || isFinishing) {
                     return@runOnUiThread
                 }
-                binding.contactReading.setText(originalReading)
+                fillReadingFields()
                 updateSortByLabel()
                 binding.contactSortBy.setOnClickListener { showSortFieldPicker() }
             }
         }
     }
 
-    @Suppress("TooGenericExceptionCaught", "SwallowedException") // a failed query just leaves the row empty
-    private fun loadReading(rawId: Int) {
-        originalReading = ""
-        val projection = arrayOf(
-            StructuredName.PHONETIC_FAMILY_NAME,
-            StructuredName.PHONETIC_MIDDLE_NAME,
-            StructuredName.PHONETIC_GIVEN_NAME,
-        )
-        val selection = "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
-        val args = arrayOf(rawId.toString(), StructuredName.CONTENT_ITEM_TYPE)
-        try {
-            contentResolver.query(ContactsContract.Data.CONTENT_URI, projection, selection, args, null)
-                ?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        originalReading = PhoneticName(
-                            family = cursor.getString(0).orEmpty(),
-                            middle = cursor.getString(1).orEmpty(),
-                            given = cursor.getString(2).orEmpty(),
-                        ).joined()
-                    }
-                }
-        } catch (e: Exception) {
-            return
+    // The query is quick, but the fields are on screen from the moment the activity opens, so anything
+    // already typed into one wins over what comes back.
+    private fun fillReadingFields() {
+        val phonetic = originalPhonetic ?: return
+        setReadingIfUntouched(binding.contactPhoneticSurname, phonetic.family)
+        setReadingIfUntouched(binding.contactPhoneticMiddleName, phonetic.middle)
+        setReadingIfUntouched(binding.contactPhoneticFirstName, phonetic.given)
+    }
+
+    private fun setReadingIfUntouched(field: EditText, value: String) {
+        if (field.value.isEmpty()) {
+            field.setText(value)
         }
+    }
+
+    // Failure and "nothing stored" both land on an empty reading: the fields start blank either way,
+    // and a reading typed into them still saves.
+    private fun loadReading(rawId: Int) {
+        originalPhonetic = loadPhoneticName(rawId) ?: PhoneticName("", "", "")
     }
 
     private fun sortFieldLabel(value: Int) = when (value) {
@@ -676,16 +767,15 @@ class EditContactActivity : ContactActivity() {
         }
     }
 
-    // Persist the reading into the provider's phonetic-name columns (family / middle / given from the
-    // whitespace-separated parts). Runs on the save background thread, after the contact update itself.
+    // Persist the readings into the provider's phonetic-name columns, one field per column. Runs on the
+    // save background thread, after the contact update itself.
     @Suppress("TooGenericExceptionCaught", "SwallowedException") // reading failures must not block the save
     private fun savePhoneticReading() {
-        val reading = pendingReading?.trim() ?: return
-        if (originalReading == null || reading == originalReading) {
+        val phonetic = pendingPhonetic ?: return
+        if (originalPhonetic == null || phonetic == originalPhonetic) {
             return
         }
 
-        val phonetic = PhoneticName.fromJoined(reading)
         val values = ContentValues().apply {
             put(StructuredName.PHONETIC_FAMILY_NAME, phonetic.family)
             put(StructuredName.PHONETIC_MIDDLE_NAME, phonetic.middle)
@@ -1025,6 +1115,8 @@ class EditContactActivity : ContactActivity() {
     private fun setupNewContact() {
         originalContactSource = if (hasContactPermissions()) config.lastUsedContactSource else SMT_PRIVATE
         contact = getEmptyContact()
+        // Known-empty rather than "not loaded", so a reading typed here counts as a change and is saved.
+        originalPhonetic = PhoneticName("", "", "")
         getPublicContactSource(contact!!.source) {
             binding.contactSource.text = if (it == "") getString(R.string.phone_storage) else it
         }
@@ -1285,6 +1377,8 @@ class EditContactActivity : ContactActivity() {
     private fun showSelectContactSourceDialog() {
         showContactSourcePicker(contact!!.source) {
             contact!!.source = if (it == getString(R.string.phone_storage_hidden)) SMT_PRIVATE else it
+            // A private contact has no provider row, so it can hold no reading — the row follows the source.
+            updateReadingVisibility()
             getPublicContactSource(it) {
                 binding.contactSource.text = if (it == "") getString(R.string.phone_storage) else it
             }
@@ -1323,7 +1417,7 @@ class EditContactActivity : ContactActivity() {
         val primaryState = Pair(oldPrimary, newPrimary)
 
         contact = contactValues
-        pendingReading = if (binding.contactReading.isVisible()) binding.contactReading.value else null
+        pendingPhonetic = if (canHoldReading()) phoneticFromFields() else null
 
         ensureBackgroundThread {
             config.lastUsedContactSource = contact!!.source
@@ -1511,6 +1605,7 @@ class EditContactActivity : ContactActivity() {
         }
 
         if (ContactsHelper(this@EditContactActivity).insertContact(contact!!)) {
+            saveReadingOnNewContact()
             if (deleteCurrentContact) {
                 contact!!.source = originalContactSource
                 ContactsHelper(this).deleteContact(contact!!, false) {
@@ -1526,6 +1621,19 @@ class EditContactActivity : ContactActivity() {
         } else {
             toast(org.fossify.commons.R.string.unknown_error_occurred)
         }
+    }
+
+    // The reading of a contact that has just been inserted. commons' insertContact() answers with a
+    // Boolean rather than the new raw id, so the phonetic columns are written the way an import writes
+    // them: onto the newest StructuredName row, name-checked first. This also covers a contact moved to
+    // another source (an insert plus a delete), whose reading would otherwise stay on the deleted row.
+    private fun saveReadingOnNewContact() {
+        val phonetic = pendingPhonetic ?: return
+        if (phonetic.isEmpty || contact!!.isPrivate()) {
+            return
+        }
+
+        writePhoneticNameOnLatestContact(contact!!, phonetic)
     }
 
     private fun updateContact(photoUpdateStatus: Int, primaryState: Pair<PhoneNumber?, PhoneNumber?>) {

@@ -21,6 +21,21 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(SHOW_ALL_FIELDS_WHEN_VIEWING, true)
         set(value) = prefs.edit().putBoolean(SHOW_ALL_FIELDS_WHEN_VIEWING, value).apply()
 
+    // When on, the contact screen shows the reading (フリガナ) under the contact's name.
+    var showReadingWhenViewing: Boolean
+        get() = prefs.getBoolean(SHOW_READING_WHEN_VIEWING, true)
+        set(value) = prefs.edit().putBoolean(SHOW_READING_WHEN_VIEWING, value).apply()
+
+    // When on, each name field on the edit screen carries its own reading (フリガナ) field.
+    var showReadingFields: Boolean
+        get() = prefs.getBoolean(SHOW_READING_FIELDS, true)
+        set(value) = prefs.edit().putBoolean(SHOW_READING_FIELDS, value).apply()
+
+    // When on, the edit screen shows the pill that reveals every field for the life of that screen.
+    var showRevealFieldsPill: Boolean
+        get() = prefs.getBoolean(SHOW_REVEAL_FIELDS_PILL, true)
+        set(value) = prefs.edit().putBoolean(SHOW_REVEAL_FIELDS_PILL, value).apply()
+
     // Configurable contacts-list rows (see ContactsListConfig). "" = the built-in default layout.
     var contactsListFields: String
         get() = prefs.getString(CONTACTS_LIST_FIELDS, "")!!

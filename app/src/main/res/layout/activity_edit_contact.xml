@@ -110,11 +110,32 @@
                 android:textCursorDrawable="@null"
                 android:textSize="@dimen/bigger_text_size" />
 
+            <!-- Fork: the reading (フリガナ) of the name field above, one field per provider phonetic
+                 column (PHONETIC_GIVEN / MIDDLE / FAMILY_NAME) — the shape every Japanese contacts
+                 editor uses. Each follows its own name field's visibility; all three are hidden for a
+                 private contact, whose local-DB row has no phonetic columns at all. -->
+            <org.fossify.commons.views.MyEditText
+                android:id="@+id/contact_phonetic_first_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/contact_first_name"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="@dimen/activity_margin"
+                android:layout_marginBottom="@dimen/normal_margin"
+                android:layout_toEndOf="@+id/contact_name_image"
+                android:hint="@string/field_phonetic_first_name"
+                android:inputType="textPhonetic"
+                android:lines="1"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textCursorDrawable="@null"
+                android:textSize="@dimen/bigger_text_size" />
+
             <org.fossify.commons.views.MyAutoCompleteTextView
                 android:id="@+id/contact_middle_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@+id/contact_first_name"
+                android:layout_below="@+id/contact_phonetic_first_name"
                 android:layout_centerVertical="true"
                 android:layout_marginEnd="@dimen/activity_margin"
                 android:layout_marginBottom="@dimen/normal_margin"
@@ -128,11 +149,28 @@
                 android:textCursorDrawable="@null"
                 android:textSize="@dimen/bigger_text_size" />
 
+            <org.fossify.commons.views.MyEditText
+                android:id="@+id/contact_phonetic_middle_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/contact_middle_name"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="@dimen/activity_margin"
+                android:layout_marginBottom="@dimen/normal_margin"
+                android:layout_toEndOf="@+id/contact_name_image"
+                android:hint="@string/field_phonetic_middle_name"
+                android:inputType="textPhonetic"
+                android:lines="1"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textCursorDrawable="@null"
+                android:textSize="@dimen/bigger_text_size" />
+
             <org.fossify.commons.views.MyAutoCompleteTextView
                 android:id="@+id/contact_surname"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@+id/contact_middle_name"
+                android:layout_below="@+id/contact_phonetic_middle_name"
                 android:layout_centerVertical="true"
                 android:layout_marginEnd="@dimen/activity_margin"
                 android:layout_marginBottom="@dimen/normal_margin"
@@ -147,10 +185,27 @@
                 android:textSize="@dimen/bigger_text_size" />
 
             <org.fossify.commons.views.MyEditText
-                android:id="@+id/contact_suffix"
+                android:id="@+id/contact_phonetic_surname"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@+id/contact_surname"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="@dimen/activity_margin"
+                android:layout_marginBottom="@dimen/normal_margin"
+                android:layout_toEndOf="@+id/contact_name_image"
+                android:hint="@string/field_phonetic_surname"
+                android:inputType="textPhonetic"
+                android:lines="1"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textCursorDrawable="@null"
+                android:textSize="@dimen/bigger_text_size" />
+
+            <org.fossify.commons.views.MyEditText
+                android:id="@+id/contact_suffix"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/contact_phonetic_surname"
                 android:layout_centerVertical="true"
                 android:layout_marginEnd="@dimen/activity_margin"
                 android:layout_marginBottom="@dimen/medium_margin"
@@ -180,32 +235,12 @@
                 android:textCursorDrawable="@null"
                 android:textSize="@dimen/bigger_text_size" />
 
-            <!-- Fork: phonetic reading (フリガナ), stored in the provider's phonetic-name columns.
-                 Shown only when editing an existing non-private contact (set at bind time). -->
-            <org.fossify.commons.views.MyEditText
-                android:id="@+id/contact_reading"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_below="@+id/contact_nickname"
-                android:layout_centerVertical="true"
-                android:layout_marginEnd="@dimen/activity_margin"
-                android:layout_marginBottom="@dimen/medium_margin"
-                android:layout_toEndOf="@+id/contact_name_image"
-                android:hint="@string/field_reading"
-                android:inputType="text"
-                android:lines="1"
-                android:maxLines="1"
-                android:singleLine="true"
-                android:textCursorDrawable="@null"
-                android:textSize="@dimen/bigger_text_size"
-                android:visibility="gone" />
-
             <!-- Fork: which field this contact sorts/buckets by in the grouped list (app-side setting). -->
             <org.fossify.commons.views.MyTextView
                 android:id="@+id/contact_sort_by"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@+id/contact_reading"
+                android:layout_below="@+id/contact_nickname"
                 android:layout_marginEnd="@dimen/activity_margin"
                 android:layout_marginBottom="@dimen/medium_margin"
                 android:layout_toEndOf="@+id/contact_name_image"
@@ -611,6 +646,25 @@
                 android:singleLine="true"
                 android:textSize="@dimen/bigger_text_size"
                 tools:text="hello@fossify.org" />
+
+            <!-- Fork: the reveal pill. Shows every field the "Manage shown contact fields" mask hides —
+                 each with its own フリガナ field — for this screen only, never touching the saved mask.
+                 Hidden entirely when its setting is off. -->
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/contact_reveal_fields"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/contact_source"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="@dimen/activity_margin"
+                android:layout_marginBottom="@dimen/activity_margin"
+                android:background="@drawable/button_background"
+                android:paddingStart="@dimen/activity_margin"
+                android:paddingTop="@dimen/medium_margin"
+                android:paddingEnd="@dimen/activity_margin"
+                android:paddingBottom="@dimen/medium_margin"
+                android:textSize="@dimen/bigger_text_size"
+                tools:text="@string/reveal_all_fields" />
 
         </RelativeLayout>
     </ScrollView>

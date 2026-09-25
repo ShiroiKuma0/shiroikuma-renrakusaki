@@ -1,5 +1,6 @@
 package org.fossify.contacts.helpers
 
+import android.content.ContentValues
 import android.content.Context
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.StructuredName
@@ -104,6 +105,96 @@ fun Context.loadContactExtras() {
  * Call on a background thread.
  */
 fun Context.loadPhoneticNames(): Map<Int, PhoneticName> = queryStructuredNames()?.first.orEmpty()
+
+/**
+ * The phonetic name stored on one contact's provider row, keyed by raw contact id. Null when the row
+ * could not be read at all; nothing stored reads back as an empty [PhoneticName]. One small query, so
+ * a screen showing a single contact need not wait for (or depend on) a full contacts refresh having
+ * filled [ContactExtras]. Call on a background thread.
+ */
+@Suppress("TooGenericExceptionCaught", "SwallowedException") // a failed query just leaves the reading blank
+fun Context.loadPhoneticName(rawId: Int): PhoneticName? {
+    val projection = arrayOf(
+        StructuredName.PHONETIC_FAMILY_NAME,
+        StructuredName.PHONETIC_MIDDLE_NAME,
+        StructuredName.PHONETIC_GIVEN_NAME,
+    )
+    val selection = "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
+    val args = arrayOf(rawId.toString(), StructuredName.CONTENT_ITEM_TYPE)
+    try {
+        contentResolver.query(ContactsContract.Data.CONTENT_URI, projection, selection, args, null)
+            ?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    return PhoneticName(
+                        family = cursor.getString(0).orEmpty(),
+                        middle = cursor.getString(1).orEmpty(),
+                        given = cursor.getString(2).orEmpty(),
+                    )
+                }
+            }
+    } catch (e: Exception) {
+        return null
+    }
+    return null
+}
+
+/**
+ * Write a reading onto the contact commons has just inserted. Its insertContact() builds the
+ * StructuredName row without the phonetic columns and hands back nothing but a Boolean, so the row
+ * has to be found again: raw contact ids are handed out in ascending order, so the newest
+ * StructuredName row is the one just written. The name on that row is checked against what was
+ * inserted before anything is updated — if a sync adapter slipped an insert in between, the reading
+ * is dropped rather than written onto somebody else's contact.
+ *
+ * Shared by the vCard import and the edit screen's first save of a new contact. A private contact
+ * lives in the local DB, which has no phonetic columns at all — callers skip those. Call on a
+ * background thread.
+ */
+@Suppress("TooGenericExceptionCaught", "SwallowedException") // a reading is not worth failing a save over
+fun Context.writePhoneticNameOnLatestContact(contact: Contact, phonetic: PhoneticName) {
+    val projection = arrayOf(
+        ContactsContract.Data._ID,
+        StructuredName.GIVEN_NAME,
+        StructuredName.FAMILY_NAME,
+    )
+    val selection = "${ContactsContract.Data.MIMETYPE} = ?"
+    val args = arrayOf(StructuredName.CONTENT_ITEM_TYPE)
+    // Deliberately no LIMIT in the sort order — OEM providers have been known to choke on one, and
+    // the first row of a descending cursor is the same answer.
+    val order = "${ContactsContract.Data.RAW_CONTACT_ID} DESC"
+
+    try {
+        var dataId = -1L
+        contentResolver.query(ContactsContract.Data.CONTENT_URI, projection, selection, args, order)
+            ?.use { cursor ->
+                if (
+                    cursor.moveToFirst() &&
+                    cursor.getString(1).orEmpty() == contact.firstName &&
+                    cursor.getString(2).orEmpty() == contact.surname
+                ) {
+                    dataId = cursor.getLong(0)
+                }
+            }
+
+        if (dataId < 0) {
+            return
+        }
+
+        val values = ContentValues().apply {
+            put(StructuredName.PHONETIC_FAMILY_NAME, phonetic.family)
+            put(StructuredName.PHONETIC_MIDDLE_NAME, phonetic.middle)
+            put(StructuredName.PHONETIC_GIVEN_NAME, phonetic.given)
+        }
+        contentResolver.update(
+            ContactsContract.Data.CONTENT_URI,
+            values,
+            "${ContactsContract.Data._ID} = ?",
+            arrayOf(dataId.toString()),
+        )
+    } catch (e: Exception) {
+        return
+    }
+}
 
 /** The contact's phonetic reading, or "" when none is stored (or not yet loaded). */
 fun readingOf(contact: Contact): String = ContactExtras.readings[contact.id].orEmpty()

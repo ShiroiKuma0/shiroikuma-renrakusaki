@@ -263,6 +263,18 @@
     <string name="move_field_right">Move right</string>
     <string name="reorder">Reorder</string>
 
+    <!-- Edit screen: the "show every field" pill -->
+    <string name="reveal_all_fields">Show all fields</string>
+    <string name="reveal_fewer_fields">Show fewer fields</string>
+    <string name="show_reveal_fields_pill">Show the "show all fields" pill when editing a contact</string>
+
+    <!-- Edit screen: a reading (furigana) field under each name field -->
+    <string name="field_phonetic_first_name">First name (phonetic)</string>
+    <string name="field_phonetic_middle_name">Middle name (phonetic)</string>
+    <string name="field_phonetic_surname">Surname (phonetic)</string>
+    <string name="show_reading_fields">Show a reading (フリガナ) field under each name field</string>
+    <string name="show_reading_when_viewing">Show the reading (フリガナ) under the name when viewing a contact</string>
+
     <!-- Contacts-list field labels -->
     <string name="field_reading">Reading (フリガナ)</string>
     <string name="sort_by_field">Sort by</string>

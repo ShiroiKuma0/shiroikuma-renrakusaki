@@ -255,6 +255,7 @@ class ViewContactActivity : ContactActivity() {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         setupFavorite()
         setupNames()
+        setupReading()
 
         ContactsHelper(this).getContactSources {
             contactSources = it
@@ -343,6 +344,49 @@ class ViewContactActivity : ContactActivity() {
         binding.contactName.copyOnLongClick(displayName)
         binding.contactName.beVisibleIf(displayName.isNotEmpty() && !contact!!.isABusinessContact() && showNameFields)
         binding.contactNameImage.beInvisibleIf(binding.contactName.isGone())
+    }
+
+    // Fork: the name's reading (フリガナ), under the name it belongs to. Read straight from the provider
+    // rather than from ContactExtras: this screen opens from other apps too, in a process where no
+    // contacts refresh has ever run. A private contact lives in the local DB and has no reading at all.
+    private fun setupReading() {
+        binding.contactReading.beGone()
+        val rawId = contact?.id ?: return
+        if (rawId == 0 || contact!!.isPrivate() || !config.showReadingWhenViewing) {
+            return
+        }
+
+        ensureBackgroundThread {
+            val reading = loadPhoneticName(rawId)?.let { orderedReading(it) }.orEmpty()
+            if (reading.isEmpty()) {
+                return@ensureBackgroundThread
+            }
+
+            runOnUiThread {
+                if (isDestroyed || isFinishing) {
+                    return@runOnUiThread
+                }
+
+                binding.contactReading.apply {
+                    text = reading
+                    copyOnLongClick(reading)
+                    beVisibleIf(!binding.contactName.isGone())
+                    setTextColor(getProperTextColor())
+                }
+            }
+        }
+    }
+
+    // The parts in the order the name above is displayed in — surname first when that is how names are
+    // shown here — so the reading lines up with the name rather than contradicting it.
+    private fun orderedReading(phonetic: PhoneticName): String {
+        val parts = if (config.startNameWithSurname) {
+            listOf(phonetic.family, phonetic.given, phonetic.middle)
+        } else {
+            listOf(phonetic.given, phonetic.middle, phonetic.family)
+        }
+
+        return parts.filter { it.isNotEmpty() }.joinToString(" ")
     }
 
     private fun setupPhoneNumbers() {

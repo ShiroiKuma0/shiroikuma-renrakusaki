@@ -234,6 +234,18 @@
     <string name="move_field_right">右へ</string>
     <string name="reorder">並べ替え</string>
 
+    <!-- 編集画面の「すべての項目を表示」ピル -->
+    <string name="reveal_all_fields">すべての項目を表示</string>
+    <string name="reveal_fewer_fields">標準の項目のみ</string>
+    <string name="show_reveal_fields_pill">連絡先の編集画面に「すべての項目を表示」ピルを表示</string>
+
+    <!-- 編集画面: 名前の各項目のフリガナ欄 -->
+    <string name="field_phonetic_first_name">名のフリガナ</string>
+    <string name="field_phonetic_middle_name">ミドルネームのフリガナ</string>
+    <string name="field_phonetic_surname">姓のフリガナ</string>
+    <string name="show_reading_fields">名前の各項目にフリガナ欄を表示</string>
+    <string name="show_reading_when_viewing">連絡先を表示する際に名前の下にフリガナを表示</string>
+
     <!-- 連絡先リストの項目名 -->
     <string name="field_reading">フリガナ</string>
     <string name="sort_by_field">並べ替え基準</string>

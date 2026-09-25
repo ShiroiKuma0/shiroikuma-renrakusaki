@@ -1,11 +1,9 @@
 package org.fossify.contacts.helpers
 
 import android.content.ContentResolver
-import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds
 import android.provider.ContactsContract.CommonDataKinds.Im
 import android.provider.ContactsContract.CommonDataKinds.Phone
@@ -312,7 +310,7 @@ class VcfImporter(val activity: Context) {
                     contactsImported++
                     // A private contact lives in the local DB, which has no phonetic columns at all.
                     if (!phoneticName.isEmpty && !contact.isPrivate()) {
-                        writePhoneticName(contact, phoneticName)
+                        activity.writePhoneticNameOnLatestContact(contact, phoneticName)
                     }
                 }
             }
@@ -349,60 +347,6 @@ class VcfImporter(val activity: Context) {
             sortAs.isEmpty() -> PhoneticName.fromJoined(ezContact.sortString?.value.orEmpty())
             sortAs.size == 1 -> PhoneticName.fromJoined(sortAs.first())
             else -> PhoneticName(sortAs.first(), "", sortAs.drop(1).joinToString(" "))
-        }
-    }
-
-    /**
-     * Write the reading onto the contact commons has just inserted. Its insertContact() builds the
-     * StructuredName row without the phonetic columns and hands back nothing but a Boolean, so the row
-     * has to be found again: raw contact ids are handed out in ascending order, so the newest
-     * StructuredName row is the one just written. The name on that row is checked against what was
-     * inserted before anything is updated — if a sync adapter slipped an insert in between, the reading
-     * is dropped rather than written onto somebody else's contact.
-     */
-    @Suppress("TooGenericExceptionCaught", "SwallowedException") // a reading is not worth failing an import over
-    private fun writePhoneticName(contact: Contact, phonetic: PhoneticName) {
-        val projection = arrayOf(
-            ContactsContract.Data._ID,
-            CommonDataKinds.StructuredName.GIVEN_NAME,
-            CommonDataKinds.StructuredName.FAMILY_NAME,
-        )
-        val selection = "${ContactsContract.Data.MIMETYPE} = ?"
-        val args = arrayOf(CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
-        // Deliberately no LIMIT in the sort order — OEM providers have been known to choke on one, and
-        // the first row of a descending cursor is the same answer.
-        val order = "${ContactsContract.Data.RAW_CONTACT_ID} DESC"
-
-        try {
-            var dataId = -1L
-            activity.contentResolver.query(ContactsContract.Data.CONTENT_URI, projection, selection, args, order)
-                ?.use { cursor ->
-                    if (
-                        cursor.moveToFirst() &&
-                        cursor.getString(1).orEmpty() == contact.firstName &&
-                        cursor.getString(2).orEmpty() == contact.surname
-                    ) {
-                        dataId = cursor.getLong(0)
-                    }
-                }
-
-            if (dataId < 0) {
-                return
-            }
-
-            val values = ContentValues().apply {
-                put(CommonDataKinds.StructuredName.PHONETIC_FAMILY_NAME, phonetic.family)
-                put(CommonDataKinds.StructuredName.PHONETIC_MIDDLE_NAME, phonetic.middle)
-                put(CommonDataKinds.StructuredName.PHONETIC_GIVEN_NAME, phonetic.given)
-            }
-            activity.contentResolver.update(
-                ContactsContract.Data.CONTENT_URI,
-                values,
-                "${ContactsContract.Data._ID} = ?",
-                arrayOf(dataId.toString()),
-            )
-        } catch (e: Exception) {
-            return
         }
     }
 

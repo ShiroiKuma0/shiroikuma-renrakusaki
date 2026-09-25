@@ -36,6 +36,17 @@ const val FORMAT_PHONE_NUMBERS = "format_phone_numbers"
 // shows every field a contact actually has. Configurable from Settings.
 const val SHOW_ALL_FIELDS_WHEN_VIEWING = "show_all_fields_when_viewing"
 
+// When on, viewing a contact shows its reading (フリガナ) under the name. Configurable from Settings.
+const val SHOW_READING_WHEN_VIEWING = "show_reading_when_viewing"
+
+// When on, the edit screen carries a reading (フリガナ) field under each name field, written to the
+// provider's phonetic-name columns. Configurable from Settings.
+const val SHOW_READING_FIELDS = "show_reading_fields"
+
+// When on, the edit screen carries a pill that reveals every field the mask hides, for that screen
+// only. Configurable from Settings.
+const val SHOW_REVEAL_FIELDS_PILL = "show_reveal_fields_pill"
+
 // Configurable contacts-list rows: which fields show, in what order, and how they wrap into columns.
 // Encoded by ContactsListConfig as "key:checked:sameLine" entries joined by "|".
 const val CONTACTS_LIST_FIELDS = "contacts_list_fields"
