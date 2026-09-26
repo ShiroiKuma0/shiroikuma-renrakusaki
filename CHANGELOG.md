@@ -7,6 +7,74 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+090] — 2026-09-26
+
+Everything added since `1.6.0+086`, still on **Fossify Contacts 1.6.0**. The Favorites grid becomes
+usable at 130 km/h, a name stops being written the way the sort order happens to want it, and the last
+white menu in the app turns yellow.
+
+### Tap a favourite to call it
+With Android Auto projecting to the head unit, the Favorites grid is the screen you reach for — and
+every tap on it opened a contact, leaving a second, smaller number to aim at while driving. **A tap now
+places the call.**
+
+- **Three states, not a switch**: 「お気に入りのタップで発信」 in Settings → Main screen offers **しない /
+  車に接続中のみ / 常に**, and defaults to the middle one. The same grid at the desk is a wall of faces
+  where a stray tap must not ring somebody; in the car it is a set of call buttons.
+- **The car is detected, not assumed.** Android Auto publishes its connection state through a provider
+  any app may read, and that is read directly rather than pulling in a whole library for one integer.
+  The manifest declares the Android Auto package so the provider is visible at all on Android 11+ —
+  without that it would quietly answer "not in a car" with no error to show for it.
+- **Asked at every gesture, never cached**: plug the phone in, and the grid already on screen changes
+  its mind on the next tap. Unplug it, and the old behaviour is back just as immediately.
+- **Long-press opens the contact** while dialling is active, which is what a tap used to do. Multi-select,
+  which long-press used to start, moves to the toolbar's new Favorites-only 「選択」. With dialling off,
+  every gesture is exactly what it was — long-press still starts multi-select, taps still open contacts.
+- A short **haptic** and the tile held visibly pressed make a placed call feel placed before the dialer
+  has had time to come up.
+
+### Which number rings, decided in advance
+A dialog you have to read is the thing being designed out, so **no picker is ever shown at dial time**.
+
+- The number is resolved in order: the platform's **default number** for that contact, else one marked
+  primary, else the first **mobile**, else the first number there is. A contact with **no** number opens
+  instead of doing nothing at all.
+- The choice is stored as **Android's own `IS_SUPER_PRIMARY` flag**, not as a preference of this app's.
+  Every app honours it — the companion dialer, the system dialer, and Android Auto's own — so the number
+  this app would call is the number anything else calls. It is read straight off the contacts provider,
+  since the contact layer only carries the weaker per-row "primary" flag.
+- **You are asked while there is time to answer**: when a contact with several numbers is starred — from
+  the Favorites add dialog, from the selection menu's 「お気に入りに追加」, from the star on the contact
+  screen, and on **save** from the editor (where the star is only an unsaved flag until then). A number
+  already starred as the default inside the editor counts as an answer and is not asked about again.
+- **A sweep for the ones never asked**: 「発信する番号を設定」 in the Favorites overflow walks every
+  favourite that has several numbers and no default yet, one dialog at a time — skippable per contact,
+  re-runnable, and offered once by itself the first time that tab is opened with dialling on.
+- The call is handed to the companion dialer's own dial screen **by name**. A bare call intent raises the
+  app chooser; going through that screen is what applies the **per-contact SIM**, so the badge on the tile
+  is the SIM that actually dials, and it is where the dialer raises its on-phone call screen while
+  projection owns the foreground. Without the call permission it falls back to the dialpad, prefilled.
+
+### Four ways to write a name in a row
+Sorting by surname and displaying 「姓、名」 were one decision in the list layout; they are two.
+
+- The row now offers **「名 姓」, 「名 姓（大文字）」 and 「姓（大文字） 名」** beside the existing
+  「姓、名」 — ordinary fields in 「表示する項目と順序」, so tick one and untick the other.
+- Each carries its **own font, weight, size and colour** slot like every other field, and each joins the
+  list **next to its siblings** rather than at the bottom, so a layout saved before they existed still
+  finds them where the other name fields are.
+- **Only the surname is ever upper-cased**, never the given name; a company-only contact with neither
+  part still falls back to its display name, left exactly as it is.
+- The sort order is untouched — surname-first sorting and surname-last display no longer imply each other.
+
+### The contextual bar's menu was the last white text in the app
+Selecting contacts and opening the selection bar's overflow gave **white** menu items — Share, Send SMS,
+Send email, Create shortcut, Select all, Delete — on the black popup with its yellow border, the one menu
+in the app that had never been painted. Menu popups draw their titles in the platform theme's colour,
+which no runtime theming reaches. They now take the fork's own **menu-text colour**, the same control the
+toolbar's overflow already followed, on both the contacts and the groups bar, repainted on every
+selection change without stacking or staling.
+
 ## [1.6.0+086] — 2026-09-25
 
 Everything added since `1.6.0+083`, still on **Fossify Contacts 1.6.0**. The フリガナ a contact is

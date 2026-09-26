@@ -6,11 +6,11 @@
 
 **A black-and-yellow, deeply customizable contacts app — your list, your layout, your colors.**
 
-A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, per-contact default SIM, category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
+A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, tap-to-dial on the Favorites grid while the car is connected, per-contact default SIM, category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+086`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+090`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -22,7 +22,7 @@ A full Theme & Colors system that defaults to pure black `#000000` + pure yellow
 ---
 
 ## 📇 A contacts list you actually lay out
-The list stops being a fixed single column. **Choose which fields show, reorder them, and arrange them into 1–4 columns** with one-tap 一二三四 buttons — each field carries its own font, size, and color. Set the **thumbnail size with a live preview**, dial in **row spacing**, add **dividers** (including between columns), and insert a configurable column spacer for left-flowing layouts. Photo-less contacts get a clean custom 人 placeholder instead of a blank avatar.
+The list stops being a fixed single column. **Choose which fields show, reorder them, and arrange them into 1–4 columns** with one-tap 一二三四 buttons — each field carries its own font, size, and color. A name is a field like any other, and it comes in four shapes to pick between — `Lastname, Firstname`, `Firstname Lastname`, `Firstname LASTNAME`, `LASTNAME Firstname` — so sorting by surname no longer dictates how a name is written. Set the **thumbnail size with a live preview**, dial in **row spacing**, add **dividers** (including between columns), and insert a configurable column spacer for left-flowing layouts. Photo-less contacts get a clean custom 人 placeholder instead of a blank avatar.
 
 ---
 
@@ -59,6 +59,15 @@ Broadcasts let the companion task runner (白い熊 自由作業盤) back this a
 
 ## 📱 Per-contact default SIM
 On a dual-SIM phone, pin a preferred SIM to any contact: a **SIM badge** shows it right in the list, a **picker** (from the long-press menu) sets it, and a **content provider** exposes the choice so the companion dialer auto-selects the right SIM when you call.
+
+---
+
+## 🚗 In the car, a favourite is a call button
+Driving with Android Auto on the head unit, the Favorites grid is the screen you reach for — and every tap on it used to open a contact, leaving a second, smaller target to aim at. **A tap now places the call.** Long-press opens the contact instead, and multi-select moves to the toolbar, so nothing is lost.
+
+Only where it should be: **Never / Only while the car is connected / Always**, defaulting to the middle one, because the same grid at the desk is a wall of faces where a stray tap must not ring anybody. The car is recognised by reading Android Auto's own connection provider, and the answer is taken fresh at every tap — plug in, and the grid already on screen changes its mind.
+
+**No dialog ever appears at dial time.** Which number rings is settled in advance and stored as Android's own default-number flag, so the companion dialer, the system and Android Auto's dialer all call the number this app would. A contact with several numbers is asked about the moment it becomes a favourite, and the Favorites overflow carries a re-runnable sweep for the ones that were never asked. The call is handed to the companion dialer by name — which is what keeps the per-contact SIM badge honest, since the SIM on the tile is the SIM that dials.
 
 ---
 
