@@ -51,6 +51,7 @@ import org.fossify.contacts.dialogs.CreateNewGroupDialog
 import org.fossify.contacts.dialogs.SetDefaultSimDialog
 import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.applyThemeFont
+import org.fossify.contacts.extensions.colorItemTitles
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.editContact
 import org.fossify.contacts.extensions.shareContacts
@@ -145,6 +146,10 @@ class ContactsAdapter(
             if (location == LOCATION_GROUP_CONTACTS) {
                 findItem(R.id.cab_remove).title = activity.getString(R.string.remove_from_group)
             }
+
+            // Last, once every title is final: the popup draws them in the platform theme's white
+            // otherwise, alone among the fork's menus. Same slot as the toolbar's overflow.
+            colorItemTitles(activity.themeColor(ThemeSlot.SEARCH_MENU_TEXT))
         }
     }
 

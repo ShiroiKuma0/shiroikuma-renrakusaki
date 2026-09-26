@@ -23,7 +23,9 @@ import org.fossify.contacts.databinding.ItemGroupBinding
 import org.fossify.contacts.dialogs.RenameGroupDialog
 import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.applyThemeFont
+import org.fossify.contacts.extensions.colorItemTitles
 import org.fossify.contacts.extensions.config
+import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.interfaces.RefreshContactsListener
 
 class GroupsAdapter(
@@ -44,6 +46,8 @@ class GroupsAdapter(
     override fun prepareActionMode(menu: Menu) {
         menu.apply {
             findItem(R.id.cab_rename).isVisible = isOneItemSelected()
+            // The popup draws its titles in the platform theme's white otherwise — see ContactsAdapter.
+            colorItemTitles(activity.themeColor(ThemeSlot.SEARCH_MENU_TEXT))
         }
     }
 
