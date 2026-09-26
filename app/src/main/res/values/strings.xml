@@ -285,6 +285,9 @@
     <string name="field_display_name">Name</string>
     <string name="field_prefix">Prefix</string>
     <string name="field_surname_first">Lastname, Firstname</string>
+    <string name="field_first_surname">Firstname Lastname</string>
+    <string name="field_first_surname_caps">Firstname LASTNAME</string>
+    <string name="field_surname_caps_first">LASTNAME Firstname</string>
     <string name="field_first_name">First name</string>
     <string name="field_middle_name">Middle name</string>
     <string name="field_surname">Surname</string>

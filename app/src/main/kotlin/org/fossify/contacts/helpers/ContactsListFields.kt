@@ -21,14 +21,25 @@ enum class RowField(
         "display_name", R.string.field_display_name, ThemeSlot.ROW_DISPLAY_NAME,
         { c, _ -> c.getNameToDisplay() },
     ),
-    // "Surname, Firstname" as one field; falls back to the display name when the contact has neither
-    // (e.g. company-only contacts), so a row built on this field never goes blank.
+    // The composite name fields: one string built from the two structured name parts, in the order — and
+    // with the capitalization — each field is named after. Exactly one of them is normally shown; they all
+    // fall back to the display name for a contact carrying neither part (e.g. company-only entries), so a
+    // row built on one never goes blank.
     SURNAME_FIRST(
         "surname_first", R.string.field_surname_first, ThemeSlot.ROW_SURNAME_FIRST,
-        { c, _ ->
-            listOf(c.surname, c.firstName).filter { it.isNotEmpty() }.joinToString(", ")
-                .ifEmpty { c.getNameToDisplay() }
-        },
+        { c, _ -> composedName(c, surnameFirst = true, surnameCaps = false, separator = ", ") },
+    ),
+    FIRST_SURNAME(
+        "first_surname", R.string.field_first_surname, ThemeSlot.ROW_FIRST_SURNAME,
+        { c, _ -> composedName(c, surnameFirst = false, surnameCaps = false, separator = " ") },
+    ),
+    FIRST_SURNAME_CAPS(
+        "first_surname_caps", R.string.field_first_surname_caps, ThemeSlot.ROW_FIRST_SURNAME_CAPS,
+        { c, _ -> composedName(c, surnameFirst = false, surnameCaps = true, separator = " ") },
+    ),
+    SURNAME_CAPS_FIRST(
+        "surname_caps_first", R.string.field_surname_caps_first, ThemeSlot.ROW_SURNAME_CAPS_FIRST,
+        { c, _ -> composedName(c, surnameFirst = true, surnameCaps = true, separator = " ") },
     ),
     PREFIX("prefix", R.string.field_prefix, ThemeSlot.ROW_PREFIX, { c, _ -> c.prefix }),
     FIRST_NAME("first_name", R.string.field_first_name, ThemeSlot.ROW_FIRST_NAME, { c, _ -> c.firstName }),
@@ -83,6 +94,20 @@ enum class RowField(
     }
 }
 
+// Join the two structured name parts in the given order, upper-casing the surname when asked. A contact
+// carrying neither part (a company-only entry) falls back to its display name, left exactly as it is —
+// that string is not a surname, so upper-casing it would be wrong.
+private fun composedName(
+    contact: Contact,
+    surnameFirst: Boolean,
+    surnameCaps: Boolean,
+    separator: String,
+): String {
+    val surname = if (surnameCaps) contact.surname.uppercase() else contact.surname
+    val parts = if (surnameFirst) listOf(surname, contact.firstName) else listOf(contact.firstName, surname)
+    return parts.filter { it.isNotEmpty() }.joinToString(separator).ifEmpty { contact.getNameToDisplay() }
+}
+
 private fun primaryPhone(contact: Contact, context: Context): String {
     val number = contact.phoneNumbers.firstOrNull { it.isPrimary }?.value
         ?: contact.phoneNumbers.firstOrNull()?.value ?: return ""
@@ -92,6 +117,12 @@ private fun primaryPhone(contact: Contact, context: Context): String {
 // A single row in the editor / layout: a field, whether it is shown, and whether it shares the
 // previous shown field's line (true => sits as a column to its right, false => starts a new line).
 data class RowFieldEntry(val field: RowField, var checked: Boolean, var sameLine: Boolean)
+
+// The composite name fields, in catalog order — kept together at the head of the layout list when a
+// stored layout predates one of them (indexOfLast returning -1 puts the first of them at index 0).
+private val COMPOSITE_NAME_FIELDS = setOf(
+    RowField.SURNAME_FIRST, RowField.FIRST_SURNAME, RowField.FIRST_SURNAME_CAPS, RowField.SURNAME_CAPS_FIRST,
+)
 
 // Parse / serialize the contacts-list layout config, and the built-in default.
 object ContactsListConfig {
@@ -124,15 +155,15 @@ object ContactsListConfig {
             seen[field] = RowFieldEntry(field, checked, sameLine)
         }
 
-        // Add any catalog fields missing from storage (e.g. introduced in a later version), unchecked —
-        // "Lastname, Firstname" goes to the top of the list, everything else to the end. Once the user
-        // reorders and saves, the stored order wins.
+        // Add any catalog fields missing from storage (e.g. introduced in a later version), unchecked — a
+        // composite name field joins its siblings at the top of the list, everything else goes to the end.
+        // Once the user reorders and saves, the stored order wins.
         val result = seen.values.toMutableList()
         RowField.entries.forEach { field ->
             if (field !in seen) {
                 val entry = RowFieldEntry(field, checked = false, sameLine = false)
-                if (field == RowField.SURNAME_FIRST) {
-                    result.add(0, entry)
+                if (field in COMPOSITE_NAME_FIELDS) {
+                    result.add(result.indexOfLast { it.field in COMPOSITE_NAME_FIELDS } + 1, entry)
                 } else {
                     result.add(entry)
                 }

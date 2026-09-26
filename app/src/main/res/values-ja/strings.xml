@@ -256,6 +256,9 @@
     <string name="field_display_name">名前</string>
     <string name="field_prefix">敬称（前）</string>
     <string name="field_surname_first">姓、名</string>
+    <string name="field_first_surname">名 姓</string>
+    <string name="field_first_surname_caps">名 姓（大文字）</string>
+    <string name="field_surname_caps_first">姓（大文字） 名</string>
     <string name="field_first_name">名</string>
     <string name="field_middle_name">ミドルネーム</string>
     <string name="field_surname">姓</string>

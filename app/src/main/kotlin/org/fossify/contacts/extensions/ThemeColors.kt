@@ -114,6 +114,13 @@ enum class ThemeSlot(
     // all three contact lists. Rendered specially in ThemeActivity (only enabled fields show a control).
     ROW_DISPLAY_NAME("row_display_name", ThemeGroup.ROWS, R.string.field_display_name, hasFont = true),
     ROW_SURNAME_FIRST("row_surname_first", ThemeGroup.ROWS, R.string.field_surname_first, hasFont = true),
+    ROW_FIRST_SURNAME("row_first_surname", ThemeGroup.ROWS, R.string.field_first_surname, hasFont = true),
+    ROW_FIRST_SURNAME_CAPS(
+        "row_first_surname_caps", ThemeGroup.ROWS, R.string.field_first_surname_caps, hasFont = true,
+    ),
+    ROW_SURNAME_CAPS_FIRST(
+        "row_surname_caps_first", ThemeGroup.ROWS, R.string.field_surname_caps_first, hasFont = true,
+    ),
     ROW_PREFIX("row_prefix", ThemeGroup.ROWS, R.string.field_prefix, hasFont = true),
     ROW_FIRST_NAME("row_first_name", ThemeGroup.ROWS, R.string.field_first_name, hasFont = true),
     ROW_MIDDLE_NAME("row_middle_name", ThemeGroup.ROWS, R.string.field_middle_name, hasFont = true),
@@ -213,8 +220,10 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.GROUP_FASTSCROLLER -> themeColor(ThemeSlot.PRIMARY)
 
     // Contacts'-list row fields: name-like fields read as primary text, the rest as muted secondary text.
-    ThemeSlot.ROW_DISPLAY_NAME, ThemeSlot.ROW_SURNAME_FIRST, ThemeSlot.ROW_PREFIX, ThemeSlot.ROW_FIRST_NAME,
-    ThemeSlot.ROW_MIDDLE_NAME, ThemeSlot.ROW_SURNAME, ThemeSlot.ROW_SUFFIX, ThemeSlot.ROW_NICKNAME ->
+    ThemeSlot.ROW_DISPLAY_NAME, ThemeSlot.ROW_SURNAME_FIRST, ThemeSlot.ROW_FIRST_SURNAME,
+    ThemeSlot.ROW_FIRST_SURNAME_CAPS, ThemeSlot.ROW_SURNAME_CAPS_FIRST, ThemeSlot.ROW_PREFIX,
+    ThemeSlot.ROW_FIRST_NAME, ThemeSlot.ROW_MIDDLE_NAME, ThemeSlot.ROW_SURNAME, ThemeSlot.ROW_SUFFIX,
+    ThemeSlot.ROW_NICKNAME ->
         themeColor(ThemeSlot.TEXT)
 
     ThemeSlot.ROW_PHONE, ThemeSlot.ROW_EMAIL, ThemeSlot.ROW_ADDRESS, ThemeSlot.ROW_ADDRESS_STREET,
