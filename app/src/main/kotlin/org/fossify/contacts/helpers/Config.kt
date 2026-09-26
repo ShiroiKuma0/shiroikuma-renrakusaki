@@ -36,6 +36,16 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(SHOW_REVEAL_FIELDS_PILL, true)
         set(value) = prefs.edit().putBoolean(SHOW_REVEAL_FIELDS_PILL, value).apply()
 
+    // Whether a tap on a favorite places a call: TAP_TO_CALL_NEVER / _IN_CAR / _ALWAYS.
+    var tapFavoriteToCall: Int
+        get() = prefs.getInt(TAP_FAVORITE_TO_CALL, TAP_TO_CALL_IN_CAR)
+        set(value) = prefs.edit().putInt(TAP_FAVORITE_TO_CALL, value).apply()
+
+    // The one-time "set a number to call on your favorites" offer has been made (see the sweep).
+    var favoriteNumbersSweepOffered: Boolean
+        get() = prefs.getBoolean(FAVORITE_NUMBERS_SWEEP_OFFERED, false)
+        set(value) = prefs.edit().putBoolean(FAVORITE_NUMBERS_SWEEP_OFFERED, value).apply()
+
     // Configurable contacts-list rows (see ContactsListConfig). "" = the built-in default layout.
     var contactsListFields: String
         get() = prefs.getString(CONTACTS_LIST_FIELDS, "")!!

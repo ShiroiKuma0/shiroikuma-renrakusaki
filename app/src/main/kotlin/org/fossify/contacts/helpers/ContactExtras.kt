@@ -3,6 +3,7 @@ package org.fossify.contacts.helpers
 import android.content.ContentValues
 import android.content.Context
 import android.provider.ContactsContract
+import android.provider.ContactsContract.CommonDataKinds
 import android.provider.ContactsContract.CommonDataKinds.StructuredName
 import org.fossify.commons.extensions.getSharedPrefs
 import org.fossify.commons.extensions.normalizePhoneNumber
@@ -11,13 +12,19 @@ import org.fossify.commons.models.contacts.Contact
 // Provider data the commons Contact model doesn't carry, loaded with one supplemental query per
 // contacts refresh and kept in volatile maps keyed by raw contact id:
 // - the phonetic name ("reading" / フリガナ), which drives kana-row bucketing and sorting;
-// - the provider lookup key, which the sort-field rekey below translates away from.
+// - the provider lookup key, which the sort-field rekey below translates away from;
+// - the number flagged IS_SUPER_PRIMARY, which is the number a tap on a favorite dials.
 object ContactExtras {
     @Volatile
     var readings: Map<Int, String> = emptyMap()
 
     @Volatile
     var lookupKeys: Map<Int, String> = emptyMap()
+
+    // Raw contact id → the contact's default number, i.e. the platform's own "primary" choice among
+    // several. Absent for a contact that has never been given one. See helpers/CallNumbers.kt.
+    @Volatile
+    var superPrimaryNumbers: Map<Int, String> = emptyMap()
 }
 
 /**
@@ -91,8 +98,36 @@ private fun Context.queryStructuredNames(): Pair<Map<Int, PhoneticName>, Map<Int
     return phonetics to lookupKeys
 }
 
+// The number each contact has been given as its default, keyed by raw contact id. Only rows carrying
+// the flag are read, so this is normally a handful of entries. Null when the query failed.
+@Suppress("TooGenericExceptionCaught", "SwallowedException") // a failed query just leaves the map stale
+private fun Context.querySuperPrimaryNumbers(): Map<Int, String>? {
+    val numbers = HashMap<Int, String>()
+    val projection = arrayOf(ContactsContract.Data.RAW_CONTACT_ID, CommonDataKinds.Phone.NUMBER)
+    val selection =
+        "${ContactsContract.Data.MIMETYPE} = ? AND ${CommonDataKinds.Phone.IS_SUPER_PRIMARY} != 0"
+    val selectionArgs = arrayOf(CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+    try {
+        contentResolver.query(ContactsContract.Data.CONTENT_URI, projection, selection, selectionArgs, null)
+            ?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val number = cursor.getString(1).orEmpty()
+                    if (number.isNotEmpty()) {
+                        numbers[cursor.getInt(0)] = number
+                    }
+                }
+            }
+    } catch (e: Exception) {
+        return null
+    }
+    return numbers
+}
+
 /** Refresh [ContactExtras] from the contacts provider. Call on a background thread. */
 fun Context.loadContactExtras() {
+    // Independent of the name query below: a failure in one must not leave the other stale.
+    querySuperPrimaryNumbers()?.let { ContactExtras.superPrimaryNumbers = it }
+
     val (phonetics, lookupKeys) = queryStructuredNames() ?: return
     ContactExtras.readings = phonetics.mapValues { it.value.joined() }
     ContactExtras.lookupKeys = lookupKeys
@@ -194,6 +229,41 @@ fun Context.writePhoneticNameOnLatestContact(contact: Contact, phonetic: Phoneti
     } catch (e: Exception) {
         return
     }
+}
+
+/**
+ * The raw contact id of the contact commons has just inserted — the same problem
+ * [writePhoneticNameOnLatestContact] solves, and the same answer: insertContact() hands back a
+ * Boolean, ids are handed out in ascending order, so the newest StructuredName row is the one just
+ * written. Its name is checked against what was inserted, so a sync adapter's insert slipping in
+ * between yields null rather than somebody else's contact. Call on a background thread.
+ */
+@Suppress("TooGenericExceptionCaught", "SwallowedException") // no id just means the caller asks nothing
+fun Context.latestInsertedRawContactId(contact: Contact): Int? {
+    val projection = arrayOf(
+        ContactsContract.Data.RAW_CONTACT_ID,
+        StructuredName.GIVEN_NAME,
+        StructuredName.FAMILY_NAME,
+    )
+    val selection = "${ContactsContract.Data.MIMETYPE} = ?"
+    val args = arrayOf(StructuredName.CONTENT_ITEM_TYPE)
+    val order = "${ContactsContract.Data.RAW_CONTACT_ID} DESC"
+
+    try {
+        contentResolver.query(ContactsContract.Data.CONTENT_URI, projection, selection, args, order)
+            ?.use { cursor ->
+                if (
+                    cursor.moveToFirst() &&
+                    cursor.getString(1).orEmpty() == contact.firstName &&
+                    cursor.getString(2).orEmpty() == contact.surname
+                ) {
+                    return cursor.getInt(0)
+                }
+            }
+    } catch (e: Exception) {
+        return null
+    }
+    return null
 }
 
 /** The contact's phonetic reading, or "" when none is stored (or not yet loaded). */

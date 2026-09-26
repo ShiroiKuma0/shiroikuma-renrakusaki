@@ -325,6 +325,12 @@ class ViewContactActivity : ContactActivity() {
                 contact!!.starred = newIsStarred
                 tag = contact!!.starred
                 setImageDrawable(getStarDrawable(tag == 1))
+
+                // Newly a favorite, and so one tap from being called: settle which of its numbers that
+                // tap dials while the choice is being made, not from the car.
+                if (newIsStarred == 1) {
+                    promptForCallNumbers(listOf(contact!!))
+                }
             }
 
             setOnLongClickListener { toast(R.string.toggle_favorite); true; }

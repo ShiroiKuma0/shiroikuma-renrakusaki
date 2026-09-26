@@ -281,4 +281,14 @@
     <string name="field_note">メモ</string>
     <string name="field_groups">グループ</string>
     <string name="field_contact_source">連絡先のソース</string>
+    <!-- お気に入りをタップして発信 -->
+    <string name="tap_favorite_to_call">お気に入りのタップで発信</string>
+    <string name="tap_to_call_never">しない</string>
+    <string name="tap_to_call_in_car">車に接続中のみ</string>
+    <string name="tap_to_call_always">常に</string>
+    <string name="select">選択</string>
+    <string name="set_numbers_for_calling">発信する番号を設定</string>
+    <string name="choose_number_to_call">タップでどの番号に発信しますか？</string>
+    <string name="favorites_all_have_numbers">すべてのお気に入りに発信する番号が設定済みです。</string>
+    <string name="set_favorite_numbers_confirmation">お気に入りのうち %d 件に複数の番号があり、既定が未設定です。タップで発信する番号を選びますか？</string>
 </resources>

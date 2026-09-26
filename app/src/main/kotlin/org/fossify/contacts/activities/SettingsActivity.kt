@@ -12,6 +12,9 @@ import org.fossify.contacts.dialogs.ManageAutoBackupsDialog
 import org.fossify.contacts.dialogs.ManageVisibleFieldsDialog
 import org.fossify.contacts.dialogs.ManageVisibleTabsDialog
 import org.fossify.contacts.extensions.*
+import org.fossify.contacts.helpers.TAP_TO_CALL_ALWAYS
+import org.fossify.contacts.helpers.TAP_TO_CALL_IN_CAR
+import org.fossify.contacts.helpers.TAP_TO_CALL_NEVER
 import java.util.Locale
 import kotlin.system.exitProcess
 
@@ -51,6 +54,7 @@ class SettingsActivity : SimpleActivity() {
         setupShowDialpadButton()
         setupShowPrivateContacts()
         setupOnContactClick()
+        setupTapFavoriteToCall()
         setupDefaultTab()
         setupEnableAutomaticBackups()
         setupManageAutomaticBackups()
@@ -261,6 +265,32 @@ class SettingsActivity : SimpleActivity() {
             ON_CLICK_CALL_CONTACT -> org.fossify.commons.R.string.call_contact
             ON_CLICK_VIEW_CONTACT -> org.fossify.commons.R.string.view_contact
             else -> org.fossify.commons.R.string.edit_contact
+        }
+    )
+
+    // Three states, because the grid is two different things: a wall of faces at the desk, where a
+    // stray tap must not ring anybody, and a set of call buttons in the car, where a tap is the point.
+    private fun setupTapFavoriteToCall() {
+        binding.settingsTapFavoriteToCall.text = getTapFavoriteToCallText()
+        binding.settingsTapFavoriteToCallHolder.setOnClickListener {
+            val items = arrayListOf(
+                RadioItem(TAP_TO_CALL_NEVER, getString(R.string.tap_to_call_never)),
+                RadioItem(TAP_TO_CALL_IN_CAR, getString(R.string.tap_to_call_in_car)),
+                RadioItem(TAP_TO_CALL_ALWAYS, getString(R.string.tap_to_call_always))
+            )
+
+            RadioGroupDialog(this@SettingsActivity, items, config.tapFavoriteToCall) {
+                config.tapFavoriteToCall = it as Int
+                binding.settingsTapFavoriteToCall.text = getTapFavoriteToCallText()
+            }
+        }
+    }
+
+    private fun getTapFavoriteToCallText() = getString(
+        when (config.tapFavoriteToCall) {
+            TAP_TO_CALL_NEVER -> R.string.tap_to_call_never
+            TAP_TO_CALL_ALWAYS -> R.string.tap_to_call_always
+            else -> R.string.tap_to_call_in_car
         }
     )
 

@@ -128,6 +128,7 @@ import org.fossify.contacts.extensions.applyPhotoOverlayIcons
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.getCachePhotoUri
 import org.fossify.contacts.extensions.photoOverlayIcon
+import org.fossify.contacts.extensions.promptForCallNumbers
 import org.fossify.contacts.extensions.showContactSourcePicker
 import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.helpers.ADD_NEW_CONTACT_NUMBER
@@ -135,6 +136,7 @@ import org.fossify.contacts.helpers.IS_FROM_SIMPLE_CONTACTS
 import org.fossify.contacts.helpers.KEY_EMAIL
 import org.fossify.contacts.helpers.KEY_NAME
 import org.fossify.contacts.helpers.PhoneticName
+import org.fossify.contacts.helpers.latestInsertedRawContactId
 import org.fossify.contacts.helpers.SORT_FIELD_DEFAULT
 import org.fossify.contacts.helpers.SORT_FIELD_NICKNAME
 import org.fossify.contacts.helpers.SORT_FIELD_ORGANIZATION
@@ -1609,14 +1611,12 @@ class EditContactActivity : ContactActivity() {
             if (deleteCurrentContact) {
                 contact!!.source = originalContactSource
                 ContactsHelper(this).deleteContact(contact!!, false) {
-                    setResult(Activity.RESULT_OK)
-                    hideKeyboard()
-                    finish()
+                    // Moved to another source: a new provider row, so the old row's default number
+                    // went with it — the same question as for any freshly inserted contact.
+                    askCallNumberThenFinish(isNewContact = true)
                 }
             } else {
-                setResult(Activity.RESULT_OK)
-                hideKeyboard()
-                finish()
+                askCallNumberThenFinish(isNewContact = true)
             }
         } else {
             toast(org.fossify.commons.R.string.unknown_error_occurred)
@@ -1636,6 +1636,51 @@ class EditContactActivity : ContactActivity() {
         writePhoneticNameOnLatestContact(contact!!, phonetic)
     }
 
+    private fun finishAfterSave() {
+        setResult(Activity.RESULT_OK)
+        hideKeyboard()
+        finish()
+    }
+
+    /**
+     * A contact that has just been saved as a favorite, with several numbers and no settled default,
+     * is one tap on the Favorites grid away from being called — so ask which number that tap calls,
+     * then leave. Asked on save rather than at the star: until the save the star is a flag on screen,
+     * and for a new contact there is no provider row to write the answer onto yet.
+     *
+     * Skipped when a number carries the editor's own "default number" star: that IS_PRIMARY flag is
+     * an explicit choice just made on this screen, and [numberToCall] already honours it.
+     */
+    private fun askCallNumberThenFinish(isNewContact: Boolean) {
+        val saved = contact
+        val undecided = saved != null && saved.starred == 1 && !saved.isPrivate() &&
+            saved.phoneNumbers.size > 1 && saved.phoneNumbers.none { it.isPrimary }
+        if (saved == null || !undecided) {
+            finishAfterSave()
+            return
+        }
+
+        if (!isNewContact) {
+            promptForCallNumbers(listOf(saved)) { finishAfterSave() }
+            return
+        }
+
+        // A freshly inserted contact does not know its own id yet — commons' insertContact() answers
+        // with a Boolean — so it has to be looked up before the answer can be written anywhere.
+        ensureBackgroundThread {
+            val rawId = latestInsertedRawContactId(saved)
+            runOnUiThread {
+                if (rawId == null || isDestroyed || isFinishing) {
+                    finishAfterSave()
+                    return@runOnUiThread
+                }
+
+                saved.id = rawId
+                promptForCallNumbers(listOf(saved)) { finishAfterSave() }
+            }
+        }
+    }
+
     private fun updateContact(photoUpdateStatus: Int, primaryState: Pair<PhoneNumber?, PhoneNumber?>) {
         isSaving = true
         if (ContactsHelper(this@EditContactActivity).updateContact(contact!!, photoUpdateStatus)) {
@@ -1643,14 +1688,10 @@ class EditContactActivity : ContactActivity() {
             val status = getPrimaryNumberStatus(primaryState.first, primaryState.second)
             if (status != PrimaryNumberStatus.UNCHANGED) {
                 updateDefaultNumberForDuplicateContacts(primaryState, status) {
-                    setResult(Activity.RESULT_OK)
-                    hideKeyboard()
-                    finish()
+                    askCallNumberThenFinish(isNewContact = false)
                 }
             } else {
-                setResult(Activity.RESULT_OK)
-                hideKeyboard()
-                finish()
+                askCallNumberThenFinish(isNewContact = false)
             }
         } else {
             toast(org.fossify.commons.R.string.unknown_error_occurred)

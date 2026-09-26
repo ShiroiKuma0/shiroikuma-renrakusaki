@@ -85,6 +85,28 @@ val dialerTabsList = arrayListOf(TAB_CONTACTS, TAB_FAVORITES, TAB_CALL_HISTORY)
 val dialerAppPackages = arrayListOf("shiroikuma.denwa", "shiroikuma.denwa.debug")
 const val DIALER_APP_MAIN_ACTIVITY = "org.fossify.phone.activities.MainActivity"
 
+// denwa's dial screen. A call we place goes through THIS component explicitly — never a bare
+// ACTION_CALL, which raises the app chooser (and once cost 白い熊 his dialer default). It is also
+// where denwa applies the per-contact SIM and where it raises its own call screen while the phone
+// is projecting to a car, so a call placed any other way loses both.
+const val DIALER_APP_DIALER_ACTIVITY = "org.fossify.phone.activities.DialerActivity"
+
+// denwa's dialpad. DialerActivity answers ACTION_CALL and nothing else — handed an ACTION_DIAL it
+// toasts "an unknown error occurred" and finishes — so the no-permission fallback goes here, where
+// the DIAL filters actually live, and arrives as a dialpad with the number already in it.
+const val DIALER_APP_DIALPAD_ACTIVITY = "org.fossify.phone.activities.DialpadActivity"
+
+// Tapping a favorite places a call instead of opening the contact: never, only while the phone is
+// projecting to a car (the default — a grid of faces at the desk should not be a minefield), or
+// always. Decided per gesture, so connecting the car takes effect on the very next tap.
+const val TAP_FAVORITE_TO_CALL = "tap_favorite_to_call"
+const val TAP_TO_CALL_NEVER = 0
+const val TAP_TO_CALL_IN_CAR = 1
+const val TAP_TO_CALL_ALWAYS = 2
+
+// The one-time offer to give every favorite with several numbers a default one has been made.
+const val FAVORITE_NUMBERS_SWEEP_OFFERED = "favorite_numbers_sweep_offered"
+
 // Contact thumbnail (photo) size in the main Contacts list rows, in dp.
 const val CONTACTS_LIST_THUMBNAIL_SIZE = "contacts_list_thumbnail_size"
 const val DEFAULT_CONTACTS_LIST_THUMBNAIL_DP = 40 // matches the stock list_icon_size_medium

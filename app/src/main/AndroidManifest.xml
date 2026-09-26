@@ -67,6 +67,12 @@
         <package android:name="shiroikuma.denwa" />
         <package android:name="shiroikuma.denwa.debug" />
 
+        <!-- Android Auto. Its CarConnection provider is how we know the phone is projecting to the
+             car, which is what "tap a favorite to call, only in the car" turns on. Without this entry
+             the provider is simply invisible on API 30+ and the check silently answers "not in a
+             car" — no error, just a grid that never dials. -->
+        <package android:name="com.google.android.projection.gearhead" />
+
         <!-- Required for loading contact accounts -->
         <intent>
             <action android:name="android.accounts.AccountAuthenticator" />

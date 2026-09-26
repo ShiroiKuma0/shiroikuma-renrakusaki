@@ -315,4 +315,14 @@
         Haven't found some strings? There's more at
         https://github.com/FossifyOrg/Commons/tree/master/commons/src/main/res
     -->
+    <!-- Tap-to-dial on the Favorites grid -->
+    <string name="tap_favorite_to_call">Tap a favorite to call</string>
+    <string name="tap_to_call_never">Never</string>
+    <string name="tap_to_call_in_car">Only while the car is connected</string>
+    <string name="tap_to_call_always">Always</string>
+    <string name="select">Select</string>
+    <string name="set_numbers_for_calling">Set numbers for calling</string>
+    <string name="choose_number_to_call">Which number should a tap call?</string>
+    <string name="favorites_all_have_numbers">Every favorite already has a number to call.</string>
+    <string name="set_favorite_numbers_confirmation">%d of your favorites have several numbers and no default yet. Choose which number a tap calls?</string>
 </resources>

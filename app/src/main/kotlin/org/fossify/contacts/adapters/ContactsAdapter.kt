@@ -17,6 +17,7 @@ import android.text.style.ForegroundColorSpan
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.Menu
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -51,9 +52,13 @@ import org.fossify.contacts.dialogs.CreateNewGroupDialog
 import org.fossify.contacts.dialogs.SetDefaultSimDialog
 import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.applyThemeFont
+import org.fossify.contacts.extensions.callNumberViaDialerApp
 import org.fossify.contacts.extensions.colorItemTitles
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.editContact
+import org.fossify.contacts.extensions.isFavoriteTapToDialActive
+import org.fossify.contacts.extensions.promptForCallNumbers
+import org.fossify.contacts.extensions.viewContact
 import org.fossify.contacts.extensions.shareContacts
 import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.helpers.*
@@ -63,6 +68,9 @@ import org.fossify.contacts.models.ContactSection
 import java.text.Collator
 import java.util.Collections
 import java.util.Locale
+
+// How long the tile stays visibly held after a tap that placed a call.
+private const val DIAL_FEEDBACK_MS = 150L
 
 class ContactsAdapter(
     activity: SimpleActivity,
@@ -218,8 +226,11 @@ class ContactsAdapter(
 
             is Contact -> {
                 val allowLongClick = location != LOCATION_INSERT_OR_EDIT
-                holder.bindView(item, true, allowLongClick) { itemView, layoutPosition ->
+                val view = holder.bindView(item, true, allowLongClick) { itemView, layoutPosition ->
                     setupView(itemView, item, holder)
+                }
+                if (location == LOCATION_FAVORITES_TAB) {
+                    setupDialGestures(view, holder, item)
                 }
                 bindViewHolder(holder)
             }
@@ -491,10 +502,65 @@ class ContactsAdapter(
         }
     }
 
+    /**
+     * Favorites only. While tap-to-dial is active the grid answers the two gestures a car needs: a
+     * tap places the call, a long-press opens the contact. Multi-select, which long-press starts
+     * everywhere else, moves to the toolbar's "Select" — and once started from there, taps go back
+     * to ticking rows, so the CAB still works exactly as it does on the Contacts tab.
+     *
+     * Whether dial mode is on is asked per gesture, never at bind time: plugging the phone into the
+     * car changes the behaviour of the grid already on screen, with no redraw. With dial mode off,
+     * both gestures fall through to commons' own handlers — upstream behaviour, untouched.
+     */
+    private fun setupDialGestures(view: View, holder: ViewHolder, contact: Contact) {
+        view.setOnClickListener {
+            if (!actModeCallback.isSelectable && activity.isFavoriteTapToDialActive()) {
+                dialContact(view, contact)
+            } else {
+                holder.viewClicked(contact)
+            }
+        }
+
+        view.setOnLongClickListener {
+            if (!actModeCallback.isSelectable && activity.isFavoriteTapToDialActive()) {
+                activity.viewContact(contact)
+            } else {
+                holder.viewLongClicked()
+            }
+            true
+        }
+    }
+
+    // Call the contact's default number. A contact with no number at all opens instead — a tap that
+    // looks like it did nothing is worse than the wrong screen. The haptic and the held-down tile
+    // are what make a placed call feel placed before the dialer has had time to come up.
+    private fun dialContact(view: View, contact: Contact) {
+        val number = contact.numberToCall()
+        if (number == null) {
+            activity.viewContact(contact)
+            return
+        }
+
+        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        view.isPressed = true
+        view.postDelayed({ view.isPressed = false }, DIAL_FEEDBACK_MS)
+        activity.callNumberViaDialerApp(number.value)
+    }
+
+    /** Start multi-select from the toolbar — what long-press does when tap-to-dial is not active. */
+    fun startSelectMode() {
+        if (!actModeCallback.isSelectable) {
+            activity.startActionMode(actModeCallback)
+        }
+    }
+
     private fun addToFavorites() {
-        ContactsHelper(activity).addFavorites(getSelectedItems())
+        val contacts = getSelectedItems()
+        ContactsHelper(activity).addFavorites(contacts)
         refreshListener?.refreshContacts(TAB_FAVORITES)
         finishActMode()
+        // Now one tap from being called — ask which number that tap dials (see promptForCallNumbers).
+        activity.promptForCallNumbers(contacts)
     }
 
     private fun addToGroup() {

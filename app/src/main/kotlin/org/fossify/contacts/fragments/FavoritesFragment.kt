@@ -21,6 +21,9 @@ import org.fossify.contacts.databinding.FragmentFavoritesBinding
 import org.fossify.contacts.databinding.FragmentLettersLayoutBinding
 import org.fossify.contacts.dialogs.SelectContactsDialog
 import org.fossify.contacts.extensions.config
+import org.fossify.contacts.extensions.offerCallNumberSweepOnce
+import org.fossify.contacts.extensions.promptForCallNumbers
+import org.fossify.contacts.extensions.runCallNumberSweep
 import org.fossify.contacts.extensions.viewContact
 import org.fossify.contacts.helpers.LOCATION_FAVORITES_TAB
 import org.fossify.contacts.interfaces.RefreshContactsListener
@@ -55,7 +58,28 @@ class FavoritesFragment(context: Context, attributeSet: AttributeSet) : MyViewPa
             }
 
             (activity as? MainActivity)?.refreshContacts(TAB_FAVORITES)
+            // A contact with several numbers has just become one tap away — ask which number that tap
+            // calls now, while it is being chosen, rather than mid-drive.
+            (activity as? SimpleActivity)?.promptForCallNumbers(addedContacts)
         }
+    }
+
+    /**
+     * Ask about every favorite that has several numbers and no default yet — the Favorites overflow's
+     * "Set numbers for calling". Re-runnable, and it says so when there is nothing left to ask about.
+     */
+    fun setNumbersForCalling() {
+        (activity as? SimpleActivity)?.runCallNumberSweep(favouriteContacts)
+    }
+
+    /** Start multi-select from the toolbar, which is where it lives while tap-to-dial owns long-press. */
+    fun startSelectMode() {
+        getRecyclerAdapter()?.startSelectMode()
+    }
+
+    /** The one-time offer of that sweep, made when this tab is first looked at with dialling on. */
+    fun offerNumbersForCallingOnce() {
+        (activity as? SimpleActivity)?.offerCallNumberSweepOnce(favouriteContacts)
     }
 
     fun setupContactsFavoritesAdapter(contacts: List<Contact>) {

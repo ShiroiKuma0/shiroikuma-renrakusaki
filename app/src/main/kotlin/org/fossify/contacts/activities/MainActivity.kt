@@ -272,6 +272,12 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             findItem(R.id.more_apps_from_us).isVisible = !resources.getBoolean(org.fossify.commons.R.bool.hide_google_relations)
             val onContactsTab = currentFragment == findViewById(R.id.contacts_fragment)
             columnButtonIds.forEach { findItem(it).isVisible = onContactsTab }
+
+            // Favorites-only entries: multi-select, which long-press gives up while tap-to-dial owns
+            // it, and the sweep that gives every favorite a number to call.
+            val onFavoritesTab = currentFragment == findViewById(R.id.favorites_fragment)
+            findItem(R.id.select_favorites).isVisible = onFavoritesTab
+            findItem(R.id.set_favorite_numbers).isVisible = onFavoritesTab
         }
     }
 
@@ -298,6 +304,9 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         binding.mainMenu.requireToolbar().setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.ui_settings -> launchUiSettings()
+                R.id.select_favorites -> findViewById<FavoritesFragment>(R.id.favorites_fragment)?.startSelectMode()
+                R.id.set_favorite_numbers ->
+                    findViewById<FavoritesFragment>(R.id.favorites_fragment)?.setNumbersForCalling()
                 R.id.sort -> showSortingDialog(showCustomSorting = getCurrentFragment() is FavoritesFragment)
                 R.id.filter -> showFilterDialog()
                 R.id.dialpad -> launchDialpad()
@@ -602,6 +611,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
                     it?.finishActMode()
                 }
                 refreshMenuItems()
+                offerFavoriteNumbersIfShowing()
             }
         })
 
@@ -783,6 +793,17 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
         if (binding.mainMenu.isSearchOpen) {
             getCurrentFragment()?.onSearchQueryChanged(binding.mainMenu.getCurrentQuery())
+        }
+
+        offerFavoriteNumbersIfShowing()
+    }
+
+    // The one-time "give your favorites a number to call" offer, made only while that tab is the one
+    // being looked at — it is about the tiles in front of 白い熊, so it must not ambush another tab.
+    private fun offerFavoriteNumbersIfShowing() {
+        val favorites = findViewById<FavoritesFragment>(R.id.favorites_fragment) ?: return
+        if (getCurrentFragment() == favorites) {
+            favorites.offerNumbersForCallingOnce()
         }
     }
 

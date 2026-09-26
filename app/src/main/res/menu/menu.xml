@@ -33,6 +33,14 @@
         android:title="@string/ui_settings_title"
         app:showAsAction="never" />
     <item
+        android:id="@+id/select_favorites"
+        android:title="@string/select"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/set_favorite_numbers"
+        android:title="@string/set_numbers_for_calling"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/sort"
         android:icon="@drawable/ic_sort_vector"
         android:title="@string/sort_by"
