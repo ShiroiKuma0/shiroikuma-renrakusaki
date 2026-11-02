@@ -7,6 +7,30 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+116] — 2026-11-03
+
+Everything added since `1.6.0+114`, still on **Fossify Contacts 1.6.0** and Commons **6.1.6-sk12**.
+The phone's own contact storage can now be kept empty, and checked at a glance.
+
+### System storage (UI settings → Maintenance)
+- **Status line**: live count of what is still outside private storage — raw contacts per account,
+  entries on each SIM card, deletions not yet purged; visible-to-other-apps copies excluded. *Check
+  again* re-reads it.
+- **Move every contact to private** does the whole job: every system contact moved complete (vCard
+  backup first), then the **SIM cards emptied** through the telephony SIM phonebook — Huawei only marks a
+  SIM account's deleted entry as deleted and never removes it from the card — with any card entry whose
+  number no private contact has saved as a private contact first; finally the leftover delete marks are
+  purged. A live "n / total" counter, screen kept on.
+- **New contacts are private** (on by default): the editor, another app's "add contact" and vCard import
+  start in private storage; the editor's account picker can still choose another account.
+- **Keep the phone clean automatically** (off by default): each time the app opens and the status is
+  not clean, the full move runs in the background, with a toast saying how many moved.
+
+### Under the hood
+- One implementation of a System ⇄ Private move (`ContactMover`), shared by the visibility menu and the
+  bulk tool. It hands over the entry's **own** photo — never the combined contact's photo address, which
+  can belong to another entry or lead nowhere.
+
 ## [1.6.0+114] — 2026-11-03
 
 Everything added since `1.6.0+090`, still on **Fossify Contacts 1.6.0**, now against our patched

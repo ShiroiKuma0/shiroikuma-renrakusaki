@@ -10,7 +10,7 @@ A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **majo
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+114`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+116`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -22,6 +22,8 @@ A private contact lives in this app alone: no other app with contacts access —
 When a private contact *should* be known elsewhere — so WhatsApp finds them, or the car shows the caller's name — switch it to **visible to other apps**: the app keeps a stripped copy (name, reading, numbers, photo) in the phone's own local account, rewrites it on every save, and removes it again when you switch back. The private record stays the only one you edit, and this app never shows the copy twice.
 
 Every contact photo carries a **badge**: a crossed-out lock for a system contact every app can read, an eye for a private one made visible, none for private only. **Long-press a photo** — or tap the "Visibility" line on the contact screen — to switch between **System / Private / Private + visible**; a move between system and private carries the whole contact across, so nothing asks for confirmation because nothing can be lost.
+
+**Keep the phone itself empty.** UI settings → Maintenance shows, live, what is still outside private storage — contacts in the phone's accounts, entries on each SIM card. One pill moves **everything** private, SIM cards included (Huawei never writes a deletion through to the card, so the app clears the cards itself). New contacts are private by default, and an optional switch moves anything that reappears — say, a contact another app added — every time the app opens.
 
 ---
 
