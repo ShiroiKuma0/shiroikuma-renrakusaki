@@ -7,6 +7,75 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+114] — 2026-11-03
+
+Everything added since `1.6.0+090`, still on **Fossify Contacts 1.6.0**, now against our patched
+**Commons 6.1.6-sk12**. Private contacts become complete and selectively visible, the phonebook gets a
+duplicate cleaner, and actions turn into pills.
+
+### Private contacts: who may read them
+- The private-contacts provider no longer relies on a signature permission (the Messages fork is signed
+  with a different key): it admits callers by **package name**, from **UI settings → Private contacts →
+  Apps allowed to read them** — the Phone, Messages and Calendar forks by default, a `.debug` build
+  admitted with its release id. The list is device-local and not carried by a settings export.
+- The allowed-apps picker lists every launchable app, allowed ones first.
+
+### Visible to other apps
+- A private contact can be made **visible to other apps**: a stripped system copy (name, reading,
+  numbers, optional photo) in the phone's local account, tagged `RawContacts.SYNC1 =
+  "shiroikuma.renrakusaki:<id>"`, rewritten on every save, removed when switched back or when the
+  original is deleted. Account and photo are set in **UI settings → Private contacts → Visible to other
+  apps**.
+- This app never lists the copy: every list loads through one filter, which also puts the private
+  original back when duplicate merging had picked the copy.
+- A vCard export marks visible contacts (`X-SHIROIKUMA-VISIBLE`); importing such a card into private
+  storage recreates the copy.
+
+### Badges and the three-way switch
+- Every contact photo in the lists carries a **badge**: a crossed-out lock = system contact, an eye =
+  private and visible, none = private only. Colours under **List colors → Visibility badges**; on/off
+  under **Private contacts**.
+- **Long-press a photo** (or tap the new **Visibility** line on the contact screen) for **System /
+  Private / Private + visible**. The change applies to **every entry the merged list row stands for**;
+  a row whose entries disagree shows nothing ticked and "Mixed". System ⇄ Private is a real move — every
+  field and group membership travels with it — and needs no confirmation. Bulk **Make visible / Make
+  private only** in the selection menu.
+- The list redraws when only the visible set changed (it used to wait for the next data change, so a
+  badge could lag one switch behind).
+
+### Every field, in the contact itself
+- New, editable on system and private contacts alike: a **reading per name part**, **relationships**
+  (type or custom label), **SIP addresses**, organization **department / job description / office
+  location / company reading / ticker symbol**, a **custom label on events**, **send to voicemail**.
+  Rarer provider data (primary flags, an IM's own type, a website's type, second organizations or notes,
+  other apps' data) is kept verbatim, written back, and listed read-only on the contact screen.
+- Stored in the contact itself (Commons `Contact.extra`, private DB upgraded in place from version 3 to
+  4); a contact loaded without its extras is never saved over them.
+- vCard export/import carries all of it: an authoritative `X-SHIROIKUMA-EXTRA`, plus standard
+  `RELATED`, `X-SIP`, ORG department, `ROLE` and companions for other readers. Custom-label dates keep
+  their label.
+- Groups move between system and private by **name**, created on the other side when missing.
+- Export falls back to the photo stored in the database when a private contact's photo file is gone.
+
+### Clean up duplicates
+- **UI settings → Maintenance → Clean up duplicates**: exact copies (same content, store and account;
+  only the name split may differ) removed in one tap, keeping stars and groups.
+- Differing entries under one name are shown side by side: "Differs in: …" (storage, account, phone
+  numbers, photo…), differing lines highlighted, real photos shown large (tap to view) — a SIM entry no
+  longer "has" the photo of the contact it is joined to.
+- **Merge all into N** (every number, e-mail, address, date, website, relation, SIP address and group;
+  notes joined, a note contained in another left out; the photo of your choice when they differ),
+  **Keep only N**, **Not duplicates** (not offered again), **Delete all**.
+- A vCard backup of the affected contacts goes to `Android/data/shiroikuma.renrakusaki/files/
+  cleanup-backups/` before every change.
+
+### Look
+- Actions are **pills**: a main action has a thick frame and bold text, the rest a thin frame. Dialog
+  buttons follow (Commons `pillDialogButtons`, **UI settings → Buttons**).
+- The contact and edit screens' overflow menus follow the theme instead of the platform's white.
+- UI settings: a solid accent top bar at every scroll position, your data sections first (Export /
+  Import, Private contacts, Maintenance), space between sections, current values in the accent colour.
+
 ## [1.6.0+090] — 2026-09-26
 
 Everything added since `1.6.0+086`, still on **Fossify Contacts 1.6.0**. The Favorites grid becomes

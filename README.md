@@ -6,18 +6,37 @@
 
 **A black-and-yellow, deeply customizable contacts app — your list, your layout, your colors.**
 
-A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, tap-to-dial on the Favorites grid while the car is connected, per-contact default SIM, category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
+A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: private contacts that stay private yet can be made visible to other apps one by one, every Android contact field shown, editable and backed up, a duplicate cleaner, Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, tap-to-dial on the Favorites grid while the car is connected, per-contact default SIM, category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+090`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+114`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
 ---
 
+## 🔒 Private contacts — visible only where you choose
+A private contact lives in this app alone: no other app with contacts access — messengers, the car, keyboards, Google — sees it. **You decide who does.** Your own companion apps (the Phone, Messages and Calendar forks) are on an **allow-list** in the settings, and any other app can be added or removed there.
+
+When a private contact *should* be known elsewhere — so WhatsApp finds them, or the car shows the caller's name — switch it to **visible to other apps**: the app keeps a stripped copy (name, reading, numbers, photo) in the phone's own local account, rewrites it on every save, and removes it again when you switch back. The private record stays the only one you edit, and this app never shows the copy twice.
+
+Every contact photo carries a **badge**: a crossed-out lock for a system contact every app can read, an eye for a private one made visible, none for private only. **Long-press a photo** — or tap the "Visibility" line on the contact screen — to switch between **System / Private / Private + visible**; a move between system and private carries the whole contact across, so nothing asks for confirmation because nothing can be lost.
+
+---
+
+## 🗂️ Every field, kept — and backed up
+Android contacts can hold far more than the Fossify editor ever showed: a **reading for every name part**, **relationships** (spouse, parent, assistant… or your own label), **internet-call (SIP) addresses**, an organization's **department, job description, office, reading and ticker symbol**, a **custom label on any date**, and **send calls straight to voicemail**. All of it is now shown, editable, and part of the contact itself — for private contacts as much as system ones — and everything rarer is kept verbatim and written back. A vCard backup carries every bit of it, so a restore brings the contact back complete.
+
+---
+
+## 🧹 Clean up duplicates
+A double import leaves every contact twice; a SIM card adds a third. **UI settings → Maintenance → Clean up duplicates** removes **exact copies** in one tap (keeping stars and groups), then lays out the entries that share a name but differ **side by side**: what differs is spelled out and highlighted, photos are shown large (tap to view), and you choose — **merge them into one** (every number, e-mail, note and group kept, with a choice of photo), **keep one**, **mark them as different people**, or **delete them all**. A vCard backup is written before every change.
+
+---
+
 ## 🎨 Granular black & yellow theming
-A full Theme & Colors system that defaults to pure black `#000000` + pure yellow `#FFFF00` (not material yellow). Every accent is yours to set: the top bar, the search action icon, the overflow menu, and the contact phone-number color each get their own control. The color pickers gain an **alpha slider**, a **recently-used colors** row, and **per-element font** selection. Even the icons drawn **on top of a contact's photo** — the back arrow, edit, share and delete up top, the favorite/call/SMS row below — are painted in the accent over a **halo in the icon's own shape**, so they never vanish into a solid-yellow placeholder; the halo's color and thickness are yours too. A matching launcher icon — a yellow-traced figure on black — completes the look.
+A full Theme & Colors system that defaults to pure black `#000000` + pure yellow `#FFFF00` (not material yellow). Every accent is yours to set: the top bar, the search action icon, the overflow menu, and the contact phone-number color each get their own control. The color pickers gain an **alpha slider**, a **recently-used colors** row, and **per-element font** selection. Even the icons drawn **on top of a contact's photo** — the back arrow, edit, share and delete up top, the favorite/call/SMS row below — are painted in the accent over a **halo in the icon's own shape**, so they never vanish into a solid-yellow placeholder; the halo's color and thickness are yours too. A matching launcher icon — a yellow-traced figure on black — completes the look. Actions are **pills**: a main action has a thick frame and bold text, the rest a thin one — dialog buttons included.
 
 ---
 
