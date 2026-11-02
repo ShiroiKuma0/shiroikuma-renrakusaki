@@ -318,7 +318,7 @@ object DuplicateCleaner {
     /** The backup directory shown to 白い熊. */
     fun backupDir(context: Context): File? = context.getExternalFilesDir(null)?.let { File(it, "cleanup-backups") }
 
-    private fun backup(context: Context, contacts: List<Contact>, what: String) {
+    fun backup(context: Context, contacts: List<Contact>, what: String) {
         val dir = backupDir(context) ?: return
         dir.mkdirs()
         val stamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.ROOT).format(Date())

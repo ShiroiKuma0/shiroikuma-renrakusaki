@@ -270,6 +270,17 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(PILL_BUTTONS_SEEDED, false)
         set(value) = prefs.edit().putBoolean(PILL_BUTTONS_SEEDED, value).apply()
 
+    // A new contact (editor, vCard import) goes to private storage, whatever account was used last.
+    var newContactsPrivate: Boolean
+        get() = prefs.getBoolean(NEW_CONTACTS_PRIVATE, true)
+        set(value) = prefs.edit().putBoolean(NEW_CONTACTS_PRIVATE, value).apply()
+
+    // On every start: move whatever has appeared in system storage (another app's "add contact", a SIM
+    // card) into private storage. Visible copies are never touched.
+    var autoKeepClean: Boolean
+        get() = prefs.getBoolean(AUTO_KEEP_CLEAN, false)
+        set(value) = prefs.edit().putBoolean(AUTO_KEEP_CLEAN, value).apply()
+
     var mirrorPhoto: Boolean
         get() = prefs.getBoolean(MIRROR_PHOTO, true)
         set(value) = prefs.edit().putBoolean(MIRROR_PHOTO, value).apply()

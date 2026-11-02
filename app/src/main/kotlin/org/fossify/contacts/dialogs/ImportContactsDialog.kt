@@ -22,7 +22,7 @@ class ImportContactsDialog(val activity: SimpleActivity, val path: String, priva
 
     init {
         val binding = DialogImportContactsBinding.inflate(activity.layoutInflater).apply {
-            targetContactSource = activity.config.lastUsedContactSource
+            targetContactSource = if (activity.config.newContactsPrivate) SMT_PRIVATE else activity.config.lastUsedContactSource
             activity.getPublicContactSource(targetContactSource) {
                 importContactsTitle.setText(it)
                 if (it.isEmpty()) {

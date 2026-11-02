@@ -248,6 +248,9 @@ const val SHOW_VISIBILITY_ROW = "show_visibility_row"
 // Duplicate groups 白い熊 marked as different contacts sharing a name (DuplicateCleaner), by name key.
 const val NOT_DUPLICATE_NAMES = "not_duplicate_names"
 const val PILL_BUTTONS_SEEDED = "pill_buttons_seeded"
+// Maintenance: new contacts go to private storage; system contacts found on start move there by themselves.
+const val NEW_CONTACTS_PRIVATE = "new_contacts_private"
+const val AUTO_KEEP_CLEAN = "auto_keep_clean"
 // vCard flag on a private contact that has a visible copy, so an export → import round trip keeps it.
 const val X_SHIROIKUMA_VISIBLE = "X-SHIROIKUMA-VISIBLE"
 

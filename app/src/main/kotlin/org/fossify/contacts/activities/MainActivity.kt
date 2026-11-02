@@ -50,6 +50,7 @@ import org.fossify.contacts.extensions.tryImportContactsFromFile
 import org.fossify.contacts.fragments.ContactsFragment
 import org.fossify.contacts.fragments.FavoritesFragment
 import org.fossify.contacts.fragments.MyViewPagerFragment
+import org.fossify.contacts.helpers.SystemStorage
 import org.fossify.contacts.helpers.ALL_TABS_MASK
 import org.fossify.contacts.helpers.DIALER_TABS_INTENT_EXTRA
 import org.fossify.contacts.helpers.OPEN_TAB_INTENT_EXTRA
@@ -168,8 +169,32 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         }
     }
 
+    // UI settings → Maintenance → Keep the phone clean: whatever appeared in system storage since the last
+    // look moves into private storage, then the list reloads. One run at a time.
+    @Volatile
+    private var keepingClean = false
+
+    private fun keepPhoneCleanIfWanted() {
+        if (!config.autoKeepClean || keepingClean) return
+        keepingClean = true
+        ensureBackgroundThread {
+            try {
+                if (!SystemStorage.status(applicationContext).isClean) {
+                    val (moved, _) = SystemStorage.moveEverythingToPrivate(applicationContext) { _, _ -> }
+                    runOnUiThread {
+                        if (moved > 0) toast(getString(R.string.auto_clean_done, moved))
+                        refreshContacts(ALL_TABS_MASK)
+                    }
+                }
+            } finally {
+                keepingClean = false
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
+        keepPhoneCleanIfWanted()
         if (storedShowPhoneNumbers != config.showPhoneNumbers) {
             System.exit(0)
             return

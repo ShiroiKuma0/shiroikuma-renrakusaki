@@ -63,6 +63,9 @@ import org.fossify.contacts.dialogs.ExportContactsDialog
 import org.fossify.contacts.dialogs.FontPickerDialog
 import org.fossify.contacts.extensions.tryImportContactsFromFile
 import org.fossify.contacts.helpers.SettingsExport
+import org.fossify.commons.views.MyTextView
+import org.fossify.contacts.helpers.DuplicateCleaner
+import org.fossify.contacts.helpers.SystemStorage
 import org.fossify.contacts.helpers.SystemMirror
 import org.fossify.contacts.helpers.VcfExporter
 import org.fossify.contacts.extensions.FontWeightOption
@@ -589,6 +592,87 @@ class ThemeActivity : SimpleActivity() {
         addPills(stepPx, pill(getString(R.string.dup_title), main = true) {
             startActivity(Intent(this, DuplicatesActivity::class.java))
         })
+
+        // What is still outside private storage, checked live.
+        addSubgroupHeader(getString(R.string.system_storage), primaryColor, stepPx)
+        val status = ItemThemeValueBinding.inflate(layoutInflater, binding.themeHolder, false)
+        status.themeValueLabel.text = getString(R.string.system_storage_checking)
+        status.themeValueLabel.setTextColor(getProperTextColor())
+        status.themeValueValue.beGone()
+        status.root.background = null
+        indentRow(status.root, stepPx * 2)
+        binding.themeHolder.addView(status.root)
+        fun refreshStatus() {
+            status.themeValueLabel.text = getString(R.string.system_storage_checking)
+            ensureBackgroundThread {
+                val st = SystemStorage.status(applicationContext)
+                val text = systemStorageText(st)
+                runOnUiThread { status.themeValueLabel.text = text }
+            }
+        }
+        refreshStatus()
+        addPills(stepPx * 2, pill(getString(R.string.system_storage_check)) { refreshStatus() })
+
+        addNote(getString(R.string.all_private_desc), stepPx * 2)
+        addPills(stepPx * 2, pill(getString(R.string.all_private)) { confirmMoveAllToPrivate() })
+
+        addSwitchRow(
+            title = getString(R.string.new_contacts_private),
+            checked = config.newContactsPrivate,
+            indent = stepPx * 2,
+            description = getString(R.string.new_contacts_private_desc),
+        ) { config.newContactsPrivate = it }
+        addSwitchRow(
+            title = getString(R.string.auto_keep_clean),
+            checked = config.autoKeepClean,
+            indent = stepPx * 2,
+            description = getString(R.string.auto_keep_clean_desc),
+        ) { config.autoKeepClean = it }
+    }
+
+    private fun systemStorageText(st: SystemStorage.Status): String {
+        if (st.isClean) return getString(R.string.system_storage_clean)
+        val parts = ArrayList<String>()
+        st.byAccount.forEach { (account, n) -> parts.add("${account.ifEmpty { getString(R.string.phone_storage) }}: $n") }
+        st.simCards.forEach { (sub, n) -> parts.add(getString(R.string.system_storage_sim, sub, n)) }
+        if (st.pendingDeletes > 0) parts.add(getString(R.string.system_storage_pending, st.pendingDeletes))
+        return getString(R.string.system_storage_left, parts.joinToString(" · "))
+    }
+
+    private fun confirmMoveAllToPrivate() {
+        ConfirmationDialog(
+            activity = this,
+            message = getString(R.string.all_private_confirm, DuplicateCleaner.backupDir(this)?.absolutePath.orEmpty()),
+            positive = org.fossify.commons.R.string.yes,
+            negative = org.fossify.commons.R.string.no,
+        ) { runMoveAllToPrivate() }
+    }
+
+    // Counts up while it works; the screen stays on and the dialog cannot be dismissed half-way.
+    private fun runMoveAllToPrivate() {
+        val text = MyTextView(this).apply {
+            text = getString(R.string.all_private_working, 0, 0)
+            setTextColor(getProperTextColor())
+            textSize = 18f
+            val pad = resources.getDimensionPixelSize(org.fossify.commons.R.dimen.activity_margin)
+            setPadding(pad, pad, pad, pad)
+        }
+        var dialog: AlertDialog? = null
+        getAlertDialogBuilder().setCancelable(false).apply {
+            setupDialogStuff(text, this, R.string.all_private, cancelOnTouchOutside = false) { dialog = it }
+        }
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        ensureBackgroundThread {
+            val (moved, failed) = SystemStorage.moveEverythingToPrivate(applicationContext) { done, total ->
+                runOnUiThread { text.text = getString(R.string.all_private_working, done, total) }
+            }
+            runOnUiThread {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                dialog?.dismiss()
+                toast(getString(R.string.all_private_done, moved, failed))
+                buildRows() // the status line counts again
+            }
+        }
     }
 
     // ---- Private contacts: which apps may read them through our provider ----

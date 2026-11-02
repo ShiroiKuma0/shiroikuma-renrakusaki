@@ -259,6 +259,26 @@ sources) with the same display name. 白い熊's phone holds most contacts twice
   one, or “not duplicates” (`Config.notDuplicateNames`). Every change first writes a vCard backup to
   `Android/data/<app>/files/cleanup-backups/`.
 
+### Keeping system storage empty — `helpers/SystemStorage`, `helpers/ContactMover`
+
+白い熊 keeps every contact private (2026-11-03: everything moved, SIM cards emptied). UI settings →
+Maintenance → *System storage*:
+
+- a live status line (raw contacts per account, entries per SIM card, pending deletes; visible copies
+  excluded) with a *Check again* pill;
+- *Move every contact to private* (`SystemStorage.moveEverythingToPrivate`): `ContactMover` moves each
+  system contact (backup first), then `clearSimCards` empties the cards through
+  `content://icc/adn/subId/N` (probing 1–8; no READ_PHONE_STATE) — Huawei only marks a SIM account's
+  deleted entries deleted and never writes that to the card — saving any card entry whose number no
+  private contact has, and `purgeDeleted` removes the delete marks (as a sync adapter);
+- *New contacts are private* (`Config.newContactsPrivate`, default on): editor and vCard import default
+  to private storage;
+- *Keep the phone clean automatically* (`Config.autoKeepClean`, default off): `MainActivity.onResume`
+  runs the full move when the status is not clean.
+
+`ContactMover` is the single implementation of a System ⇄ Private move (also used by
+`ChangeVisibilityDialog`); it hands over the entry's OWN photo, never the aggregate's photo URI.
+
 ## Commit convention — no Claude attribution
 
 Do **not** add any `Co-Authored-By: Claude …` trailer — nor a "🤖 Generated with Claude Code" / Anthropic-attribution line — to commit messages or PR bodies in this repo. 白い熊 does not want Claude attribution in the history; this **overrides** the harness's default to append such a trailer. End commit messages at the last line of the body. (The existing history was scrubbed of these trailers on 2026-06-08; the global rule lives in `~/.claude/CLAUDE.md`.)

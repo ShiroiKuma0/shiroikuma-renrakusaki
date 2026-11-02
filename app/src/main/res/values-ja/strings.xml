@@ -393,4 +393,22 @@
     <string name="dup_delete_all_confirm">「%1$s」の%2$d件すべてを削除しますか？先にバックアップを書き出します。</string>
     <string name="dup_which_photo">統合後の連絡先にどの写真を残しますか？</string>
     <string name="dup_keep_photo_of">%dの写真を残す</string>
+    <string name="all_private">すべての連絡先を非公開へ移動</string>
+    <string name="all_private_desc">端末のアカウントとSIMカードのすべての連絡先を非公開ストレージへ移動します。他のアプリから読める場所には何も残りません。各連絡先はすべての項目ごと移動し、先に全件のvCardバックアップを書き出します。</string>
+    <string name="all_private_confirm">システムの連絡先（端末のアカウントとSIMカード）をすべて非公開ストレージへ移動しますか？他のアプリ・車・SIMカードからは見えなくなります。先に全件のバックアップを次に書き出します：
+%s</string>
+    <string name="all_private_working">移動中… %1$d / %2$d</string>
+    <string name="all_private_done">%1$d件を非公開へ移動しました。失敗：%2$d件</string>
+    <string name="system_storage">システムの保存領域</string>
+    <string name="system_storage_checking">確認中…</string>
+    <string name="system_storage_check">再確認</string>
+    <string name="system_storage_clean">空 — 端末のアカウントにもSIMカードにも何もありません。</string>
+    <string name="system_storage_left">非公開でない連絡先：%s</string>
+    <string name="system_storage_sim">SIMカード%1$d：%2$d件</string>
+    <string name="system_storage_pending">削除済み・未消去%d件</string>
+    <string name="new_contacts_private">新しい連絡先は非公開</string>
+    <string name="new_contacts_private_desc">ここで作成した連絡先やvCardから読み込んだ連絡先は、最後に使ったアカウントに関係なく非公開ストレージに保存されます。編集画面のアカウント選択で他を選ぶこともできます。</string>
+    <string name="auto_keep_clean">自動で端末をきれいに保つ</string>
+    <string name="auto_keep_clean_desc">このアプリを開くたびに、システムの保存領域に現れたもの（他のアプリが追加した連絡先、SIMカードの項目）を、先にバックアップしてから非公開ストレージへ移動します。表示用コピーには触れません。</string>
+    <string name="auto_clean_done">新しいシステムの連絡先%d件を非公開へ移動しました</string>
 </resources>

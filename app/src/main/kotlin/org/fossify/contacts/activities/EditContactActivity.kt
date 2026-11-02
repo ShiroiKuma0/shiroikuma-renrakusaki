@@ -1145,8 +1145,12 @@ class EditContactActivity : ContactActivity() {
     }
 
     private fun setupNewContact() {
-        originalContactSource = if (hasContactPermissions()) config.lastUsedContactSource else SMT_PRIVATE
+        originalContactSource = if (hasContactPermissions() && !config.newContactsPrivate) config.lastUsedContactSource else SMT_PRIVATE
         contact = getEmptyContact()
+        // UI settings → Maintenance → New contacts are private: the account picker still offers the rest.
+        if (config.newContactsPrivate) {
+            contact!!.source = SMT_PRIVATE
+        }
         // Known-empty rather than "not loaded", so a reading typed here counts as a change and is saved.
         originalPhonetic = PhoneticName("", "", "")
         getPublicContactSource(contact!!.source) {

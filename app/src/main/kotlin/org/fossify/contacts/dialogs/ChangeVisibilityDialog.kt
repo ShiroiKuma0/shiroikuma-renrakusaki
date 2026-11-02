@@ -17,6 +17,7 @@ import org.fossify.contacts.R
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.fetchAllContactsBlocking
 import org.fossify.contacts.extensions.getCachePhotoUri
+import org.fossify.contacts.helpers.ContactMover
 import org.fossify.contacts.helpers.SystemMirror
 import org.fossify.contacts.helpers.privateGroupsNamed
 import org.fossify.contacts.helpers.systemGroupsNamed
@@ -110,72 +111,14 @@ class ChangeVisibilityDialog(
         return Result(ok, moved)
     }
 
-    // System → Private (+ visible): every field travels inside the contact (Contact.extra, commons
-    // sk11); groups are mapped by name. Insert into the private DB, then delete the system raw contact.
-    private fun moveToPrivate(member: Contact, visible: Boolean): Result {
-        val full = ContactsHelper(activity).getContactWithId(member.id, false) ?: return Result(false, false)
-        val copy = full.copy(id = 0, source = SMT_PRIVATE, groups = activity.privateGroupsNamed(full.groups))
-        if (!LocalContactsHelper(activity).insertOrUpdateContact(copy)) return Result(false, false)
-        val localId = ContactsHelper.lastInsertedId
-        if (!ContactsHelper(activity).deleteContacts(arrayListOf(full)) || rawExists(full.id)) {
-            // The system entry would not go: undo the private copy rather than leave the contact twice.
-            LocalContactsHelper(activity).deleteContactIds(mutableListOf(localId.toLong()))
-            return Result(false, false)
-        }
-        if (visible) {
-            SystemMirror.setVisible(activity, listOf(localId), true)
-        }
-        return Result(true, moved = true)
-    }
+    // The moves themselves live in helpers/ContactMover, shared with the bulk "move everything to private".
+    private fun moveToPrivate(member: Contact, visible: Boolean): Result =
+        ContactMover.toPrivate(activity, member, visible).let { Result(it.ok, it.moved) }
 
-    // Private (+ visible) → System: drop the copy, insert a full system contact into the account the
-    // copies use (groups mapped by name, created there if missing), then delete the private record. The
-    // photo is handed over through a fresh cache file, because a private contact's photoUri is often a
-    // cache file that no longer exists.
-    private fun moveToSystem(member: Contact): Result {
-        val full = LocalContactsHelper(activity).getContactWithId(member.id) ?: return Result(false, false)
-        SystemMirror.setVisible(activity, listOf(full.id), false)
-        val (accountName, accountType) = SystemMirror.targetAccount(activity)
-        val copy = full.copy(
-            id = 0,
-            source = accountName.orEmpty(),
-            groups = activity.systemGroupsNamed(full.groups, accountName, accountType),
-            photoUri = freshPhotoUri(full),
-        )
-        if (!ContactsHelper(activity).insertContact(copy)) return Result(false, false)
-        LocalContactsHelper(activity).deleteContactIds(mutableListOf(full.id.toLong()))
-        return Result(true, moved = true)
-    }
-
-    private fun rawExists(rawId: Int): Boolean = try {
-        activity.contentResolver.query(
-            android.provider.ContactsContract.RawContacts.CONTENT_URI, arrayOf(android.provider.ContactsContract.RawContacts._ID),
-            "${android.provider.ContactsContract.RawContacts._ID} = ? AND ${android.provider.ContactsContract.RawContacts.DELETED} = 0",
-            arrayOf(rawId.toString()), null
-        )?.use { it.count > 0 } ?: false
-    } catch (e: Exception) {
-        false
-    }
-
-    private fun freshPhotoUri(contact: Contact): String {
-        val bitmap = contact.photo ?: try {
-            contact.photoUri.takeIf { it.isNotEmpty() }?.let { uri ->
-                activity.contentResolver.openInputStream(android.net.Uri.parse(uri))?.use { BitmapFactory.decodeStream(it) }
-            }
-        } catch (e: Exception) {
-            null
-        } ?: return ""
-        return try {
-            val file = activity.getCachePhoto()
-            FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, it) }
-            activity.getCachePhotoUri(file).toString()
-        } catch (e: Exception) {
-            ""
-        }
-    }
+    private fun moveToSystem(member: Contact): Result =
+        ContactMover.toSystem(activity, member).let { Result(it.ok, it.moved) }
 
     companion object {
-        private const val PHOTO_JPEG_QUALITY = 95
 
         /** The state of one entry. Blocking — reads the copies. */
         fun stateOf(activity: Activity, contact: Contact): State = when {

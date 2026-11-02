@@ -429,4 +429,22 @@
     <string name="dup_delete_all_confirm">Delete all %2$d entries of “%1$s”? A backup is written first.</string>
     <string name="dup_which_photo">Which photo should the merged contact keep?</string>
     <string name="dup_keep_photo_of">Keep the photo of %d</string>
+    <string name="all_private">Move every contact to private</string>
+    <string name="all_private_desc">Every contact in the phone’s account and on the SIM cards moves into private storage — nothing stays where other apps can read it. Each moves complete; a vCard backup of all of them is written first.</string>
+    <string name="all_private_confirm">Move every system contact — phone account and SIM cards — into private storage? Other apps, the car and the SIM cards will no longer have them. A backup of all of them is written first to:
+%s</string>
+    <string name="all_private_working">Moving… %1$d / %2$d</string>
+    <string name="all_private_done">Moved %1$d contacts to private; %2$d failed</string>
+    <string name="system_storage">System storage</string>
+    <string name="system_storage_checking">Checking…</string>
+    <string name="system_storage_check">Check again</string>
+    <string name="system_storage_clean">Clean — nothing in the phone’s accounts or on the SIM cards.</string>
+    <string name="system_storage_left">Still outside private storage: %s</string>
+    <string name="system_storage_sim">SIM card %1$d: %2$d</string>
+    <string name="system_storage_pending">%d deleted, not yet purged</string>
+    <string name="new_contacts_private">New contacts are private</string>
+    <string name="new_contacts_private_desc">A contact you create here, or import from a vCard, goes to private storage — whatever account was used last. The editor’s account picker still lets you choose another one.</string>
+    <string name="auto_keep_clean">Keep the phone clean automatically</string>
+    <string name="auto_keep_clean_desc">Each time this app opens, anything that has appeared in system storage — a contact another app added, a SIM card’s entries — moves into private storage, backed up first. Visible copies are never touched.</string>
+    <string name="auto_clean_done">Moved %d new system contacts to private</string>
 </resources>
