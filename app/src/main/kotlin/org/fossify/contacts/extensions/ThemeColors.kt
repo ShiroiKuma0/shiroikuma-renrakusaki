@@ -110,6 +110,21 @@ enum class ThemeSlot(
         subgroupLabelRes = R.string.theme_group_groups,
     ),
 
+    // Visibility badge on a contact photo (crossed-out lock = system contact, eye = private but visible to
+    // other apps; private-only has none). Shared by all contact lists.
+    BADGE_SYSTEM(
+        "theme_badge_system", ThemeGroup.LISTS, R.string.theme_badge_system,
+        subgroupLabelRes = R.string.theme_group_visibility_badges,
+    ),
+    BADGE_VISIBLE(
+        "theme_badge_visible", ThemeGroup.LISTS, R.string.theme_badge_visible,
+        subgroupLabelRes = R.string.theme_group_visibility_badges,
+    ),
+    BADGE_OUTLINE(
+        "theme_badge_outline", ThemeGroup.LISTS, R.string.theme_badge_outline,
+        subgroupLabelRes = R.string.theme_group_visibility_badges,
+    ),
+
     // Contacts'-list row fields — one styling slot per RowField (font / weight / size / color), shared by
     // all three contact lists. Rendered specially in ThemeActivity (only enabled fields show a control).
     ROW_DISPLAY_NAME("row_display_name", ThemeGroup.ROWS, R.string.field_display_name, hasFont = true),
@@ -219,6 +234,9 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.GROUP_NAME -> themeColor(ThemeSlot.TEXT)
     ThemeSlot.GROUP_FASTSCROLLER -> themeColor(ThemeSlot.PRIMARY)
 
+    ThemeSlot.BADGE_SYSTEM, ThemeSlot.BADGE_VISIBLE -> themeColor(ThemeSlot.PRIMARY)
+    ThemeSlot.BADGE_OUTLINE -> themeColor(ThemeSlot.BACKGROUND)
+
     // Contacts'-list row fields: name-like fields read as primary text, the rest as muted secondary text.
     ThemeSlot.ROW_DISPLAY_NAME, ThemeSlot.ROW_SURNAME_FIRST, ThemeSlot.ROW_FIRST_SURNAME,
     ThemeSlot.ROW_FIRST_SURNAME_CAPS, ThemeSlot.ROW_SURNAME_CAPS_FIRST, ThemeSlot.ROW_PREFIX,
@@ -296,6 +314,11 @@ private const val DIALOG_FRAME_WIDTH_DP = 3
 fun Context.seedDialogFrame() {
     config.dialogBorderColor = PALETTE_YELLOW
     config.dialogBorderWidth = DIALOG_FRAME_WIDTH_DP
+    // Dialog buttons as pills (commons sk12), switched on once; the switch in UI settings → Buttons wins after.
+    if (!config.pillButtonsSeeded) {
+        config.pillDialogButtons = true
+        config.pillButtonsSeeded = true
+    }
 }
 
 // The material yellow the palette used before PALETTE_YELLOW became pure yellow (#FFFF00).

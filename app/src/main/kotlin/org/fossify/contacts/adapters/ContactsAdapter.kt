@@ -46,8 +46,10 @@ import org.fossify.commons.models.RadioItem
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.commons.views.MyRecyclerView
 import org.fossify.contacts.R
+import org.fossify.contacts.extensions.getOwnContacts
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.activities.ViewContactActivity
+import org.fossify.contacts.dialogs.ChangeVisibilityDialog
 import org.fossify.contacts.dialogs.CreateNewGroupDialog
 import org.fossify.contacts.dialogs.SetDefaultSimDialog
 import org.fossify.contacts.extensions.ThemeSlot
@@ -72,6 +74,8 @@ import java.util.Locale
 // How long the tile stays visibly held after a tap that placed a call.
 private const val DIAL_FEEDBACK_MS = 150L
 
+// The visibility badge's diameter, as a fraction of the contact photo's.
+private const val VISIBILITY_BADGE_FRACTION = 0.4f
 class ContactsAdapter(
     activity: SimpleActivity,
     var contactItems: MutableList<Contact>,
@@ -150,6 +154,10 @@ class ContactsAdapter(
                 isOreoPlus() && isOneItemSelected() && (location == LOCATION_FAVORITES_TAB || location == LOCATION_CONTACTS_TAB)
             // CAB only opens where long-press is enabled (never in INSERT_OR_EDIT), so one-selected suffices.
             findItem(R.id.cab_set_default_sim).isVisible = isOneItemSelected()
+            // "Visible to other apps" in bulk — only meaningful for private contacts (helpers/SystemMirror).
+            val anyPrivate = getSelectedItems().any { it.isPrivate() }
+            findItem(R.id.cab_make_visible).isVisible = anyPrivate
+            findItem(R.id.cab_make_private_only).isVisible = anyPrivate
 
             if (location == LOCATION_GROUP_CONTACTS) {
                 findItem(R.id.cab_remove).title = activity.getString(R.string.remove_from_group)
@@ -176,6 +184,8 @@ class ContactsAdapter(
             R.id.cab_send_email_to_contacts -> sendEmailToContacts()
             R.id.cab_create_shortcut -> createShortcut()
             R.id.cab_set_default_sim -> setDefaultSim()
+            R.id.cab_make_visible -> setVisibleToOtherApps(true)
+            R.id.cab_make_private_only -> setVisibleToOtherApps(false)
             R.id.cab_remove -> removeContacts()
             R.id.cab_delete -> askConfirmDelete()
         }
@@ -244,7 +254,13 @@ class ContactsAdapter(
 
     private fun getItemWithKey(key: Int): Contact? = contactItems.firstOrNull { it.id == key }
 
+    // The visible-copy set the badges were last drawn from. A Private ⇄ Visible switch changes no field of
+    // any contact, so the contacts' hash alone would skip the redraw and leave a stale eye badge.
+    private var boundMirroredIds: Set<Int> = SystemMirror.cachedMirroredIds
+
     fun updateItems(newItems: List<Contact>, highlightText: String = "") {
+        val badgesChanged = SystemMirror.cachedMirroredIds != boundMirroredIds
+        boundMirroredIds = SystemMirror.cachedMirroredIds
         if (newItems.hashCode() != contactItems.hashCode()) {
             contactItems = newItems.toMutableList()
             textToHighlight = highlightText
@@ -254,6 +270,8 @@ class ContactsAdapter(
         } else if (textToHighlight != highlightText) {
             textToHighlight = highlightText
             rebuildDisplayList()
+            notifyDataSetChanged()
+        } else if (badgesChanged) {
             notifyDataSetChanged()
         }
     }
@@ -449,7 +467,7 @@ class ContactsAdapter(
         val positions = getSelectedItemPositions()
         contactItems.removeAll(contactsToRemove)
 
-        ContactsHelper(activity).getContacts(true) { allContacts ->
+        activity.getOwnContacts(true) { allContacts ->
             ensureBackgroundThread {
                 ContactsHelper(activity).deleteContacts(contactsToRemove
                     .flatMap { contactToRemove -> allContacts.filter {
@@ -700,6 +718,23 @@ class ContactsAdapter(
         }
     }
 
+    private fun setVisibleToOtherApps(visible: Boolean) {
+        val ids = getSelectedItems().filter { it.isPrivate() }.map { it.id }
+        val context = activity.applicationContext
+        ensureBackgroundThread {
+            val changed = SystemMirror.setVisible(context, ids, visible)
+            activity.runOnUiThread {
+                activity.toast(
+                    activity.resources.getQuantityString(
+                        if (visible) R.plurals.contacts_now_visible else R.plurals.contacts_now_private_only, changed, changed
+                    )
+                )
+                finishActMode()
+                notifyDataSetChanged()
+            }
+        }
+    }
+
     // Overlay a small SIM badge on the contact photo: SIM 1 red (bottom-start), SIM 2 blue (bottom-end),
     // number in yellow. Rebuilt each bind so recycled rows never show a stale badge.
     private fun setupSimBadge(view: View, contact: Contact) {
@@ -727,6 +762,35 @@ class ContactsAdapter(
             } else {
                 endToEnd = org.fossify.commons.R.id.item_contact_image
             }
+        }
+        frame.addView(badge)
+    }
+
+    // Who can see this contact, on the photo's top-end corner: crossed-out lock = system contact (every app),
+    // eye = private with a system copy (SystemMirror), nothing = private only. Rebuilt on every bind.
+    private fun setupVisibilityBadge(view: View, contact: Contact) {
+        val frame = view.findViewById<ConstraintLayout>(org.fossify.commons.R.id.item_contact_frame) ?: return
+        frame.findViewById<View>(R.id.visibility_badge)?.let { frame.removeView(it) }
+
+        if (!showContactThumbnails || !config.showVisibilityBadges) {
+            return
+        }
+        val (icon, slot) = when {
+            !contact.isPrivate() -> R.drawable.ic_lock_crossed_badge_vector to ThemeSlot.BADGE_SYSTEM
+            contact.id in SystemMirror.cachedMirroredIds -> R.drawable.ic_eye_badge_vector to ThemeSlot.BADGE_VISIBLE
+            else -> return
+        }
+
+        val badge = LayoutInflater.from(activity).inflate(R.layout.visibility_badge, frame, false) as ImageView
+        badge.setImageResource(icon)
+        badge.applyColorFilter(activity.themeColor(slot))
+        badge.background?.mutate()?.setTint(activity.themeColor(ThemeSlot.BADGE_OUTLINE))
+        val image = view.findViewById<View>(org.fossify.commons.R.id.item_contact_image)
+        val imageSize = image?.layoutParams?.width?.takeIf { it > 0 } ?: thumbnailSizePx
+        val size = (imageSize * VISIBILITY_BADGE_FRACTION).toInt()
+        badge.layoutParams = ConstraintLayout.LayoutParams(size, size).apply {
+            topToTop = org.fossify.commons.R.id.item_contact_image
+            endToEnd = org.fossify.commons.R.id.item_contact_image
         }
         frame.addView(badge)
     }
@@ -769,7 +833,13 @@ class ContactsAdapter(
                         }
                     }
                     setOnLongClickListener {
-                        holder.viewLongClicked()
+                        // Long-press on the photo: who can see this contact (System / Private / Private +
+                        // visible). Every row has a photo, badge or not, so the gesture is the same for all.
+                        if (config.longPressPhotoVisibility && !actModeCallback.isSelectable) {
+                            ChangeVisibilityDialog(activity, contact) { refreshListener?.refreshContacts(ALL_TABS_MASK) }
+                        } else {
+                            holder.viewLongClicked()
+                        }
                         true
                     }
                 }
@@ -797,6 +867,7 @@ class ContactsAdapter(
             }
 
             setupSimBadge(this, contact)
+            setupVisibilityBadge(this, contact)
 
             val dragIcon = findViewById<ImageView>(org.fossify.commons.R.id.drag_handle_icon)
             if (enableDrag && textToHighlight.isEmpty()) {

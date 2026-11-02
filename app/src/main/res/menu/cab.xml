@@ -48,6 +48,16 @@
         android:title="@string/set_default_sim"
         app:showAsAction="always" />
     <item
+        android:id="@+id/cab_make_visible"
+        android:showAsAction="never"
+        android:title="@string/make_visible_to_other_apps"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/cab_make_private_only"
+        android:showAsAction="never"
+        android:title="@string/make_private_only"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/cab_select_all"
         android:icon="@drawable/ic_select_all_vector"
         android:title="@string/select_all"

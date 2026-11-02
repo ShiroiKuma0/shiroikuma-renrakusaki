@@ -16,7 +16,13 @@ class MyContactsContentProvider : ContentProvider() {
     override fun insert(uri: Uri, contentValues: ContentValues?) = null
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
-        if (context == null) {
+        val ctx = context ?: return null
+
+        // The gate: only apps 白い熊 has allowed (UI settings → Private contacts) read anything here —
+        // contacts and SIM slot alike. callingPackage is vouched for by the framework against the
+        // binder uid, so it cannot be spoofed by the caller.
+        val caller = callingPackage
+        if (caller != ctx.packageName && !ctx.config.isPrivateDataAppAllowed(caller)) {
             return null
         }
 

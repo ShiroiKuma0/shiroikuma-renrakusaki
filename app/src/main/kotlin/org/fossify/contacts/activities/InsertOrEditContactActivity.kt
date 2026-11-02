@@ -14,6 +14,7 @@ import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.*
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.contacts.R
+import org.fossify.contacts.extensions.getOwnContacts
 import org.fossify.contacts.adapters.ViewPagerAdapter
 import org.fossify.contacts.databinding.ActivityInsertEditContactBinding
 import org.fossify.contacts.dialogs.ChangeSortingDialog
@@ -241,9 +242,9 @@ class InsertOrEditContactActivity : SimpleActivity(), RefreshContactsListener {
             binding.viewPager.adapter = ViewPagerAdapter(this, contactsFavoritesList, getTabsMask())
         }
 
-        ContactsHelper(this).getContacts {
+        this.getOwnContacts {
             if (isDestroyed || isFinishing) {
-                return@getContacts
+                return@getOwnContacts
             }
 
             val contacts = it.filter {

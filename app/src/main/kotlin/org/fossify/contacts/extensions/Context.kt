@@ -21,6 +21,7 @@ import org.fossify.contacts.BuildConfig
 import org.fossify.contacts.R
 import org.fossify.contacts.helpers.AUTOMATIC_BACKUP_REQUEST_CODE
 import org.fossify.contacts.helpers.Config
+import org.fossify.contacts.helpers.SystemMirror
 import org.fossify.contacts.helpers.VcfExporter
 import org.fossify.contacts.helpers.getNextAutoBackupTime
 import org.fossify.contacts.helpers.getPreviousAutoBackupTime
@@ -37,6 +38,29 @@ val Context.config: Config get() = Config.newInstance(applicationContext)
 fun Context.getCachePhotoUri(file: File = getCachePhoto()) = FileProvider.getUriForFile(this, "${BuildConfig.APPLICATION_ID}.provider", file)
 
 @SuppressLint("UseCompatLoadingForDrawables")
+/**
+ * commons' ContactsHelper.getContacts, minus our own "visible to other apps" copies of private contacts
+ * (helpers/SystemMirror) — every list this app shows or exports loads through here, so a visible private
+ * contact never appears twice. Same parameters, same main-thread callback.
+ */
+fun Context.getOwnContacts(
+    getAll: Boolean = false,
+    gettingDuplicates: Boolean = false,
+    ignoredContactSources: HashSet<String> = HashSet(),
+    showOnlyContactsWithNumbers: Boolean = baseConfig.showOnlyContactsWithNumbers,
+    callback: (ArrayList<Contact>) -> Unit,
+) {
+    ContactsHelper(this).getContacts(getAll, gettingDuplicates, ignoredContactSources, showOnlyContactsWithNumbers) { contacts ->
+        ensureBackgroundThread {
+            val filtered = SystemMirror.withoutMirrors(this, contacts)
+            // A copy whose private original was deleted (from anywhere: this list, the contact screen, a
+            // move to another source) is removed here — the one place every load passes through.
+            SystemMirror.removeOrphans(this)
+            android.os.Handler(android.os.Looper.getMainLooper()).post { callback(filtered) }
+        }
+    }
+}
+
 fun Context.getPackageDrawable(packageName: String): Drawable {
     return resources.getDrawable(
         when (packageName) {
@@ -91,13 +115,13 @@ fun Context.backupContacts() {
         // Not commons' getContactsToExport(): it inherits the showOnlyContactsWithNumbers display
         // filter, which would drop every number-less contact from the backup. The source filter it
         // applies is the one line below.
-        ContactsHelper(this).getContacts(getAll = true, showOnlyContactsWithNumbers = false) { allContacts ->
+        this.getOwnContacts(getAll = true, showOnlyContactsWithNumbers = false) { allContacts ->
             val contactsToBackup = allContacts.filter { it.source in config.autoBackupContactSources }
             if (contactsToBackup.isEmpty()) {
                 toast(org.fossify.commons.R.string.no_entries_for_exporting)
                 config.lastAutoBackupTime = DateTime.now().millis
                 scheduleNextAutomaticBackup()
-                return@getContacts
+                return@getOwnContacts
             }
 
 
@@ -142,7 +166,7 @@ fun Context.backupContacts() {
             } catch (e: Exception) {
                 showErrorToast(e)
                 scheduleNextAutomaticBackup()
-                return@getContacts
+                return@getOwnContacts
             }
 
             VcfExporter().exportContacts(
@@ -215,7 +239,7 @@ private fun Context.writeContactsBackup(rawPath: String): String {
 internal fun Context.fetchAllContactsBlocking(): ArrayList<Contact> {
     val latch = CountDownLatch(1)
     var result = ArrayList<Contact>()
-    ContactsHelper(this).getContacts(getAll = true, showOnlyContactsWithNumbers = false) {
+    this.getOwnContacts(getAll = true, showOnlyContactsWithNumbers = false) {
         result = it
         latch.countDown()
     }

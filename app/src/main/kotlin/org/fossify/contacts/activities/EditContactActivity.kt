@@ -109,6 +109,8 @@ import org.fossify.commons.models.contacts.IM
 import org.fossify.commons.models.contacts.Organization
 import org.fossify.commons.views.MyAutoCompleteTextView
 import org.fossify.contacts.R
+import org.fossify.contacts.extensions.colorItemTitles
+import org.fossify.contacts.extensions.getOwnContacts
 import org.fossify.contacts.adapters.AutoCompleteTextViewAdapter
 import org.fossify.contacts.databinding.ActivityEditContactBinding
 import org.fossify.contacts.databinding.ItemEditAddressBinding
@@ -131,6 +133,10 @@ import org.fossify.contacts.extensions.photoOverlayIcon
 import org.fossify.contacts.extensions.promptForCallNumbers
 import org.fossify.contacts.extensions.showContactSourcePicker
 import org.fossify.contacts.extensions.themeColor
+import org.fossify.contacts.helpers.MoreFieldsEditor
+import org.fossify.contacts.helpers.privateGroupsNamed
+import org.fossify.contacts.helpers.systemGroupsNamed
+import org.fossify.contacts.helpers.SystemMirror
 import org.fossify.contacts.helpers.ADD_NEW_CONTACT_NUMBER
 import org.fossify.contacts.helpers.IS_FROM_SIMPLE_CONTACTS
 import org.fossify.contacts.helpers.KEY_EMAIL
@@ -412,6 +418,8 @@ class EditContactActivity : ContactActivity() {
             findItem(R.id.share).isVisible = contact?.id != 0
             findItem(R.id.open_with).isVisible = contact?.id != 0 && contact?.isPrivate() == false
         }
+        // The overflow popup draws its titles in the platform's white otherwise.
+        binding.contactToolbar.menu.colorItemTitles(themeColor(ThemeSlot.SEARCH_MENU_TEXT))
 
         // Fork: the icons drawn over the photo get their own color plus a halo (the favorite star is
         // haloed in getStarDrawable, since it is re-set on every toggle).
@@ -642,8 +650,8 @@ class EditContactActivity : ContactActivity() {
 
     // Fork: a reading (フリガナ) field under each name field, one per provider phonetic column, the way
     // every Japanese contacts editor has them. Each follows its own name field, so the reveal pill
-    // brings a hidden name field back with its reading attached. All three need a contact the provider
-    // can hold phonetic columns for: a private contact lives in the local DB, which has none.
+    // brings a hidden name field back with its reading attached. A private contact keeps its reading in
+    // Contact.extra (commons sk11), like everything else the local DB had no column for.
     // The sort-by override needs a saved contact to key itself on.
     private fun updateReadingVisibility() {
         val showFields = fieldsToShow()
@@ -654,8 +662,9 @@ class EditContactActivity : ContactActivity() {
         binding.contactSortBy.beVisibleIf(canHoldReading() && (contact?.id ?: 0) != 0)
     }
 
-    // Whether this contact can carry a reading at all — only a provider contact has phonetic columns.
-    private fun canHoldReading() = contact?.isPrivate() == false
+    // Every contact carries a reading: a provider contact in its phonetic columns, a private one in
+    // Contact.extra.
+    private fun canHoldReading() = contact != null
 
     // The three fields as the provider's three columns. One field per column, so nothing is split and
     // nothing is guessed — which is the whole point of having three of them.
@@ -692,6 +701,7 @@ class EditContactActivity : ContactActivity() {
         setupNotes()
         setupOrganization()
         setupWebsites()
+        setupMoreFields()
         setupEvents()
         setupGroups()
         setupContactSource()
@@ -702,8 +712,7 @@ class EditContactActivity : ContactActivity() {
     // row to read from — its fields start empty and are written right after the insert.
     private fun setupReadingAndSortBy() {
         updateReadingVisibility()
-        val isExistingProviderContact = contact!!.id != 0 && !contact!!.isPrivate()
-        if (!isExistingProviderContact) {
+        if (contact!!.id == 0) {
             return
         }
 
@@ -740,7 +749,12 @@ class EditContactActivity : ContactActivity() {
     // Failure and "nothing stored" both land on an empty reading: the fields start blank either way,
     // and a reading typed into them still saves.
     private fun loadReading(rawId: Int) {
-        originalPhonetic = loadPhoneticName(rawId) ?: PhoneticName("", "", "")
+        val extra = contact?.extra
+        originalPhonetic = if (extra != null && (extra.hasPhonetic() || contact?.isPrivate() == true)) {
+            PhoneticName(extra.phoneticFamily, extra.phoneticMiddle, extra.phoneticGiven)
+        } else {
+            loadPhoneticName(rawId) ?: PhoneticName("", "", "")
+        }
     }
 
     private fun sortFieldLabel(value: Int) = when (value) {
@@ -776,6 +790,9 @@ class EditContactActivity : ContactActivity() {
         val phonetic = pendingPhonetic ?: return
         if (originalPhonetic == null || phonetic == originalPhonetic) {
             return
+        }
+        if (contact!!.isPrivate()) {
+            return // stored with the contact itself (Contact.extra)
         }
 
         val values = ContentValues().apply {
@@ -1007,6 +1024,19 @@ class EditContactActivity : ContactActivity() {
         binding.contactOrganizationJobPosition.setText(contact!!.organization.jobPosition)
     }
 
+    // Fork (sk11): organization details, relationships, internet-call addresses, send to voicemail.
+    private var moreFields: MoreFieldsEditor? = null
+
+    private fun setupMoreFields() {
+        // A system contact opened by a route that skipped its extras (a lookup-key intent…): read them now,
+        // so what is shown — and saved — is the whole contact.
+        val shown = contact!!
+        if (!shown.isPrivate() && shown.id != 0 && !shown.extra.loaded) {
+            shown.extra = org.fossify.commons.helpers.ContactExtraIO.read(this, shown.id)
+        }
+        moreFields = MoreFieldsEditor(this, binding.contactMoreHolder).also { it.bind(contact!!.extra) }
+    }
+
     private fun setupWebsites() {
         contact!!.websites.forEachIndexed { index, website ->
             val websitesHolderView = binding.contactWebsitesHolder.getChildAt(index)
@@ -1040,7 +1070,7 @@ class EditContactActivity : ContactActivity() {
                     alpha = 1f
                 }
 
-                setupEventTypePicker(this, event.type)
+                setupEventTypePicker(this, event.type, event.label)
 
                 contactEventRemove.apply {
                     beVisible()
@@ -1213,9 +1243,10 @@ class EditContactActivity : ContactActivity() {
         }
     }
 
-    private fun setupEventTypePicker(eventHolder: ItemEventBinding, type: Int = DEFAULT_EVENT_TYPE) {
+    private fun setupEventTypePicker(eventHolder: ItemEventBinding, type: Int = DEFAULT_EVENT_TYPE, label: String = "") {
         eventHolder.contactEventType.apply {
-            setText(getEventTextId(type))
+            // A custom-type event shows its own label (commons sk11 carries it).
+            if (type == CommonDataKinds.Event.TYPE_CUSTOM && label.isNotEmpty()) text = label else setText(getEventTextId(type))
             setOnClickListener {
                 showEventTypePicker(it as TextView)
             }
@@ -1360,12 +1391,17 @@ class EditContactActivity : ContactActivity() {
         val items = arrayListOf(
             RadioItem(CommonDataKinds.Event.TYPE_ANNIVERSARY, getString(org.fossify.commons.R.string.anniversary)),
             RadioItem(CommonDataKinds.Event.TYPE_BIRTHDAY, getString(org.fossify.commons.R.string.birthday)),
-            RadioItem(CommonDataKinds.Event.TYPE_OTHER, getString(org.fossify.commons.R.string.other))
+            RadioItem(CommonDataKinds.Event.TYPE_OTHER, getString(org.fossify.commons.R.string.other)),
+            RadioItem(CommonDataKinds.Event.TYPE_CUSTOM, getString(org.fossify.commons.R.string.custom))
         )
 
         val currentEventTypeId = getEventTypeId(eventTypeField.value)
         RadioGroupDialog(this, items, currentEventTypeId) {
-            eventTypeField.setText(getEventTextId(it as Int))
+            if (it as Int == CommonDataKinds.Event.TYPE_CUSTOM) {
+                CustomLabelDialog(this) { label -> eventTypeField.text = label }
+            } else {
+                eventTypeField.setText(getEventTextId(it))
+            }
         }
     }
 
@@ -1463,6 +1499,17 @@ class EditContactActivity : ContactActivity() {
         val company = binding.contactOrganizationCompany.value
         val jobPosition = binding.contactOrganizationJobPosition.value
         newContact.organization = Organization(company, jobPosition)
+        // Everything beyond Fossify's fields travels in extra (commons sk11): what is on screen, plus the
+        // verbatim rows carried untouched.
+        newContact.extra = contact!!.extra.copy().also { extra ->
+            moreFields?.collectInto(extra)
+            if (canHoldReading()) {
+                val phonetic = phoneticFromFields()
+                extra.phoneticFamily = phonetic.family
+                extra.phoneticMiddle = phonetic.middle
+                extra.phoneticGiven = phonetic.given
+            }
+        }
         return newContact
     }
 
@@ -1581,7 +1628,8 @@ class EditContactActivity : ContactActivity() {
             val eventType = getEventTypeId(eventHolder.contactEventType.value)
 
             if (event.isNotEmpty() && event != unknown) {
-                events.add(Event(eventHolder.contactEvent.tag.toString(), eventType))
+                val label = if (eventType == CommonDataKinds.Event.TYPE_CUSTOM) eventHolder.contactEventType.value else ""
+                events.add(Event(eventHolder.contactEvent.tag.toString(), eventType, label))
             }
         }
         return events
@@ -1606,7 +1654,12 @@ class EditContactActivity : ContactActivity() {
             toast(R.string.inserting)
         }
 
+        // Moving between System and Private (the account picker): carry everything the target store
+        // cannot hold by itself, and the group memberships by name — the same as the visibility menu.
+        val carry = if (deleteCurrentContact) prepareStoreChange() else null
+
         if (ContactsHelper(this@EditContactActivity).insertContact(contact!!)) {
+            carry?.invoke()
             saveReadingOnNewContact()
             if (deleteCurrentContact) {
                 contact!!.source = originalContactSource
@@ -1623,14 +1676,39 @@ class EditContactActivity : ContactActivity() {
         }
     }
 
+    /**
+     * Before an insert that moves the contact between System and Private: map its groups onto the target
+     * store by name, and drop a private contact's visible copy. Every field travels inside the contact
+     * itself (Contact.extra, commons sk11). Answers null; kept as a hook for the step after the insert.
+     * Runs on the save background thread.
+     */
+    private fun prepareStoreChange(): (() -> Unit)? {
+        val moving = contact ?: return null
+        val fromPrivate = originalContactSource == SMT_PRIVATE
+        val toPrivate = moving.isPrivate()
+        if (fromPrivate == toPrivate) return null
+        val appContext = applicationContext
+        if (toPrivate) {
+            moving.groups = appContext.privateGroupsNamed(moving.groups)
+        } else {
+            SystemMirror.setVisible(appContext, listOf(moving.id), false)
+            val accountType = ContactsHelper(appContext).getDeviceContactSources().firstOrNull { it.name == moving.source }?.type
+            moving.groups = appContext.systemGroupsNamed(moving.groups, moving.source, accountType)
+        }
+        return null
+    }
+
     // The reading of a contact that has just been inserted. commons' insertContact() answers with a
     // Boolean rather than the new raw id, so the phonetic columns are written the way an import writes
     // them: onto the newest StructuredName row, name-checked first. This also covers a contact moved to
     // another source (an insert plus a delete), whose reading would otherwise stay on the deleted row.
     private fun saveReadingOnNewContact() {
         val phonetic = pendingPhonetic ?: return
-        if (phonetic.isEmpty || contact!!.isPrivate()) {
+        if (phonetic.isEmpty) {
             return
+        }
+        if (contact!!.isPrivate()) {
+            return // stored with the contact itself (Contact.extra)
         }
 
         writePhoneticNameOnLatestContact(contact!!, phonetic)
@@ -1685,6 +1763,12 @@ class EditContactActivity : ContactActivity() {
         isSaving = true
         if (ContactsHelper(this@EditContactActivity).updateContact(contact!!, photoUpdateStatus)) {
             savePhoneticReading()
+            // A private contact that is visible to other apps: rewrite its system copy from what was
+            // just saved (helpers/SystemMirror). Off the main thread; it outlives this screen.
+            if (contact!!.isPrivate()) {
+                val localId = contact!!.id
+                ensureBackgroundThread { SystemMirror.refreshIfMirrored(applicationContext, localId) }
+            }
             val status = getPrimaryNumberStatus(primaryState.first, primaryState.second)
             if (status != PrimaryNumberStatus.UNCHANGED) {
                 updateDefaultNumberForDuplicateContacts(primaryState, status) {
@@ -2007,7 +2091,9 @@ class EditContactActivity : ContactActivity() {
     private fun getEventTypeId(value: String) = when (value) {
         getString(org.fossify.commons.R.string.anniversary) -> CommonDataKinds.Event.TYPE_ANNIVERSARY
         getString(org.fossify.commons.R.string.birthday) -> CommonDataKinds.Event.TYPE_BIRTHDAY
-        else -> CommonDataKinds.Event.TYPE_OTHER
+        getString(org.fossify.commons.R.string.other) -> CommonDataKinds.Event.TYPE_OTHER
+        // Anything else is a custom label typed by 白い熊 (or carried in from the provider).
+        else -> CommonDataKinds.Event.TYPE_CUSTOM
     }
 
     private fun getAddressTypeId(value: String) = when (value) {
@@ -2030,7 +2116,7 @@ class EditContactActivity : ContactActivity() {
     }
 
     private fun setupAutoComplete(nameTextViews: List<MyAutoCompleteTextView>) {
-        ContactsHelper(this).getContacts { contacts ->
+        this.getOwnContacts { contacts ->
             val adapter = AutoCompleteTextViewAdapter(this, contacts)
             val handler = Handler(mainLooper)
             nameTextViews.forEach { view ->

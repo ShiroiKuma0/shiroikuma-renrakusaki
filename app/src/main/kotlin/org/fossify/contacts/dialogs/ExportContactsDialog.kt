@@ -8,6 +8,7 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.commons.models.contacts.ContactSource
 import org.fossify.contacts.R
+import org.fossify.contacts.extensions.getOwnContacts
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.adapters.FilterContactSourcesAdapter
 import org.fossify.contacts.databinding.DialogExportContactsBinding
@@ -49,7 +50,7 @@ class ExportContactsDialog(
             }
 
             // Counted the way they are exported — see the same flag in ThemeActivity.exportContactsTo.
-            ContactsHelper(activity).getContacts(getAll = true, showOnlyContactsWithNumbers = false) { contacts ->
+            activity.getOwnContacts(getAll = true, showOnlyContactsWithNumbers = false) { contacts ->
                 contacts.mapTo(this@ExportContactsDialog.contacts) { it.copy() }
                 isContactsReady = true
                 processDataIfReady(this)

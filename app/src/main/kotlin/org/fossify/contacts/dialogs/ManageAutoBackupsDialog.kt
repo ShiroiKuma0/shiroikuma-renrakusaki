@@ -8,6 +8,7 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.commons.models.contacts.ContactSource
 import org.fossify.contacts.R
+import org.fossify.contacts.extensions.getOwnContacts
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.adapters.FilterContactSourcesAdapter
 import org.fossify.contacts.databinding.DialogManageAutomaticBackupsBinding
@@ -51,7 +52,7 @@ class ManageAutoBackupsDialog(private val activity: SimpleActivity, onSuccess: (
                 processDataIfReady(this)
             }
 
-            ContactsHelper(activity).getContacts(getAll = true) { receivedContacts ->
+            activity.getOwnContacts(getAll = true) { receivedContacts ->
                 contacts = receivedContacts
                 isContactsReady = true
                 processDataIfReady(this)

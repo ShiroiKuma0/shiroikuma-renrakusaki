@@ -230,6 +230,27 @@ const val AUTOMATION_ENABLED = "automation_enabled"
 const val AUTOMATION_REQUIRE_TOKEN = "automation_require_token"
 const val AUTOMATION_TOKEN = "automation_token"
 
+// Which apps may read our private contacts (and the per-contact SIM) through MyContactsContentProvider.
+// Replaced the signature-level READ_PRIVATE_DATA permission (2026-11-02): Messēji is signed with a
+// different key, so a signature lock could never admit it. The provider checks the caller's package
+// against this set instead; a ".debug" build is admitted when its release id is. Device-local — never
+// carried by a settings export (see SettingsExport.PREFS_EXCLUDE).
+const val PRIVATE_DATA_APPS = "private_data_apps"
+val DEFAULT_PRIVATE_DATA_APPS = setOf("shiroikuma.denwa", "shiroikuma.messeji", "shiroikuma.yotehyo")
+
+// "Visible to other apps" (helpers/SystemMirror): the account copies are written to ("" = the phone's
+// own local account) and whether a copy carries the photo.
+const val MIRROR_ACCOUNT = "mirror_account"
+const val MIRROR_PHOTO = "mirror_photo"
+const val SHOW_VISIBILITY_BADGES = "show_visibility_badges"
+const val LONG_PRESS_PHOTO_VISIBILITY = "long_press_photo_visibility"
+const val SHOW_VISIBILITY_ROW = "show_visibility_row"
+// Duplicate groups 白い熊 marked as different contacts sharing a name (DuplicateCleaner), by name key.
+const val NOT_DUPLICATE_NAMES = "not_duplicate_names"
+const val PILL_BUTTONS_SEEDED = "pill_buttons_seeded"
+// vCard flag on a private contact that has a visible copy, so an export → import round trip keeps it.
+const val X_SHIROIKUMA_VISIBLE = "X-SHIROIKUMA-VISIBLE"
+
 // The 保存復元 state-export contract, implemented by receivers/StateExportReceiver: 自由作業盤's
 // 保存復元 project backs up every sister app in one run, firing EXPORT_STATE at each app so it writes
 // its own category ZIP headlessly (no Activity) and replies with the written path and size, plus
@@ -311,6 +332,7 @@ val X_FAVORITE_NAMES = listOf(X_FAVORITE, "X-FAVOURITE", "X-ANDROID-STARRED")
 const val X_CUSTOM_RINGTONE = "X-CUSTOM-RINGTONE"
 const val X_EVENT = "X-EVENT"
 const val X_EVENT_TYPE_PARAM = "TYPE"
+const val X_EVENT_LABEL_PARAM = "X-LABEL"
 
 // IMs not supported by Ez-vcard
 const val HANGOUTS = "Hangouts"

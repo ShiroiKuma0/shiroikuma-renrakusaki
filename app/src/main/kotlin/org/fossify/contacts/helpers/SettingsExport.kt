@@ -120,7 +120,9 @@ object SettingsExport {
     // — a restore must never silently flip automation on/off, relax the token requirement, or overwrite
     // the token), per-device timestamps, and one-time version markers.
     private val PREFS_EXCLUDE =
-        setOf(AUTOMATION_TOKEN, AUTOMATION_ENABLED, AUTOMATION_REQUIRE_TOKEN, "last_auto_backup_time", "last_version")
+        setOf(
+            AUTOMATION_TOKEN, AUTOMATION_ENABLED, AUTOMATION_REQUIRE_TOKEN, PRIVATE_DATA_APPS, "last_auto_backup_time", "last_version"
+        )
 
     /** "shiroikuma-renrakusaki_2026-07-25_18-58-23.zip" — app name, then when it was taken. */
     fun exportFileName(): String =

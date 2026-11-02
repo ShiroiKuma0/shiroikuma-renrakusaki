@@ -17,5 +17,7 @@ class App : FossifyApp() {
         seedDialogFrame()
         // Switch saved list layouts to the "Lastname, Firstname" name field once.
         applySurnameFirstDefaultIfNeeded()
+        // Fold the 1.6.0+097/+098 side file of private-contact extras into the contacts (commons sk11).
+        org.fossify.commons.helpers.ensureBackgroundThread { org.fossify.contacts.helpers.PrivateExtras.migrateIntoContacts(this) }
     }
 }

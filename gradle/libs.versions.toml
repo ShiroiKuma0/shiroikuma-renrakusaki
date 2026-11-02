@@ -18,7 +18,7 @@ indicatorfastscroll = "4524cd0b61"
 #Room
 room = "2.8.4"
 #Fossify
-commons = "6.1.6-sk7"  # shiroikuma: patched Commons (anti-tamper removed + fork fixes + styled toasts + stale-source import fallback), from mavenLocal
+commons = "6.1.6-sk12"  # shiroikuma: patched Commons (anti-tamper removed + fork fixes + styled toasts + stale-source import fallback + Contact.extra + pill dialog buttons), from mavenLocal
 #Gradle
 gradlePlugins-agp = "9.3.1"
 #build

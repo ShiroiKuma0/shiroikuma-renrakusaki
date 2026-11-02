@@ -40,6 +40,7 @@ import org.fossify.contacts.activities.EditContactActivity
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.activities.ViewContactActivity
 import org.fossify.contacts.dialogs.ImportContactsDialog
+import org.fossify.contacts.helpers.SystemMirror
 import org.fossify.contacts.helpers.DEFAULT_FILE_NAME
 import org.fossify.contacts.helpers.DIALER_APP_MAIN_ACTIVITY
 import org.fossify.contacts.helpers.OPEN_TAB_INTENT_EXTRA
@@ -175,7 +176,9 @@ fun Activity.getDuplicateContacts(contact: Contact, includeCurrent: Boolean, cal
     ContactsHelper(this).getDuplicatesOfContact(contact, false) { contacts ->
         ensureBackgroundThread {
             val displayContactSources = getVisibleContactSources()
-            contacts.filter { displayContactSources.contains(it.source) }.forEach {
+            // Our own system copy of a visible private contact is not a duplicate of it — it is it.
+            val mirrorRawIds = SystemMirror.mirrors(this).values.map { it.toInt() }.toHashSet()
+            contacts.filter { displayContactSources.contains(it.source) && !(!it.isPrivate() && it.id in mirrorRawIds) }.forEach {
                 val duplicate = ContactsHelper(this).getContactWithId(it.id, it.isPrivate())
                 if (duplicate != null) {
                     duplicateContacts.add(duplicate)

@@ -59,6 +59,7 @@ class VcfImporter(val activity: Context) {
     private var contactsFailed = 0
 
     fun importContacts(path: String, targetContactSource: String): ImportResult {
+        val visibleImports = ArrayList<Contact>()
         try {
             val inputStream = if (path.contains("/")) {
                 File(path).inputStream()
@@ -208,7 +209,13 @@ class VcfImporter(val activity: Context) {
                 ezContact.getExtendedProperties(X_EVENT).forEach { property ->
                     val value = property.value?.trim().orEmpty()
                     if (value.isNotEmpty()) {
-                        events.add(Event(value, getEventTypeId(property.getParameter(X_EVENT_TYPE_PARAM))))
+                        events.add(
+                            Event(
+                                value,
+                                getEventTypeId(property.getParameter(X_EVENT_TYPE_PARAM)),
+                                property.getParameter(X_EVENT_LABEL_PARAM).orEmpty(),
+                            )
+                        )
                     }
                 }
 
@@ -289,7 +296,15 @@ class VcfImporter(val activity: Context) {
                     websites = websites,
                     IMs = IMs,
                     mimetype = DEFAULT_MIMETYPE,
-                    ringtone = ringtone
+                    ringtone = ringtone,
+                    // Every field beyond Fossify's own (commons sk11), and the reading with it.
+                    extra = VcfExtra.read(ezContact).apply {
+                        if (!hasPhonetic() && !phoneticName.isEmpty) {
+                            phoneticFamily = phoneticName.family
+                            phoneticMiddle = phoneticName.middle
+                            phoneticGiven = phoneticName.given
+                        }
+                    }
                 )
 
                 // if there is no N and ORG fields at the given contact, only FN, treat it as an organization
@@ -308,16 +323,18 @@ class VcfImporter(val activity: Context) {
 
                 if (ContactsHelper(activity).insertContact(contact)) {
                     contactsImported++
-                    // A private contact lives in the local DB, which has no phonetic columns at all.
-                    if (!phoneticName.isEmpty && !contact.isPrivate()) {
-                        activity.writePhoneticNameOnLatestContact(contact, phoneticName)
+                    if (contact.isPrivate() && ezContact.getExtendedProperty(X_SHIROIKUMA_VISIBLE)?.value?.trim() == "1") {
+                        visibleImports.add(contact)
                     }
+
                 }
             }
         } catch (e: Exception) {
             activity.showErrorToast(e, Toast.LENGTH_LONG)
             contactsFailed++
         }
+
+        restoreVisibleCopies(visibleImports)
 
         return when {
             contactsImported == 0 -> IMPORT_FAIL
@@ -517,4 +534,16 @@ class VcfImporter(val activity: Context) {
 
         return -1
     }
+
+    /**
+     * Private contacts imported with X-SHIROIKUMA-VISIBLE get their system copy back (helpers/SystemMirror).
+     * commons' insertContact() does not answer with the new local id, so each is found afterwards: the
+     * newest private contact with the same name and numbers.
+     */
+    private fun restoreVisibleCopies(imported: List<Contact>) {
+        if (imported.isEmpty()) return
+        SystemMirror.setVisible(activity, SystemMirror.findNewestPrivateIds(activity, imported).filterNotNull(), true)
+    }
+
 }
+

@@ -12,6 +12,7 @@ import android.text.Spanned
 import android.text.format.DateUtils
 import android.text.style.ForegroundColorSpan
 import android.text.style.RelativeSizeSpan
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -41,6 +42,7 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.helpers.isRPlus
 import org.fossify.commons.models.RadioItem
 import org.fossify.contacts.R
+import org.fossify.contacts.extensions.getOwnContacts
 import org.fossify.contacts.adapters.ContactsListFieldsAdapter
 import org.fossify.contacts.databinding.ActivityThemeBinding
 import org.fossify.contacts.databinding.DialogColumnSpacerBinding
@@ -61,11 +63,15 @@ import org.fossify.contacts.dialogs.ExportContactsDialog
 import org.fossify.contacts.dialogs.FontPickerDialog
 import org.fossify.contacts.extensions.tryImportContactsFromFile
 import org.fossify.contacts.helpers.SettingsExport
+import org.fossify.contacts.helpers.SystemMirror
 import org.fossify.contacts.helpers.VcfExporter
 import org.fossify.contacts.extensions.FontWeightOption
 import org.fossify.contacts.extensions.ThemeGroup
 import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.extensions.pill
+import org.fossify.contacts.extensions.pillRow
 import org.fossify.contacts.helpers.ContactsListConfig
+import org.fossify.contacts.helpers.DEFAULT_PRIVATE_DATA_APPS
 import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_DIVIDER_DP
 import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_SPACING_DP
 import org.fossify.contacts.helpers.DETAIL_PATTERN_OLDER_PREFIX
@@ -112,6 +118,8 @@ private const val ROW_PADDING_VERTICAL_DP = 4
 // A row description renders at this share of the title's size, dimmed to this alpha.
 private const val DESCRIPTION_TEXT_SCALE = 0.85f
 private const val DESCRIPTION_ALPHA = 0.6f
+private const val NOTE_TEXT_SP = 14f
+private const val SECTION_GAP_DP = 20
 
 // How many hex characters of the automation token stay visible at each end.
 private const val TOKEN_ABBREVIATION_EDGE = 8
@@ -179,12 +187,13 @@ class ThemeActivity : SimpleActivity() {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         setupEdgeToEdge(padBottomSystem = listOf(binding.themeNestedScrollview))
-        setupMaterialScrollListener(binding.themeNestedScrollview, binding.themeAppbar)
     }
 
     override fun onResume() {
         super.onResume()
-        setupTopAppBar(binding.themeAppbar, NavigationIcon.Arrow)
+        // A solid accent bar at every scroll position: the scroll-tinted bar turned black at the top, where
+        // the title — coloured to contrast the accent — all but vanished.
+        setupTopAppBar(binding.themeAppbar, NavigationIcon.Arrow, topBarColor = getProperPrimaryColor())
         applyTopBarColors(binding.themeAppbar)
         buildRows()
     }
@@ -197,8 +206,13 @@ class ThemeActivity : SimpleActivity() {
         val primaryColor = getProperPrimaryColor()
         val stepPx = (INDENT_STEP_DP * resources.displayMetrics.density).toInt()
 
+        // Your data first (backup, who sees private contacts, housekeeping), then the language, then the
+        // look of the app section by section.
         addExportImportSection(primaryColor, stepPx)
+        addPrivateContactsSection(primaryColor, stepPx)
+        addMaintenanceSection(primaryColor, stepPx)
         addLanguageSection(primaryColor, stepPx)
+        addButtonsSection(primaryColor, stepPx)
         ThemeGroup.entries.forEach { addGroup(it, primaryColor, stepPx) }
     }
 
@@ -212,7 +226,8 @@ class ThemeActivity : SimpleActivity() {
         addValueRow(getString(R.string.eim_dir), eximDir()?.name ?: getString(R.string.eim_dir_unset), stepPx) {
             eximDirPicker.launch(eximDirUri())
         }
-        addValueRow(getString(R.string.eim_open), lastExportSummary(), stepPx) { showExportImportDialog() }
+        addNote(lastExportSummary(), stepPx)
+        addPills(stepPx, pill(getString(R.string.eim_open), main = true) { showExportImportDialog() })
 
         // Automation sits directly below the export rows it drives — the placement every sister app
         // shares, so 白い熊 finds it where backup lives.
@@ -406,7 +421,7 @@ class ThemeActivity : SimpleActivity() {
         // showOnlyContactsWithNumbers is a display filter, and commons applies it to an export too
         // whenever the ignore set is empty — i.e. exactly when every source is ticked. Left at its
         // default it silently drops every number-less contact from the file.
-        ContactsHelper(this).getContacts(
+        this.getOwnContacts(
             getAll = true,
             gettingDuplicates = false,
             ignoredContactSources = ignoredContactSources,
@@ -552,6 +567,152 @@ class ThemeActivity : SimpleActivity() {
         }
     }
 
+    // ---- Buttons: dialog buttons as pills (commons sk12) ----
+
+    private fun addButtonsSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.buttons_section), primaryColor)
+        addSwitchRow(
+            title = getString(R.string.pill_dialog_buttons),
+            checked = config.pillDialogButtons,
+            indent = stepPx,
+            description = getString(R.string.pill_dialog_buttons_desc),
+        ) {
+            config.pillDialogButtons = it
+        }
+    }
+
+    // ---- Maintenance: housekeeping tools ----
+
+    private fun addMaintenanceSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.maintenance_section), primaryColor)
+        addNote(getString(R.string.dup_row_desc), stepPx)
+        addPills(stepPx, pill(getString(R.string.dup_title), main = true) {
+            startActivity(Intent(this, DuplicatesActivity::class.java))
+        })
+    }
+
+    // ---- Private contacts: which apps may read them through our provider ----
+
+    private fun addPrivateContactsSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.private_contacts_section), primaryColor)
+        val allowed = config.privateDataApps
+        val summary = if (allowed.isEmpty()) {
+            getString(R.string.private_data_apps_none)
+        } else {
+            allowed.map { appLabel(it) ?: it }.sortedBy { it.lowercase(Locale.getDefault()) }.joinToString(", ")
+        }
+        addValueRow(getString(R.string.private_data_apps), summary, stepPx) { openPrivateDataAppsPicker() }
+
+        addSwitchRow(
+            title = getString(R.string.show_visibility_badges),
+            checked = config.showVisibilityBadges,
+            indent = stepPx,
+            description = getString(R.string.show_visibility_badges_desc),
+        ) {
+            config.showVisibilityBadges = it
+        }
+        addSwitchRow(
+            title = getString(R.string.long_press_photo_visibility),
+            checked = config.longPressPhotoVisibility,
+            indent = stepPx,
+            description = getString(R.string.long_press_photo_visibility_desc),
+        ) {
+            config.longPressPhotoVisibility = it
+        }
+        addSwitchRow(
+            title = getString(R.string.show_visibility_row),
+            checked = config.showVisibilityRow,
+            indent = stepPx,
+            description = getString(R.string.show_visibility_row_desc),
+        ) {
+            config.showVisibilityRow = it
+        }
+
+        // "Visible to other apps" copies (helpers/SystemMirror): where they go, and what they carry.
+        addSubgroupHeader(getString(R.string.visible_copies), primaryColor, stepPx)
+        val accountRow = addValueRow(getString(R.string.visible_copies_account), "…", stepPx * 2) { openMirrorAccountPicker() }
+        ensureBackgroundThread {
+            val (name, type) = SystemMirror.targetAccount(this)
+            val label = accountLabel(name, type)
+            runOnUiThread { accountRow.themeValueValue.text = label }
+        }
+        addSwitchRow(
+            title = getString(R.string.visible_copies_photo),
+            checked = config.mirrorPhoto,
+            indent = stepPx * 2,
+            description = getString(R.string.visible_copies_photo_desc),
+        ) {
+            config.mirrorPhoto = it
+            ensureBackgroundThread { SystemMirror.refreshAll(applicationContext) }
+        }
+    }
+
+    private fun accountLabel(name: String?, type: String?): String = when {
+        name.isNullOrEmpty() -> getString(R.string.visible_copies_account_device)
+        type == SystemMirror.HUAWEI_PHONE_ACCOUNT_TYPE -> getString(R.string.visible_copies_account_phone, name)
+        else -> "$name ($type)"
+    }
+
+    private fun openMirrorAccountPicker() {
+        ensureBackgroundThread {
+            val sources = ContactsHelper(this).getDeviceContactSources().filter { it.name.isNotEmpty() && it.type.isNotEmpty() }
+            runOnUiThread {
+                val items = ArrayList<RadioItem>()
+                items.add(RadioItem(0, getString(R.string.visible_copies_account_auto), ""))
+                sources.forEachIndexed { index, source ->
+                    items.add(RadioItem(index + 1, accountLabel(source.name, source.type), source.name))
+                }
+                val checked = items.firstOrNull { it.value == config.mirrorAccount }?.id ?: 0
+                RadioGroupDialog(this, items, checked) { value ->
+                    val chosen = value as String
+                    if (chosen == config.mirrorAccount) return@RadioGroupDialog
+                    config.mirrorAccount = chosen
+                    ensureBackgroundThread {
+                        SystemMirror.moveAllToTargetAccount(applicationContext)
+                        runOnUiThread { buildRows() }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun appLabel(pkg: String): String? = try {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+    } catch (e: Exception) {
+        null
+    }
+
+    // Every launchable app, the allowed ones first; an allowed app that is not installed stays listed
+    // (by package name) so it can still be removed.
+    private fun openPrivateDataAppsPicker() {
+        val selected = config.privateDataApps.toMutableSet()
+        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val installed = packageManager.queryIntentActivities(launcher, 0)
+            .map { it.activityInfo.packageName }
+            .filter { it != packageName }
+            .toSet()
+        val candidates = (installed + selected + DEFAULT_PRIVATE_DATA_APPS)
+            .map { pkg -> pkg to appLabel(pkg) }
+            .sortedWith(compareBy({ it.first !in selected }, { (it.second ?: it.first).lowercase(Locale.getDefault()) }))
+
+        val view = DialogExportImportBinding.inflate(layoutInflater)
+        view.exportImportHint.text = getString(R.string.private_data_apps_hint)
+        candidates.forEach { (pkg, label) ->
+            val title = label ?: getString(R.string.private_data_app_not_installed, pkg)
+            addSwitchRow(title, pkg in selected, 0, description = pkg, parent = view.exportImportHolder) { on ->
+                if (on) selected.add(pkg) else selected.remove(pkg)
+            }
+        }
+
+        getAlertDialogBuilder()
+            .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ ->
+                config.privateDataApps = selected.toSet()
+                buildRows()
+            }
+            .setNegativeButton(org.fossify.commons.R.string.cancel, null)
+            .apply { setupDialogStuff(view.root, this, R.string.private_data_apps) }
+    }
+
     private fun addGroup(group: ThemeGroup, primaryColor: Int, stepPx: Int) {
         if (group == ThemeGroup.SECTIONS) {
             addSectionsSection(primaryColor, stepPx)
@@ -586,6 +747,13 @@ class ThemeActivity : SimpleActivity() {
 
     private fun addSectionHeader(title: String, primaryColor: Int) {
         val section = ItemThemeSectionBinding.inflate(layoutInflater, binding.themeHolder, false)
+        // Air above every section but the first, so the page reads as blocks rather than one long list.
+        if (binding.themeHolder.childCount > 0) {
+            section.root.setPadding(
+                section.root.paddingLeft, section.root.paddingTop + (SECTION_GAP_DP * resources.displayMetrics.density).toInt(),
+                section.root.paddingRight, section.root.paddingBottom,
+            )
+        }
         section.themeSectionLabel.text = title
         section.themeSectionLabel.setTextColor(primaryColor)
         section.themeSectionRule.setBackgroundColor(primaryColor)
@@ -875,23 +1043,38 @@ class ThemeActivity : SimpleActivity() {
         b.themeValueLabel.text = title
         b.themeValueLabel.setTextColor(textColor)
         b.themeValueValue.text = value
-        b.themeValueValue.setTextColor(textColor)
+        // The current value in the accent colour: it is what a tap changes.
+        b.themeValueValue.setTextColor(getProperPrimaryColor())
         b.root.setOnClickListener { onClick() }
         indentRow(b.root, indent)
         binding.themeHolder.addView(b.root)
         return b
     }
 
-    // Label-only tappable row (no value line) — used for one-shot actions like export/import.
+    // One-shot actions (export / import a vCard…) are pills — what DOES something stands out from settings.
     private fun addActionRow(title: String, indent: Int, parent: ViewGroup = binding.themeHolder, onClick: () -> Unit) {
-        val b = ItemThemeValueBinding.inflate(layoutInflater, parent, false)
-        b.themeValueLabel.text = title
-        b.themeValueLabel.setTextColor(getProperTextColor())
-        b.themeValueValue.beGone()
-        b.root.setOnClickListener { onClick() }
-        indentRow(b.root, indent)
-        parent.addView(b.root)
+        parent.addView(pillRow(pill(title, onClick = onClick), startPaddingPx = indent + pillInset()))
     }
+
+    private fun addPills(indent: Int, vararg pills: View) {
+        binding.themeHolder.addView(pillRow(*pills, startPaddingPx = indent + pillInset()))
+    }
+
+    // An explanation line, dimmer and smaller than a setting's title.
+    private fun addNote(text: String, indent: Int) {
+        val b = ItemThemeValueBinding.inflate(layoutInflater, binding.themeHolder, false)
+        b.themeValueLabel.text = text
+        b.themeValueLabel.setTextColor(getProperTextColor().adjustAlpha(DESCRIPTION_ALPHA))
+        b.themeValueLabel.textSize = NOTE_TEXT_SP
+        b.themeValueValue.beGone()
+        b.root.isClickable = false
+        b.root.background = null
+        indentRow(b.root, indent)
+        binding.themeHolder.addView(b.root)
+    }
+
+    // Pills line up with the row titles, which sit inside the rows' own start padding.
+    private fun pillInset() = resources.getDimensionPixelSize(org.fossify.commons.R.dimen.activity_margin)
 
     // A sample timestamp for each age bracket, so pattern rows and the edit dialog show a live example.
     private fun sampleTimestampFor(kindPrefix: String): Long = when (kindPrefix) {

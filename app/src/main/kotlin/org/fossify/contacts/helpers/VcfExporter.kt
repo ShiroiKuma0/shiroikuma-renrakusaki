@@ -1,6 +1,7 @@
 package org.fossify.contacts.helpers
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.provider.ContactsContract.CommonDataKinds.Email
 import android.provider.ContactsContract.CommonDataKinds.Event
 import android.provider.ContactsContract.CommonDataKinds.Im
@@ -16,10 +17,14 @@ import ezvcard.util.PartialDate
 import org.fossify.commons.extensions.getDateTimeFromDateString
 import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.extensions.toast
+import org.fossify.commons.helpers.ContactsHelper
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.contacts.helpers.VcfExporter.ExportResult.EXPORT_FAIL
+import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.time.LocalDate
+
+private const val PHOTO_JPEG_QUALITY = 95
 
 /**
  * [onProgress] is called with (contacts converted so far, total) after every contact, so a headless
@@ -56,6 +61,11 @@ class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _,
             // フリガナ lives in provider columns the commons Contact model doesn't carry, so it takes
             // a query of its own — one for the whole run, keyed by raw contact id.
             val phoneticNames = context.loadPhoneticNames()
+            // Every field of every system contact (commons sk11): relations, SIP addresses, organization
+            // details… — private contacts already carry theirs. One pass over the provider.
+            ContactsHelper(context).fillExtras(contacts)
+            // Private contacts that have a "visible to other apps" copy: flagged so an import restores the copy.
+            val mirroredIds = SystemMirror.mirrors(context).keys
 
             val cards = ArrayList<VCard>()
             for (contact in contacts) {
@@ -72,9 +82,16 @@ class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _,
                     .joinToString(separator = " ")
                 card.formattedName = FormattedName(formattedName)
 
-                // A private (device-only) contact has no provider row, so it can hold no reading —
-                // and its id comes from another table, which could otherwise collide with a raw id.
-                val phonetic = if (contact.isPrivate()) null else phoneticNames[contact.id]
+                // The reading: Contact.extra (commons sk11) — filled for private contacts by the DB and for
+                // system ones by fillExtras below; the provider query covers a list that skipped that.
+                val extraPhonetic = PhoneticName(contact.extra.phoneticFamily, contact.extra.phoneticMiddle, contact.extra.phoneticGiven)
+                val phonetic = if (!extraPhonetic.isEmpty) {
+                    extraPhonetic
+                } else if (contact.isPrivate()) {
+                    null
+                } else {
+                    phoneticNames[contact.id]
+                }
 
                 StructuredName().apply {
                     prefixes.add(contact.prefix)
@@ -155,8 +172,10 @@ class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _,
                         // string is written verbatim: a full date and a --MM-DD one both come back
                         // exactly as they went out.
                         if (event.value.isNotEmpty()) {
-                            card.addExtendedProperty(X_EVENT, event.value)
-                                .setParameter(X_EVENT_TYPE_PARAM, getEventTypeLabel(event.type))
+                            card.addExtendedProperty(X_EVENT, event.value).apply {
+                                setParameter(X_EVENT_TYPE_PARAM, getEventTypeLabel(event.type))
+                                if (event.label.isNotEmpty()) setParameter(X_EVENT_LABEL_PARAM, event.label)
+                            }
                         }
                     }
                 }
@@ -221,19 +240,25 @@ class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _,
                     card.addUrl(it)
                 }
 
-                try {
-                    val inputStream =
-                        context.contentResolver.openInputStream(contact.photoUri.toUri())
-
-                    if (inputStream != null) {
-                        val photoByteArray = inputStream.readBytes()
-                        val photo = Photo(photoByteArray, ImageType.JPEG)
-                        card.addPhoto(photo)
-                        inputStream.close()
+                // Fork: a private contact keeps its picture as bytes in our own database; photoUri is only
+                // where it was loaded from (often a cache file that has since been cleared). Upstream read
+                // photoUri alone, so such a contact was exported silently without its photo. Fall back to
+                // the stored bitmap whenever the URI yields nothing.
+                val photoBytes = readPhotoUri(context, contact.photoUri) ?: contact.photo?.let { bitmap ->
+                    ByteArrayOutputStream().use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, out)
+                        out.toByteArray()
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
                 }
+                if (photoBytes != null) {
+                    card.addPhoto(Photo(photoBytes, ImageType.JPEG))
+                }
+
+                if (contact.isPrivate() && contact.id in mirroredIds) {
+                    card.addExtendedProperty(X_SHIROIKUMA_VISIBLE, "1")
+                }
+
+                VcfExtra.write(card, contact)
 
                 if (contact.groups.isNotEmpty()) {
                     val groupList = Categories()
@@ -310,4 +335,14 @@ class VcfExporter(private val onProgress: (done: Int, total: Int) -> Unit = { _,
     }
 
     private fun getPreferredType(value: Int) = "$PREF=$value"
+
+    private fun readPhotoUri(context: Context, photoUri: String): ByteArray? {
+        if (photoUri.isEmpty()) return null
+        return try {
+            context.contentResolver.openInputStream(photoUri.toUri())?.use { it.readBytes() }?.takeIf { it.isNotEmpty() }
+        } catch (e: Exception) {
+            null
+        }
+    }
 }
+

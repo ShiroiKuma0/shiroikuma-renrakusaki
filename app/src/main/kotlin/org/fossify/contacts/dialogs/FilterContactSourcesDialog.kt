@@ -9,6 +9,7 @@ import org.fossify.commons.helpers.SMT_PRIVATE
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.commons.models.contacts.ContactSource
 import org.fossify.contacts.activities.SimpleActivity
+import org.fossify.contacts.extensions.getOwnContacts
 import org.fossify.contacts.adapters.FilterContactSourcesAdapter
 import org.fossify.contacts.databinding.DialogFilterContactSourcesBinding
 import org.fossify.contacts.extensions.config
@@ -28,7 +29,7 @@ class FilterContactSourcesDialog(val activity: SimpleActivity, private val callb
             processDataIfReady()
         }
 
-        ContactsHelper(activity).getContacts(getAll = true) { contacts ->
+        activity.getOwnContacts(getAll = true) { contacts ->
             contacts.mapTo(this@FilterContactSourcesDialog.contacts) { it.copy() }
             isContactsReady = true
             processDataIfReady()

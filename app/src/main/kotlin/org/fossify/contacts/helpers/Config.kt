@@ -238,6 +238,48 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(AUTOMATION_REQUIRE_TOKEN, false)
         set(value) = prefs.edit().putBoolean(AUTOMATION_REQUIRE_TOKEN, value).apply()
 
+    // Packages allowed to read our private contacts through MyContactsContentProvider.
+    var privateDataApps: Set<String>
+        get() = prefs.getStringSet(PRIVATE_DATA_APPS, null)?.toSet() ?: DEFAULT_PRIVATE_DATA_APPS
+        set(value) = prefs.edit().remove(PRIVATE_DATA_APPS).putStringSet(PRIVATE_DATA_APPS, value).apply()
+
+    var mirrorAccount: String
+        get() = prefs.getString(MIRROR_ACCOUNT, "") ?: ""
+        set(value) = prefs.edit().putString(MIRROR_ACCOUNT, value).apply()
+
+    // The open-lock / eye badge on contact photos in the lists.
+    var showVisibilityBadges: Boolean
+        get() = prefs.getBoolean(SHOW_VISIBILITY_BADGES, true)
+        set(value) = prefs.edit().putBoolean(SHOW_VISIBILITY_BADGES, value).apply()
+
+    // A long-press on a contact's photo in the lists opens the visibility menu (off: it selects, as before).
+    var longPressPhotoVisibility: Boolean
+        get() = prefs.getBoolean(LONG_PRESS_PHOTO_VISIBILITY, true)
+        set(value) = prefs.edit().putBoolean(LONG_PRESS_PHOTO_VISIBILITY, value).apply()
+
+    // The "Visibility: …" row under the sources on the contact screen.
+    var showVisibilityRow: Boolean
+        get() = prefs.getBoolean(SHOW_VISIBILITY_ROW, true)
+        set(value) = prefs.edit().putBoolean(SHOW_VISIBILITY_ROW, value).apply()
+
+    var notDuplicateNames: Set<String>
+        get() = prefs.getStringSet(NOT_DUPLICATE_NAMES, null)?.toSet() ?: emptySet()
+        set(value) = prefs.edit().remove(NOT_DUPLICATE_NAMES).putStringSet(NOT_DUPLICATE_NAMES, value).apply()
+
+    var pillButtonsSeeded: Boolean
+        get() = prefs.getBoolean(PILL_BUTTONS_SEEDED, false)
+        set(value) = prefs.edit().putBoolean(PILL_BUTTONS_SEEDED, value).apply()
+
+    var mirrorPhoto: Boolean
+        get() = prefs.getBoolean(MIRROR_PHOTO, true)
+        set(value) = prefs.edit().putBoolean(MIRROR_PHOTO, value).apply()
+
+    fun isPrivateDataAppAllowed(packageName: String?): Boolean {
+        if (packageName.isNullOrEmpty()) return false
+        val allowed = privateDataApps
+        return packageName in allowed || packageName.removeSuffix(".debug") in allowed
+    }
+
     // The shared secret; generated on first read so the settings row always shows a value.
     val automationToken: String
         get() = prefs.getString(AUTOMATION_TOKEN, null)?.takeIf { it.isNotEmpty() } ?: regenerateAutomationToken()

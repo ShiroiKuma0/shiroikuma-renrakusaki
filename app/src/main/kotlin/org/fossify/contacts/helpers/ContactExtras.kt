@@ -5,6 +5,7 @@ import android.content.Context
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds
 import android.provider.ContactsContract.CommonDataKinds.StructuredName
+import org.fossify.commons.extensions.contactsDB
 import org.fossify.commons.extensions.getSharedPrefs
 import org.fossify.commons.extensions.normalizePhoneNumber
 import org.fossify.commons.models.contacts.Contact
@@ -123,13 +124,27 @@ private fun Context.querySuperPrimaryNumbers(): Map<Int, String>? {
     return numbers
 }
 
+@Suppress("TooGenericExceptionCaught", "SwallowedException") // no private DB yet just means no readings
+private fun Context.privateReadings(): Map<Int, String> = try {
+    contactsDB.getContacts().mapNotNull { local ->
+        val extra = local.extra
+        val reading = PhoneticName(extra.phoneticFamily, extra.phoneticMiddle, extra.phoneticGiven)
+        val id = local.id
+        if (id == null || reading.isEmpty) null else id to reading.joined()
+    }.toMap()
+} catch (e: Exception) {
+    emptyMap()
+}
+
 /** Refresh [ContactExtras] from the contacts provider. Call on a background thread. */
 fun Context.loadContactExtras() {
     // Independent of the name query below: a failure in one must not leave the other stale.
     querySuperPrimaryNumbers()?.let { ContactExtras.superPrimaryNumbers = it }
 
     val (phonetics, lookupKeys) = queryStructuredNames() ?: return
-    ContactExtras.readings = phonetics.mapValues { it.value.joined() }
+    // Private contacts' readings (Contact.extra in the private DB) join under their local ids, so they
+    // sort and bucket like everyone else's. Local ids start at FIRST_CONTACT_ID, far above any raw id.
+    ContactExtras.readings = phonetics.mapValues { it.value.joined() } + privateReadings()
     ContactExtras.lookupKeys = lookupKeys
 }
 

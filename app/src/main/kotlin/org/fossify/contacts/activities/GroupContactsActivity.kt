@@ -13,6 +13,7 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.commons.models.contacts.Group
 import org.fossify.contacts.R
+import org.fossify.contacts.extensions.getOwnContacts
 import org.fossify.contacts.adapters.ContactsAdapter
 import org.fossify.contacts.databinding.ActivityGroupContactsBinding
 import org.fossify.contacts.dialogs.SelectContactsDialog
@@ -110,7 +111,7 @@ class GroupContactsActivity : SimpleActivity(), RemoveFromGroupListener, Refresh
     }
 
     private fun refreshContacts() {
-        ContactsHelper(this).getContacts {
+        this.getOwnContacts {
             wasInit = true
             allContacts = it
 

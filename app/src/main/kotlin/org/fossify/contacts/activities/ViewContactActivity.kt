@@ -9,6 +9,7 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.provider.ContactsContract.CommonDataKinds
 import android.view.View
 import android.view.WindowManager
 import android.widget.RelativeLayout
@@ -26,6 +27,7 @@ import org.fossify.commons.models.PhoneNumber
 import org.fossify.commons.models.contacts.*
 import org.fossify.contacts.R
 import org.fossify.contacts.databinding.*
+import org.fossify.contacts.dialogs.ChangeVisibilityDialog
 import org.fossify.contacts.dialogs.ChooseSocialDialog
 import org.fossify.contacts.dialogs.ManageVisibleFieldsDialog
 import org.fossify.contacts.extensions.*
@@ -45,6 +47,16 @@ class ViewContactActivity : ContactActivity() {
 
     companion object {
         private const val COMPARABLE_PHONE_NUMBER_LENGTH = 9
+
+        // Kinds with their own fields on this screen; a kept row of one of them only carries extra columns.
+        private val MODELLED_KINDS = setOf(
+            CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE, CommonDataKinds.Phone.CONTENT_ITEM_TYPE,
+            CommonDataKinds.Email.CONTENT_ITEM_TYPE, CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE,
+            CommonDataKinds.Im.CONTENT_ITEM_TYPE, CommonDataKinds.Event.CONTENT_ITEM_TYPE,
+            CommonDataKinds.Website.CONTENT_ITEM_TYPE, CommonDataKinds.Nickname.CONTENT_ITEM_TYPE,
+            CommonDataKinds.Note.CONTENT_ITEM_TYPE, CommonDataKinds.Organization.CONTENT_ITEM_TYPE,
+            CommonDataKinds.Relation.CONTENT_ITEM_TYPE, CommonDataKinds.SipAddress.CONTENT_ITEM_TYPE,
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -87,6 +99,19 @@ class ViewContactActivity : ContactActivity() {
         }
     }
 
+    // "Visible to other apps" — private contacts only; checked when a system copy exists (SystemMirror).
+    private fun refreshVisibleToOtherAppsItem() {
+        val item = binding.contactToolbar.menu.findItem(R.id.visible_to_other_apps) ?: return
+        val localId = contact?.takeIf { it.isPrivate() }?.id
+        item.isVisible = localId != null
+        if (localId != null) {
+            ensureBackgroundThread {
+                val mirrored = SystemMirror.isMirrored(applicationContext, localId)
+                runOnUiThread { item.isChecked = mirrored }
+            }
+        }
+    }
+
     private fun setupMenu() {
         binding.contactToolbar.menu.apply {
             findItem(R.id.share).setOnMenuItemClickListener {
@@ -110,6 +135,23 @@ class ViewContactActivity : ContactActivity() {
 
             findItem(R.id.delete).setOnMenuItemClickListener {
                 deleteContactWithMergeLogic()
+                true
+            }
+
+            findItem(R.id.visible_to_other_apps).setOnMenuItemClickListener { item ->
+                val localId = contact?.takeIf { it.isPrivate() }?.id ?: return@setOnMenuItemClickListener true
+                val visible = !item.isChecked
+                ensureBackgroundThread {
+                    val changed = SystemMirror.setVisible(applicationContext, listOf(localId), visible) > 0
+                    runOnUiThread {
+                        if (changed) {
+                            item.isChecked = visible
+                            toast(if (visible) R.string.now_visible_to_other_apps else R.string.now_private_only)
+                        } else {
+                            toast(org.fossify.commons.R.string.unknown_error_occurred)
+                        }
+                    }
+                }
                 true
             }
 
@@ -243,6 +285,10 @@ class ViewContactActivity : ContactActivity() {
 
         updateTextColors(binding.contactScrollview)
         binding.contactToolbar.menu.findItem(R.id.open_with).isVisible = contact?.isPrivate() == false
+        refreshVisibleToOtherAppsItem()
+        // The overflow popup draws its titles in the platform's white otherwise — same slot as every
+        // other menu in the app.
+        binding.contactToolbar.menu.colorItemTitles(themeColor(ThemeSlot.SEARCH_MENU_TEXT))
 
         // Fork: everything drawn over the photo gets its own color plus a halo (the favorite star is
         // haloed in getStarDrawable, since it is re-set on every toggle).
@@ -281,6 +327,7 @@ class ViewContactActivity : ContactActivity() {
         setupIMs()
         setupEvents()
         setupWebsites()
+        setupMoreFields()
         setupGroups()
         setupContactSources()
         setupNotes()
@@ -354,16 +401,23 @@ class ViewContactActivity : ContactActivity() {
 
     // Fork: the name's reading (フリガナ), under the name it belongs to. Read straight from the provider
     // rather than from ContactExtras: this screen opens from other apps too, in a process where no
-    // contacts refresh has ever run. A private contact lives in the local DB and has no reading at all.
+    // contacts refresh has ever run. A private contact carries its reading in Contact.extra.
     private fun setupReading() {
         binding.contactReading.beGone()
         val rawId = contact?.id ?: return
-        if (rawId == 0 || contact!!.isPrivate() || !config.showReadingWhenViewing) {
+        if (rawId == 0 || !config.showReadingWhenViewing) {
             return
         }
+        val isPrivate = contact!!.isPrivate()
 
         ensureBackgroundThread {
-            val reading = loadPhoneticName(rawId)?.let { orderedReading(it) }.orEmpty()
+            val extra = contact?.extra
+            val phonetic = if (isPrivate && extra != null) {
+                PhoneticName(extra.phoneticFamily, extra.phoneticMiddle, extra.phoneticGiven)
+            } else {
+                loadPhoneticName(rawId)
+            }
+            val reading = phonetic?.takeIf { !it.isEmpty }?.let { orderedReading(it) }.orEmpty()
             if (reading.isEmpty()) {
                 return@ensureBackgroundThread
             }
@@ -587,7 +641,7 @@ class ViewContactActivity : ContactActivity() {
                 ItemViewEventBinding.inflate(layoutInflater, binding.contactEventsHolder, false).apply {
                     binding.contactEventsHolder.addView(root)
                     it.value.getDateTimeFromDateString(true, contactEvent)
-                    contactEventType.setText(getEventTextId(it.type))
+                    if (it.type == CommonDataKinds.Event.TYPE_CUSTOM && it.label.isNotEmpty()) contactEventType.text = it.label else contactEventType.setText(getEventTextId(it.type))
                     root.copyOnLongClick(it.value)
                 }
             }
@@ -633,6 +687,54 @@ class ViewContactActivity : ContactActivity() {
         }
     }
 
+    // Fork (sk11): every field beyond Fossify's own (Contact.extra) — organization details, relationships,
+    // internet-call addresses, send to voicemail, and any other data the contact holds, read-only.
+    private fun setupMoreFields() {
+        val holder = binding.contactMoreHolder
+        holder.removeAllViews()
+        val extra = contact!!.extra
+        val textColor = getProperTextColor()
+
+        fun row(value: String, type: String, onClick: (() -> Unit)? = null) {
+            if (value.isEmpty()) return
+            ItemViewImBinding.inflate(layoutInflater, holder, false).apply {
+                holder.addView(root)
+                contactIm.text = value
+                contactImType.text = type
+                contactIm.setTextColor(textColor)
+                contactImType.setTextColor(textColor)
+                root.copyOnLongClick(value)
+                if (onClick != null) root.setOnClickListener { onClick() } else root.background = null
+            }
+        }
+
+        row(extra.department, getString(R.string.more_department))
+        row(extra.jobDescription, getString(R.string.more_job_description))
+        row(extra.officeLocation, getString(R.string.more_office_location))
+        row(extra.companyPhonetic, getString(R.string.more_company_phonetic))
+        row(extra.symbol, getString(R.string.more_symbol))
+        extra.relations.forEach {
+            row(it.name, CommonDataKinds.Relation.getTypeLabel(resources, it.type, it.label).toString())
+        }
+        extra.sipAddresses.forEach { sip ->
+            row(sip.value, CommonDataKinds.SipAddress.getTypeLabel(resources, sip.type, sip.label).toString()) {
+                try {
+                    startActivity(Intent(Intent.ACTION_CALL, Uri.fromParts("sip", sip.value, null)))
+                } catch (e: Exception) {
+                    showErrorToast(e)
+                }
+            }
+        }
+        if (extra.sendToVoicemail) row(getString(R.string.more_sent_to_voicemail), "")
+        // Rows of kinds this app has no field for (another app's data, Identity…), shown as they are.
+        extra.rows.filter { it.values.size > 1 && it.mimetype !in MODELLED_KINDS }.forEach { dataRow ->
+            val value = dataRow.values[ContactsContract.Data.DATA1]?.takeIf { !it.startsWith("b64:") }.orEmpty()
+            row(value, dataRow.mimetype.substringAfterLast('/').substringAfterLast('.'))
+        }
+
+        holder.beVisibleIf(holder.childCount > 0)
+    }
+
     private fun setupGroups() {
         var groups = contact!!.groups.toMutableSet() as LinkedHashSet<Group>
 
@@ -660,6 +762,38 @@ class ViewContactActivity : ContactActivity() {
         } else {
             binding.contactGroupsImage.beGone()
             binding.contactGroupsHolder.beGone()
+        }
+    }
+
+    // Who can see this contact — System / Private / Private + visible — under its sources; a tap opens
+    // the same three-way menu as a long-press on the photo in the lists (dialogs/ChangeVisibilityDialog).
+    private fun addVisibilityRow() {
+        if (!config.showVisibilityRow) return
+        val shown = contact ?: return
+        ItemViewContactSourceBinding.inflate(layoutInflater, binding.contactSourcesHolder, false).apply {
+            binding.contactSourcesHolder.addView(root)
+            contactSource.text = getString(R.string.visibility_title)
+            contactSource.setOnClickListener {
+                ChangeVisibilityDialog(this@ViewContactActivity, shown) { moved ->
+                    if (moved) {
+                        // It now lives under another id in the other store — there is nothing here to reload.
+                        finish()
+                    } else {
+                        setupContactSources()
+                        refreshVisibleToOtherAppsItem()
+                    }
+                }
+            }
+            ensureBackgroundThread {
+                val members = ChangeVisibilityDialog.membersOf(this@ViewContactActivity, shown)
+                val label = when (ChangeVisibilityDialog.stateOfGroup(this@ViewContactActivity, members)) {
+                    ChangeVisibilityDialog.State.SYSTEM -> R.string.visibility_system
+                    ChangeVisibilityDialog.State.PRIVATE -> R.string.visibility_private
+                    ChangeVisibilityDialog.State.VISIBLE -> R.string.visibility_visible
+                    null -> R.string.visibility_mixed
+                }
+                runOnUiThread { contactSource.text = getString(R.string.visibility_row, getString(label)) }
+            }
         }
     }
 
@@ -730,6 +864,8 @@ class ViewContactActivity : ContactActivity() {
                     }
                 }
             }
+
+            addVisibilityRow()
 
             binding.contactSourceImage.beVisible()
             binding.contactSourcesHolder.beVisible()

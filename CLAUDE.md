@@ -117,7 +117,7 @@ colors") whenever the installed app id is not `org.fossify.*` — always the cas
 
 - **Source:** the `shiroikuma-commons` fork (`~/git/shiroikuma-commons`, branch `custom`), which strips
   Commons' anti-tamper "fake version" / sideloading checks out entirely.
-- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk5"` in
+- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk12"` in
   `gradle/libs.versions.toml` (`mavenLocal()` is already a repository in `settings.gradle.kts`).
 - Because Commons itself no longer nags, this app carries **no** in-app workaround — no `getPackageName`
   spoof, no `SIDELOADING_FALSE`, no `res/raw/keep.xml`.
@@ -171,6 +171,93 @@ app is untouched. The point is that Recents never vanishes, so the dialer is alw
   visibility the hand-back start fails on Android 11+.
 
 The feature is only visible with **both** halves installed; denwa ships the sending side.
+
+## Private contacts: the provider gate and the visible copies
+
+Private contacts (“Phone storage (not visible by other apps)”, source `SMT_PRIVATE`) live only in our
+Room DB. Two contracts with sister apps hang off them — **keep both stable**.
+
+### The provider — who may read private contacts
+
+`contentproviders/MyContactsContentProvider` serves them at
+`content://${applicationId}.contactsprovider/contacts` (plus `/sim_slot` for denwa's per-contact SIM).
+Consumers: denwa (its own `getPrivateContactsCursor()`), and every fork on commons ≥ `6.1.6-sk10`, whose
+`getMyContactsCursor()` asks `shiroikuma.renrakusaki[.debug].contactsprovider` before the stock
+authority (Messēji, yotehyo). **Never rename the authority or the `contacts` path.**
+
+- **No `readPermission`.** The signature-level `READ_PRIVATE_DATA` was dropped in `+091`: Messēji is
+  signed with a different key (`shiroikuma-messages.jks`), so a signature lock could never admit it.
+- **The gate is `query()` itself:** `callingPackage` (vouched for by the framework) must be our own
+  package or in `Config.privateDataApps` — UI settings → Private contacts → *Apps allowed to read them*.
+  A `.debug` caller is admitted when its release id is. Defaults: `DEFAULT_PRIVATE_DATA_APPS` =
+  denwa, messeji, yotehyo. A refused caller gets `null`, for contacts and `sim_slot` alike.
+- The list is device-local: `PRIVATE_DATA_APPS` is in `SettingsExport.PREFS_EXCLUDE`.
+- The picker lists launchable apps, hence the `MAIN`/`LAUNCHER` `<intent>` in `<queries>`.
+
+### “Visible to other apps” — a system copy of a private contact
+
+`helpers/SystemMirror` writes a **copy** (never a move) of a private contact into a system account,
+so apps that read only ContactsContract (WhatsApp/Signal discovery, the car's PBAP phonebook, Android
+Auto, the system call log) know the name. The private record stays the one that is edited.
+
+- **The marker is the contract:** the copy's raw contact has
+  `RawContacts.SYNC1 = "shiroikuma.renrakusaki:<private local id>"`. There is no other flag — a private
+  contact is visible exactly when such a raw contact exists with `DELETED = 0`. denwa
+  (`extensions/RenrakusakiCopies.kt`, from `1.11.1+095`) drops these copies from its lists by the same
+  tag, but only when the private original was actually read from our provider. **Never change the tag.**
+- **Content:** StructuredName + Phone rows, plus Photo when `Config.mirrorPhoto` (default on). Nothing
+  else — every READ_CONTACTS app sees the copy.
+- **Account:** `Config.mirrorAccount`, or automatically the phone's local account
+  (`com.android.huawei.phone`, else any `phone`/`local` type, else account-less). Changing it
+  recreates all copies there.
+- **Badges and the three-way switch:** list photos carry a crossed-out lock (system) or an eye (private +
+  visible), none for private-only (`setupVisibilityBadge`, cached ids `SystemMirror.cachedMirroredIds`).
+  `dialogs/ChangeVisibilityDialog` switches System / Private / Private + visible — opened by a long-press
+  on a list photo and by the “Visibility: …” row on the contact screen. System ⇄ Private is a real move
+  (insert into the other store, delete the old record, no confirmation — nothing is lost); Private ⇄ visible only adds
+  or removes the copy.
+- **Lifecycle:** toggled from the contact screen's ⋮ (*Visible to other apps*), the dialog above, or in
+  bulk from the selection menu; rewritten after every save of the private contact (`EditContactActivity.updateContact`);
+  orphans (original deleted or moved to another source) are deleted on the next list load.
+- **Our own lists must never show the copy.** Every load goes through `Context.getOwnContacts()`
+  (extensions/Context.kt) instead of `ContactsHelper.getContacts()`; it drops copies and, if duplicate
+  merging kept the copy over the original, puts the original back. `getDuplicateContacts()` skips copies
+  too. **New code that lists contacts must use `getOwnContacts()`.**
+- **vCard round trip:** export writes `X-SHIROIKUMA-VISIBLE:1` on a visible private contact; importing
+  such a card into private storage recreates its copy.
+
+### Every field, in the contact itself — `Contact.extra` (commons `sk11`)
+
+Fossify's model had no reading, relations, SIP addresses, organization details, event labels or
+send-to-voicemail, and silently dropped many columns. Commons `sk11` adds `Contact.extra`
+(`ContactExtraData`) and a matching `extra` column in the private DB (Room 3 → 4 migration), so a
+contact is complete in **both** stores and a move is a plain copy:
+
+- commons `ContactExtraIO` reads it for a system contact (`getContactWithId`, `fillExtras` for exports)
+  and writes it after every insert and every update **whose extra was loaded** (`extra.loaded`) — a
+  list-row contact updated without its extras must never wipe them;
+- first-class and editable here (`helpers/MoreFieldsEditor`, view: `ViewContactActivity.setupMoreFields`):
+  reading, department / job description / office location / company reading / symbol, relationships,
+  SIP addresses, event custom labels, send to voicemail; everything else is kept verbatim in
+  `extra.rows` (patched back onto the matching row, unknown kinds re-inserted) and listed read-only;
+- vCard: `helpers/VcfExtra` writes `X-SHIROIKUMA-EXTRA` (base64 JSON, authoritative on import) plus
+  standard RELATED / X-SIP / ORG unit / ROLE / X-PHONETIC-ORG… for other readers;
+- groups move by title (`helpers/GroupMapping.kt`);
+- `helpers/PrivateExtras` is now only the one-time migration of the `+097`/`+098` side file into the
+  contacts (run from `App.onCreate`).
+
+### Duplicates: the list merges by name, so state changes and cleanup act on the whole row
+
+With “merge duplicate contacts” on, one list row stands for every entry (system and private, shown
+sources) with the same display name. 白い熊's phone holds most contacts twice (an old double import), so:
+
+- `ChangeVisibilityDialog.membersOf` finds every entry behind a row and applies the chosen state to each;
+  the tick shows the row's common state, none when mixed (`stateOfGroup`).
+- UI settings → Maintenance → *Clean up duplicates* (`activities/DuplicatesActivity`,
+  `helpers/DuplicateCleaner`): exact copies (same content, store and account; name split ignored) go in
+  one tap, keeping star and groups; differing groups offer merge-into-one (union of everything), keep
+  one, or “not duplicates” (`Config.notDuplicateNames`). Every change first writes a vCard backup to
+  `Android/data/<app>/files/cleanup-backups/`.
 
 ## Commit convention — no Claude attribution
 

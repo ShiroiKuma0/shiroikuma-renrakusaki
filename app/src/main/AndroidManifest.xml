@@ -40,12 +40,6 @@
         android:name="android.hardware.telephony"
         android:required="false" />
 
-    <!-- Locks our private-data provider (private contacts + per-contact SIM) to apps signed with our
-         key — i.e. the Phone fork shiroikuma-denwa. signature-level: granted only on a matching cert. -->
-    <permission
-        android:name="${applicationId}.permission.READ_PRIVATE_DATA"
-        android:protectionLevel="signature" />
-
     <queries>
         <package android:name="org.fossify.contacts.debug" />
         <package android:name="org.fossify.contacts" />
@@ -58,6 +52,12 @@
              switch) and 応用管理 were both invisible to us. A third caller is a one-line addition here —
              deliberately not QUERY_ALL_PACKAGES, which is Play-policy-restricted and buys nothing. -->
         <package android:name="shiroikuma.oyokanri" />
+
+        <!-- The allowed-apps picker for private contacts lists every launchable app. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
         <package android:name="shiroikuma.jiyusagyoban" />
 
         <!-- Fork: the denwa hand-off. When 白い熊 enters this app from the dialer's bottom bar we wear
@@ -132,6 +132,13 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".activities.DuplicatesActivity"
+            android:configChanges="orientation"
+            android:exported="false"
+            android:label="@string/dup_title"
+            android:parentActivityName=".activities.ThemeActivity" />
 
         <activity
             android:name=".activities.ThemeActivity"
@@ -364,12 +371,14 @@
         </provider>
 
         <!-- Fork: unique authority (not the upstream org.fossify.commons.contactsprovider)
-             so this app installs side-by-side with upstream Fossify Contacts. -->
+             so this app installs side-by-side with upstream Fossify Contacts. No readPermission: the
+             provider itself admits only the packages allowed in UI settings → Private contacts
+             (Config.privateDataApps). The old signature-level READ_PRIVATE_DATA could never admit
+             Messēji, which is signed with a different key. -->
         <provider
             android:name=".contentproviders.MyContactsContentProvider"
             android:authorities="${applicationId}.contactsprovider"
-            android:exported="true"
-            android:readPermission="${applicationId}.permission.READ_PRIVATE_DATA" />
+            android:exported="true" />
 
         <activity-alias
             android:name=".activities.SplashActivity.Red"

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Visibility badge on a contact photo's top-end corner: crossed-out lock = system contact, eye = private
+     contact visible to other apps, none = private. Icon, colours and size are set in ContactsAdapter. -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/visibility_badge"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/visibility_badge_background"
+    android:contentDescription="@string/visible_to_other_apps"
+    android:padding="2dp" />

@@ -34,6 +34,7 @@ import org.fossify.commons.models.RadioItem
 import org.fossify.commons.models.Release
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.contacts.BuildConfig
+import org.fossify.contacts.extensions.getOwnContacts
 import org.fossify.contacts.R
 import org.fossify.contacts.adapters.ViewPagerAdapter
 import org.fossify.contacts.databinding.ActivityMainBinding
@@ -744,10 +745,10 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             binding.viewPager.currentItem = takeRequestedTab() ?: getDefaultTab()
         }
 
-        ContactsHelper(this).getContacts { contacts ->
+        this.getOwnContacts { contacts ->
             isGettingContacts = false
             if (isDestroyed || isFinishing) {
-                return@getContacts
+                return@getOwnContacts
             }
 
             // Refresh readings (フリガナ) + lookup keys first — the grouped list buckets and sorts by

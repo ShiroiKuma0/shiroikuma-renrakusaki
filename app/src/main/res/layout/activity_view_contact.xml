@@ -341,11 +341,22 @@
                 android:orientation="vertical"
                 android:visibility="gone" />
 
+            <!-- Fork (sk11): organization details, relationships, internet-call addresses, send to
+                 voicemail and any other stored data — built in ViewContactActivity.setupMoreFields. -->
+            <LinearLayout
+                android:id="@+id/contact_more_holder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/contact_websites_holder"
+                android:layout_toEndOf="@+id/contact_name_image"
+                android:orientation="vertical"
+                android:visibility="gone" />
+
             <LinearLayout
                 android:id="@+id/contact_groups_holder"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@+id/contact_websites_holder"
+                android:layout_below="@+id/contact_more_holder"
                 android:layout_toEndOf="@+id/contact_name_image"
                 android:orientation="vertical"
                 android:visibility="gone" />
