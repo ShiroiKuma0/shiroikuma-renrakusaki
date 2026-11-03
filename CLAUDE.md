@@ -191,6 +191,10 @@ authority (Messēji, yotehyo). **Never rename the authority or the `contacts` pa
   package or in `Config.privateDataApps` — UI settings → Private contacts → *Apps allowed to read them*.
   A `.debug` caller is admitted when its release id is. Defaults: `DEFAULT_PRIVATE_DATA_APPS` =
   denwa, messeji, yotehyo. A refused caller gets `null`, for contacts and `sim_slot` alike.
+- **Photos:** a private contact keeps its picture as bytes in Room (its stored `photo_uri` is always
+  empty), so the cursor's `photo_uri` points back into the provider —
+  `content://…contactsprovider/photo/<private id>?v=<hash of the bytes>` — and `openFile` serves it
+  (same gate, `getType` = `image/jpeg` so `loadThumbnail` works). Without it denwa showed placeholders.
 - The list is device-local: `PRIVATE_DATA_APPS` is in `SettingsExport.PREFS_EXCLUDE`.
 - The picker lists launchable apps, hence the `MAIN`/`LAUNCHER` `<intent>` in `<queries>`.
 

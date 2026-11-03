@@ -192,6 +192,7 @@ const val SORT_FIELD_ORGANIZATION = 3
 // outgoing calls, including from Android Auto. Absent/0 = no preference.
 const val SIM_SLOT_PREFIX = "sim_slot_"
 const val SIM_SLOT_PROVIDER_PATH = "sim_slot" // ContentProvider path denwa queries (number → slot)
+const val PHOTO_PROVIDER_PATH = "photo" // ContentProvider path serving a private contact's picture: photo/<id>
 
 // Favorites SIM badge colors: SIM 1 red (bottom-start), SIM 2 blue (bottom-end), number in pure yellow.
 const val SIM1_BADGE_COLOR = 0xFFFF0000.toInt()
