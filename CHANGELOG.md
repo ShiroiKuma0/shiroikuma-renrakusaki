@@ -7,6 +7,18 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+117] — 2026-11-03
+
+Since `1.6.0+116`, still on **Fossify Contacts 1.6.0** and Commons **6.1.6-sk12**.
+
+### Fixes
+- **Private contacts' photos reach the Phone fork.** A private contact keeps its picture inside this
+  app's own database, so the address handed to the allowed apps was always empty — after moving
+  everything to private, the Phone fork showed only placeholder avatars in Recents, its lists and on the
+  call screen. The contacts provider now gives each photo its own address and serves the picture itself,
+  behind the same allow-list as the contacts; the address changes whenever the photo does, so a cached
+  old picture is never shown.
+
 ## [1.6.0+116] — 2026-11-03
 
 Everything added since `1.6.0+114`, still on **Fossify Contacts 1.6.0** and Commons **6.1.6-sk12**.

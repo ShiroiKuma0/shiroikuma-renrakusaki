@@ -10,14 +10,14 @@ A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **majo
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+116`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+117`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
 ---
 
 ## 🔒 Private contacts — visible only where you choose
-A private contact lives in this app alone: no other app with contacts access — messengers, the car, keyboards, Google — sees it. **You decide who does.** Your own companion apps (the Phone, Messages and Calendar forks) are on an **allow-list** in the settings, and any other app can be added or removed there.
+A private contact lives in this app alone: no other app with contacts access — messengers, the car, keyboards, Google — sees it. **You decide who does.** Your own companion apps (the Phone, Messages and Calendar forks) — which get each private contact's photo along with the name — are on an **allow-list** in the settings, and any other app can be added or removed there.
 
 When a private contact *should* be known elsewhere — so WhatsApp finds them, or the car shows the caller's name — switch it to **visible to other apps**: the app keeps a stripped copy (name, reading, numbers, photo) in the phone's own local account, rewrites it on every save, and removes it again when you switch back. The private record stays the only one you edit, and this app never shows the copy twice.
 
