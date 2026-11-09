@@ -5,14 +5,10 @@ import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.graphics.Typeface
 import android.os.Environment
 import android.provider.Settings
-import android.text.SpannableStringBuilder
-import android.text.Spanned
 import android.text.format.DateUtils
-import android.text.style.ForegroundColorSpan
-import android.text.style.RelativeSizeSpan
-import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -27,8 +23,10 @@ import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
-import org.fossify.commons.extensions.adjustAlpha
 import org.fossify.commons.extensions.beGone
+import org.fossify.commons.extensions.beVisibleIf
+import org.fossify.commons.extensions.getProperBackgroundColor
+import org.fossify.commons.extensions.pillDrawable
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
@@ -48,6 +46,7 @@ import org.fossify.contacts.databinding.ActivityThemeBinding
 import org.fossify.contacts.databinding.DialogColumnSpacerBinding
 import org.fossify.contacts.databinding.DialogExportImportBinding
 import org.fossify.contacts.databinding.DialogPatternInputBinding
+import org.fossify.contacts.databinding.ItemThemeActionBinding
 import org.fossify.contacts.databinding.ItemThemeColorBinding
 import org.fossify.contacts.databinding.ItemThemeFieldsOrderBinding
 import org.fossify.contacts.databinding.ItemThemeSectionBinding
@@ -71,8 +70,6 @@ import org.fossify.contacts.helpers.VcfExporter
 import org.fossify.contacts.extensions.FontWeightOption
 import org.fossify.contacts.extensions.ThemeGroup
 import org.fossify.contacts.extensions.ThemeSlot
-import org.fossify.contacts.extensions.pill
-import org.fossify.contacts.extensions.pillRow
 import org.fossify.contacts.helpers.ContactsListConfig
 import org.fossify.contacts.helpers.DEFAULT_PRIVATE_DATA_APPS
 import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_DIVIDER_DP
@@ -114,14 +111,9 @@ private const val SAMPLE_OLDER_DAYS = 400
 // The page indents in 72dp steps; the narrower Export / Import panel steps in this instead.
 private const val DIALOG_INDENT_STEP_DP = 24
 
-// Vertical padding for every row, replacing the commons style's 20dp — the page is a long list of
-// one-liners, so it is packed tight rather than spaced like a handful of preference rows.
-private const val ROW_PADDING_VERTICAL_DP = 4
-
-// A row description renders at this share of the title's size, dimmed to this alpha.
-private const val DESCRIPTION_TEXT_SCALE = 0.85f
-private const val DESCRIPTION_ALPHA = 0.6f
-private const val NOTE_TEXT_SP = 14f
+// Vertical padding for every row, replacing the commons style's 20dp — every row is only as tall as its
+// content (black-yellow theme, "Row padding — minimal, every row").
+private const val ROW_PADDING_VERTICAL_DP = 2
 private const val SECTION_GAP_DP = 20
 
 // How many hex characters of the automation token stay visible at each end.
@@ -209,8 +201,11 @@ class ThemeActivity : SimpleActivity() {
         val primaryColor = getProperPrimaryColor()
         val stepPx = (INDENT_STEP_DP * resources.displayMetrics.density).toInt()
 
-        // Your data first (backup, who sees private contacts, housekeeping), then the language, then the
-        // look of the app section by section.
+        // The way to the app's own settings first, as the page's one thick pill; then your data (backup,
+        // who sees private contacts, housekeeping), then the language, then the look section by section.
+        addActionRow(getString(R.string.app_settings_link), getString(R.string.app_settings_link_desc), 0, main = true) {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
         addExportImportSection(primaryColor, stepPx)
         addPrivateContactsSection(primaryColor, stepPx)
         addMaintenanceSection(primaryColor, stepPx)
@@ -229,8 +224,7 @@ class ThemeActivity : SimpleActivity() {
         addValueRow(getString(R.string.eim_dir), eximDir()?.name ?: getString(R.string.eim_dir_unset), stepPx) {
             eximDirPicker.launch(eximDirUri())
         }
-        addNote(lastExportSummary(), stepPx)
-        addPills(stepPx, pill(getString(R.string.eim_open), main = true) { showExportImportDialog() })
+        addActionRow(getString(R.string.eim_open), lastExportSummary(), stepPx, main = true) { showExportImportDialog() }
 
         // Automation sits directly below the export rows it drives — the placement every sister app
         // shares, so 白い熊 finds it where backup lives.
@@ -256,6 +250,7 @@ class ThemeActivity : SimpleActivity() {
         val view = DialogExportImportBinding.inflate(layoutInflater)
         val holder = view.exportImportHolder
         view.exportImportHint.text = getString(R.string.eim_hint)
+        view.exportImportHint.setTextColor(themeColor(ThemeSlot.SETTINGS_NOTE))
         val primaryColor = getProperPrimaryColor()
         val stepPx = (DIALOG_INDENT_STEP_DP * resources.displayMetrics.density).toInt()
 
@@ -289,11 +284,11 @@ class ThemeActivity : SimpleActivity() {
 
         var dialog: AlertDialog? = null
         addSubgroupHeader(getString(R.string.eim_vcf_group), primaryColor, 0, holder)
-        addActionRow(getString(R.string.export_contacts_to_vcf), stepPx, holder) {
+        addActionRow(getString(R.string.export_contacts_to_vcf), null, stepPx, parent = holder) {
             dialog?.dismiss()
             startVcfExport()
         }
-        addActionRow(getString(R.string.import_contacts_from_vcf), stepPx, holder) {
+        addActionRow(getString(R.string.import_contacts_from_vcf), null, stepPx, parent = holder) {
             dialog?.dismiss()
             startVcfImport()
         }
@@ -588,33 +583,29 @@ class ThemeActivity : SimpleActivity() {
 
     private fun addMaintenanceSection(primaryColor: Int, stepPx: Int) {
         addSectionHeader(getString(R.string.maintenance_section), primaryColor)
-        addNote(getString(R.string.dup_row_desc), stepPx)
-        addPills(stepPx, pill(getString(R.string.dup_title), main = true) {
+        addActionRow(getString(R.string.dup_title), getString(R.string.dup_row_desc), stepPx, main = true) {
             startActivity(Intent(this, DuplicatesActivity::class.java))
-        })
+        }
 
-        // What is still outside private storage, checked live.
+        // What is still outside private storage, checked live: the status is the explanation under the
+        // pill that checks it again.
         addSubgroupHeader(getString(R.string.system_storage), primaryColor, stepPx)
-        val status = ItemThemeValueBinding.inflate(layoutInflater, binding.themeHolder, false)
-        status.themeValueLabel.text = getString(R.string.system_storage_checking)
-        status.themeValueLabel.setTextColor(getProperTextColor())
-        status.themeValueValue.beGone()
-        status.root.background = null
-        indentRow(status.root, stepPx * 2)
-        binding.themeHolder.addView(status.root)
+        lateinit var check: ItemThemeActionBinding
         fun refreshStatus() {
-            status.themeValueLabel.text = getString(R.string.system_storage_checking)
+            setActionDescription(check, getString(R.string.system_storage_checking))
             ensureBackgroundThread {
                 val st = SystemStorage.status(applicationContext)
                 val text = systemStorageText(st)
-                runOnUiThread { status.themeValueLabel.text = text }
+                runOnUiThread { setActionDescription(check, text) }
             }
         }
+        check = addActionRow(getString(R.string.system_storage_check), null, stepPx * 2, opens = false) { refreshStatus() }
         refreshStatus()
-        addPills(stepPx * 2, pill(getString(R.string.system_storage_check)) { refreshStatus() })
 
-        addNote(getString(R.string.all_private_desc), stepPx * 2)
-        addPills(stepPx * 2, pill(getString(R.string.all_private)) { confirmMoveAllToPrivate() })
+        // Acts in place after its confirmation, so no ›.
+        addActionRow(getString(R.string.all_private), getString(R.string.all_private_desc), stepPx * 2, opens = false) {
+            confirmMoveAllToPrivate()
+        }
 
         addSwitchRow(
             title = getString(R.string.new_contacts_private),
@@ -781,9 +772,10 @@ class ThemeActivity : SimpleActivity() {
 
         val view = DialogExportImportBinding.inflate(layoutInflater)
         view.exportImportHint.text = getString(R.string.private_data_apps_hint)
+        view.exportImportHint.setTextColor(themeColor(ThemeSlot.SETTINGS_NOTE))
         candidates.forEach { (pkg, label) ->
             val title = label ?: getString(R.string.private_data_app_not_installed, pkg)
-            addSwitchRow(title, pkg in selected, 0, description = pkg, parent = view.exportImportHolder) { on ->
+            addSwitchRow(title, pkg in selected, 0, description = pkg, explained = false, parent = view.exportImportHolder) { on ->
                 if (on) selected.add(pkg) else selected.remove(pkg)
             }
         }
@@ -808,6 +800,10 @@ class ThemeActivity : SimpleActivity() {
         }
         if (group == ThemeGroup.PHOTO_ICONS) {
             addPhotoIconsSection(primaryColor, stepPx)
+            return
+        }
+        if (group == ThemeGroup.SWIPE_CALL) {
+            addSwipeCallSection(primaryColor, stepPx)
             return
         }
 
@@ -983,6 +979,23 @@ class ThemeActivity : SimpleActivity() {
         addColorRow(ThemeSlot.PHOTO_ICON_OUTLINE, stepPx)
     }
 
+    // "Swipe to call": the switch, then the colours of the band a swiped row reveals and of its marking.
+    private fun addSwipeCallSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.swipe_to_call), primaryColor)
+        addSwitchRow(
+            title = getString(R.string.swipe_to_call_enable),
+            checked = config.swipeToCall,
+            indent = stepPx,
+            description = getString(R.string.swipe_to_call_desc),
+        ) {
+            config.swipeToCall = it
+            config.contactsListRevision += 1 // the lists rebuild their adapters, attaching or dropping the swipe
+        }
+        addColorRow(ThemeSlot.SWIPE_SIM1, stepPx)
+        addColorRow(ThemeSlot.SWIPE_SIM2, stepPx)
+        addColorRow(ThemeSlot.SWIPE_TEXT, stepPx)
+    }
+
     private fun rebuildRowStyling(entries: List<RowFieldEntry>, stepPx: Int) {
         val container = rowStylingContainer ?: return
         container.removeAllViews()
@@ -1056,18 +1069,30 @@ class ThemeActivity : SimpleActivity() {
     }
 
     // Toggle row: the whole row is the tap target; the switch itself is non-interactive. [description],
-    // when given, becomes a dimmer second line under the title.
+    // when given, is the explanation beneath the title. An [explained] item is laid out the black-yellow
+    // way — bold accent label, dim-gold explanation, thin dim-gold rule down its left edge; a plain
+    // second line (an app's package name in the picker) keeps the label normal and has no rule.
     private fun addSwitchRow(
         title: String,
         checked: Boolean,
         indent: Int,
         description: String? = null,
+        explained: Boolean = description != null,
         parent: ViewGroup = binding.themeHolder,
         onChange: (Boolean) -> Unit,
     ): ItemThemeSwitchBinding {
         val b = ItemThemeSwitchBinding.inflate(layoutInflater, parent, false)
-        b.themeSwitchLabel.text = if (description == null) title else titleWithDescription(title, description)
-        b.themeSwitchLabel.setTextColor(getProperTextColor())
+        val note = themeColor(ThemeSlot.SETTINGS_NOTE)
+        b.themeSwitchLabel.text = title
+        b.themeSwitchLabel.setTextColor(if (explained) getProperPrimaryColor() else getProperTextColor())
+        if (explained) b.themeSwitchLabel.setTypeface(b.themeSwitchLabel.typeface, Typeface.BOLD)
+        b.themeSwitchDesc.text = description.orEmpty()
+        b.themeSwitchDesc.setTextColor(note)
+        b.themeSwitchDesc.beVisibleIf(description != null)
+        b.themeSwitchRule.setBackgroundColor(note)
+        b.themeSwitchRule.beVisibleIf(explained)
+        b.themeSwitch.minHeight = 0
+        b.themeSwitch.minimumHeight = 0
         b.themeSwitch.isChecked = checked
         b.root.setOnClickListener {
             b.themeSwitch.toggle()
@@ -1077,18 +1102,6 @@ class ThemeActivity : SimpleActivity() {
         parent.addView(b.root)
         return b
     }
-
-    // A row's explanation, as a smaller dimmed line below its title — the value rows' styling, without
-    // needing a second view in every switch layout.
-    private fun titleWithDescription(title: String, description: String): CharSequence =
-        SpannableStringBuilder(title).apply {
-            append("\n")
-            val start = length
-            append(description)
-            val dimmed = ForegroundColorSpan(getProperTextColor().adjustAlpha(DESCRIPTION_ALPHA))
-            setSpan(RelativeSizeSpan(DESCRIPTION_TEXT_SCALE), start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            setSpan(dimmed, start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        }
 
     /**
      * The automation-token row: label plus the abbreviated token, tapping anywhere copies the full token,
@@ -1107,6 +1120,8 @@ class ThemeActivity : SimpleActivity() {
         b.themeTokenValue.setTextColor(getProperTextColor())
         b.themeTokenRegenerate.text = getString(R.string.automation_token_regenerate)
         b.themeTokenRegenerate.setTextColor(getProperPrimaryColor())
+        // An action, so a pill (regular weight) — never bare text.
+        b.themeTokenRegenerate.background = pillDrawable(getProperPrimaryColor(), getProperBackgroundColor(), main = false)
         b.root.setOnClickListener { onCopy() }
         b.themeTokenRegenerate.setOnClickListener { onRegenerate(b) }
         indentRow(b.root, indent)
@@ -1135,30 +1150,46 @@ class ThemeActivity : SimpleActivity() {
         return b
     }
 
-    // One-shot actions (export / import a vCard…) are pills — what DOES something stands out from settings.
-    private fun addActionRow(title: String, indent: Int, parent: ViewGroup = binding.themeHolder, onClick: () -> Unit) {
-        parent.addView(pillRow(pill(title, onClick = onClick), startPaddingPx = indent + pillInset()))
+    /**
+     * A pressable row (black-yellow theme, "every pressable row is a pill"): an outlined pill as wide as
+     * its label — 3 dp frame and bold for the [main] action of its section, 1.25 dp and normal otherwise —
+     * with a › inside when it [opens] another screen, picker or panel (none when it acts in place after a
+     * confirmation), and its [description] beneath in the settings-note dim gold. Only the pill takes taps.
+     */
+    private fun addActionRow(
+        title: String,
+        description: CharSequence?,
+        indent: Int,
+        main: Boolean = false,
+        opens: Boolean = true,
+        parent: ViewGroup = binding.themeHolder,
+        onClick: () -> Unit,
+    ): ItemThemeActionBinding {
+        val b = ItemThemeActionBinding.inflate(layoutInflater, parent, false)
+        val accent = getProperPrimaryColor()
+        b.themeActionTitle.text = title
+        b.themeActionTitle.setTextColor(accent)
+        b.themeActionTitle.setTypeface(null, if (main) Typeface.BOLD else Typeface.NORMAL)
+        b.themeActionChevron.setTextColor(accent)
+        b.themeActionChevron.beVisibleIf(opens)
+        b.themeActionPill.background = pillDrawable(accent, getProperBackgroundColor(), main)
+        b.themeActionPill.setOnClickListener { onClick() }
+        setActionDescription(b, description)
+        // The indent only — the row keeps its own ≈3 dp around the pill rather than the rows' 2 dp.
+        b.root.setPaddingRelative(b.root.paddingStart + indent, b.root.paddingTop, b.root.paddingEnd, b.root.paddingBottom)
+        parent.addView(b.root)
+        return b
     }
 
-    private fun addPills(indent: Int, vararg pills: View) {
-        binding.themeHolder.addView(pillRow(*pills, startPaddingPx = indent + pillInset()))
+    // The explanation under an action pill; the dim-gold rule runs down the left only when there is one.
+    private fun setActionDescription(b: ItemThemeActionBinding, description: CharSequence?) {
+        val note = themeColor(ThemeSlot.SETTINGS_NOTE)
+        b.themeActionDesc.text = description ?: ""
+        b.themeActionDesc.setTextColor(note)
+        b.themeActionDesc.beVisibleIf(!description.isNullOrEmpty())
+        b.themeActionRule.setBackgroundColor(note)
+        b.themeActionRule.beVisibleIf(!description.isNullOrEmpty())
     }
-
-    // An explanation line, dimmer and smaller than a setting's title.
-    private fun addNote(text: String, indent: Int) {
-        val b = ItemThemeValueBinding.inflate(layoutInflater, binding.themeHolder, false)
-        b.themeValueLabel.text = text
-        b.themeValueLabel.setTextColor(getProperTextColor().adjustAlpha(DESCRIPTION_ALPHA))
-        b.themeValueLabel.textSize = NOTE_TEXT_SP
-        b.themeValueValue.beGone()
-        b.root.isClickable = false
-        b.root.background = null
-        indentRow(b.root, indent)
-        binding.themeHolder.addView(b.root)
-    }
-
-    // Pills line up with the row titles, which sit inside the rows' own start padding.
-    private fun pillInset() = resources.getDimensionPixelSize(org.fossify.commons.R.dimen.activity_margin)
 
     // A sample timestamp for each age bracket, so pattern rows and the edit dialog show a live example.
     private fun sampleTimestampFor(kindPrefix: String): Long = when (kindPrefix) {
@@ -1305,6 +1336,8 @@ class ThemeActivity : SimpleActivity() {
      */
     private fun indentRow(view: android.view.View, indent: Int) {
         val vertical = (ROW_PADDING_VERTICAL_DP * resources.displayMetrics.density).toInt()
+        // No platform minimum: a row is as tall as its content.
+        view.minimumHeight = 0
         view.setPaddingRelative(view.paddingStart + indent, vertical, view.paddingEnd, vertical)
     }
 

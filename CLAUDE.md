@@ -172,6 +172,17 @@ app is untouched. The point is that Recents never vanishes, so the dialer is alw
 
 The feature is only visible with **both** halves installed; denwa ships the sending side.
 
+## Swipe to call — a port of denwa's, keep the two in step
+
+Contacts and Favorites rows swipe to call the contact's default number (`numberToCall()`): left = SIM 1,
+right = SIM 2. `helpers/SwipeToCallCallback.kt` is denwa's file (`shiroikuma-denwa`,
+`helpers/SwipeToCallCallback.kt`) ported verbatim — only the colours (`ThemeSlot.SWIPE_SIM1/2/TEXT`,
+defaulting to denwa's red / blue / yellow) and the string differ — so a change to the swipe in denwa is
+copied here, not re-derived. `extensions/SwipeToCall.kt` holds denwa's `setupSwipeToCall` (plus removing
+the parts an earlier adapter attached, kept in the list's `R.id.swipe_to_call_tag`) and the call itself:
+through denwa's DialerActivity with the SIM as `EXTRA_PHONE_ACCOUNT_HANDLE`, which needs
+`READ_PHONE_STATE`. Switch and colours: UI settings → *Swipe to call* (`Config.swipeToCall`, default on).
+
 ## Private contacts: the provider gate and the visible copies
 
 Private contacts (“Phone storage (not visible by other apps)”, source `SMT_PRIVATE`) live only in our

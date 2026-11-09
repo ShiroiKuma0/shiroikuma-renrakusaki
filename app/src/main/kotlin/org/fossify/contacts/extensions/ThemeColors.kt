@@ -32,6 +32,7 @@ enum class ThemeGroup(@StringRes val labelRes: Int) {
     SECTIONS(R.string.theme_sections_group),
     ROWS(R.string.theme_group_rows),
     LISTS(R.string.theme_group_lists),
+    SWIPE_CALL(R.string.swipe_to_call),
 }
 
 enum class ThemeSlot(
@@ -49,6 +50,8 @@ enum class ThemeSlot(
     PRIMARY("theme_primary", ThemeGroup.FOUNDATION, R.string.theme_primary, isFoundation = true),
     TEXT("theme_text", ThemeGroup.FOUNDATION, R.string.theme_text, isFoundation = true),
     TEXT_SECONDARY("theme_text_secondary", ThemeGroup.FOUNDATION, R.string.theme_text_secondary),
+    // The explanations on the UI settings page and the thin rule down their left edge (black-yellow theme).
+    SETTINGS_NOTE("theme_settings_note", ThemeGroup.FOUNDATION, R.string.theme_settings_note),
 
     // Search bar
     SEARCH_FILL("theme_search_fill", ThemeGroup.SEARCH, R.string.theme_search_fill),
@@ -75,6 +78,11 @@ enum class ThemeSlot(
     PHOTO_TOOLBAR_ICON("theme_photo_toolbar_icon", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_toolbar_icon),
     PHOTO_ACTION_ICON("theme_photo_action_icon", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_action_icon),
     PHOTO_ICON_OUTLINE("theme_photo_icon_outline", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_icon_outline),
+
+    // Swipe to call: the band revealed behind a swiped row, per SIM, and the 1/2 glyph + "Dialing…" on it
+    SWIPE_SIM1("theme_swipe_sim1", ThemeGroup.SWIPE_CALL, R.string.swipe_sim1_color),
+    SWIPE_SIM2("theme_swipe_sim2", ThemeGroup.SWIPE_CALL, R.string.swipe_sim2_color),
+    SWIPE_TEXT("theme_swipe_text", ThemeGroup.SWIPE_CALL, R.string.swipe_text_color),
 
     // Contact lists — one subgroup per tab (name + phone number + fast-scroller)
     CONTACT_NAME(
@@ -179,6 +187,13 @@ enum class ThemeSlot(
 
 // Alpha factors for the muted (inherited) defaults.
 private const val ALPHA_SECONDARY_TEXT = 0.6f
+
+// The house dim gold for settings explanations — a colour of its own, never a greyed-out text colour.
+private const val SETTINGS_NOTE_DIM_GOLD = 0xFFC8C800.toInt()
+
+// denwa's own SIM fills (its PALETTE_RED / PALETTE_BLUE), so a swiped row is the same colour in both apps.
+private const val SWIPE_SIM1_DEFAULT = 0xFFFF0000.toInt()
+private const val SWIPE_SIM2_DEFAULT = 0xFF0000FF.toInt()
 private const val ALPHA_SEARCH_HINT = 0.5f
 private const val ALPHA_UNSELECTED_TAB = 0.6f
 
@@ -196,6 +211,11 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.PRIMARY -> getProperPrimaryColor()
     ThemeSlot.TEXT -> getProperTextColor()
     ThemeSlot.TEXT_SECONDARY -> themeColor(ThemeSlot.TEXT).adjustAlpha(ALPHA_SECONDARY_TEXT)
+    ThemeSlot.SETTINGS_NOTE -> SETTINGS_NOTE_DIM_GOLD
+    // denwa's defaults, so a swipe looks the same in both apps: SIM 1 red, SIM 2 blue, yellow marking
+    ThemeSlot.SWIPE_SIM1 -> SWIPE_SIM1_DEFAULT
+    ThemeSlot.SWIPE_SIM2 -> SWIPE_SIM2_DEFAULT
+    ThemeSlot.SWIPE_TEXT -> PALETTE_YELLOW
 
     // Search bar: black fill, yellow text/icon/border by inheriting foundation
     ThemeSlot.SEARCH_FILL -> themeColor(ThemeSlot.BACKGROUND)

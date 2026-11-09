@@ -1,8 +1,11 @@
 package org.fossify.contacts.extensions
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.ColorFilter
+import android.graphics.PorterDuff
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
@@ -31,7 +34,16 @@ private const val HALO_STEPS = 16
  * the first — the screens re-apply their colors on every resume.
  */
 private class OutlinedIcon(context: Context, bitmap: Bitmap, val source: Drawable) :
-    BitmapDrawable(context.resources, bitmap)
+    BitmapDrawable(context.resources, bitmap) {
+    // The bitmap already carries its final colours — glyph AND halo. Anything that recolours a drawable
+    // as a whole would paint the halo in the glyph's colour too and turn the icon into a fat blob: the
+    // toolbar's overflow button tints its image from the theme (that was the white, meshed ⋮), and
+    // applyTopBarColors filters the overflow icon. So a haloed icon ignores both; to change its colour,
+    // run its source through photoOverlayIcon again.
+    override fun setTintList(tint: ColorStateList?) = Unit
+    override fun setTintMode(tintMode: PorterDuff.Mode?) = Unit
+    override fun setColorFilter(colorFilter: ColorFilter?) = Unit
+}
 
 /** [icon] painted in [fillColor] over a halo in the outline slot's color. */
 fun Context.photoOverlayIcon(icon: Drawable?, fillColor: Int): Drawable? {

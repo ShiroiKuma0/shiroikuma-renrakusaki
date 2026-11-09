@@ -244,6 +244,9 @@ val DEFAULT_PRIVATE_DATA_APPS = setOf("shiroikuma.denwa", "shiroikuma.messeji", 
 const val MIRROR_ACCOUNT = "mirror_account"
 const val MIRROR_PHOTO = "mirror_photo"
 const val SHOW_VISIBILITY_BADGES = "show_visibility_badges"
+
+// Swipe a contact row to call its default number: left with SIM 1, right with SIM 2 (denwa's swipe).
+const val SWIPE_TO_CALL = "swipe_to_call"
 const val LONG_PRESS_PHOTO_VISIBILITY = "long_press_photo_visibility"
 const val SHOW_VISIBILITY_ROW = "show_visibility_row"
 // Duplicate groups 白い熊 marked as different contacts sharing a name (DuplicateCleaner), by name key.

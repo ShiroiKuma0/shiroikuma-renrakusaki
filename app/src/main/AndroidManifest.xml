@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- Swipe to call: which phone account is SIM 1 / SIM 2 (TelecomManager.callCapablePhoneAccounts). -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
     <!-- Fork: the 詳 detail list mode shows each contact's last call / last SMS, read straight from
          the system providers. Both are runtime permissions requested when the mode is enabled. -->

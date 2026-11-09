@@ -13,11 +13,13 @@
         android:orientation="vertical"
         android:paddingTop="@dimen/medium_margin">
 
-        <org.fossify.commons.views.MyTextView
+        <!-- A plain TextView: its colour is the settings-note dim gold, set in code, which the dialog's
+             text-colour pass would overwrite on a MyTextView. -->
+        <TextView
             android:id="@+id/export_import_hint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:alpha="0.6"
+            android:textSize="13sp"
             android:paddingHorizontal="@dimen/activity_margin"
             android:paddingBottom="@dimen/medium_margin" />
 

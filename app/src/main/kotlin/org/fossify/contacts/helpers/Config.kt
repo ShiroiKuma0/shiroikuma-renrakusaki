@@ -248,6 +248,10 @@ class Config(context: Context) : BaseConfig(context) {
         set(value) = prefs.edit().putString(MIRROR_ACCOUNT, value).apply()
 
     // The open-lock / eye badge on contact photos in the lists.
+    var swipeToCall: Boolean
+        get() = prefs.getBoolean(SWIPE_TO_CALL, true)
+        set(value) = prefs.edit().putBoolean(SWIPE_TO_CALL, value).apply()
+
     var showVisibilityBadges: Boolean
         get() = prefs.getBoolean(SHOW_VISIBILITY_BADGES, true)
         set(value) = prefs.edit().putBoolean(SHOW_VISIBILITY_BADGES, value).apply()

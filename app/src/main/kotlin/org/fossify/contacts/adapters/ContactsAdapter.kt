@@ -28,6 +28,13 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.ItemTouchHelper
+import org.fossify.commons.helpers.VIEW_TYPE_LIST
+import org.fossify.contacts.helpers.numberToCall
+import org.fossify.contacts.helpers.SwipeToCallCallback
+import org.fossify.contacts.extensions.callNumberWithSim
+import org.fossify.contacts.extensions.removeSwipeToCall
+import org.fossify.contacts.extensions.setupSwipeToCall
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
@@ -135,6 +142,42 @@ class ContactsAdapter(
                 }
             }
         }
+
+        setupSwipeToCall()
+    }
+
+    // Swipe a row to call its default number — left with SIM 1, right with SIM 2 — exactly as in
+    // denwa's call history (helpers/SwipeToCallCallback, ported from denwa). Contacts and Favorites
+    // only, single-column list rows only (a grid cell has no line to slide along), never while
+    // selecting, and never on a letter-section header or a contact without a number.
+    private fun setupSwipeToCall() {
+        val onTab = location == LOCATION_CONTACTS_TAB || location == LOCATION_FAVORITES_TAB
+        if (!onTab || !config.swipeToCall) {
+            recyclerView.removeSwipeToCall()
+            return
+        }
+        recyclerView.setupSwipeToCall(
+            SwipeToCallCallback(
+                activity = activity,
+                sim1Color = activity.themeColor(ThemeSlot.SWIPE_SIM1),
+                sim2Color = activity.themeColor(ThemeSlot.SWIPE_SIM2),
+                canSwipe = { position -> swipeableContactAt(position) != null },
+                onSwipe = { position, useSim1 ->
+                    val contact = swipeableContactAt(position)
+                    val number = contact?.numberToCall()
+                    if (contact != null && number != null) {
+                        activity.callNumberWithSim(number.value, contact.getNameToDisplay(), useSim1)
+                    }
+                },
+            )
+        )
+    }
+
+    private fun swipeableContactAt(position: Int): Contact? {
+        if (viewType != VIEW_TYPE_LIST || actModeCallback.isSelectable) return null
+        if ((recyclerView.layoutManager as? GridLayoutManager)?.let { it.spanCount > 1 } == true) return null
+        val contact = displayItems.getOrNull(position) as? Contact ?: return null
+        return if (contact.numberToCall() != null) contact else null
     }
 
     override fun getActionMenuId() = R.menu.cab
@@ -235,6 +278,8 @@ class ContactsAdapter(
             }
 
             is Contact -> {
+                // a recycled holder must never keep a swiped row's offset (denwa's stuck-band safeguard)
+                holder.itemView.translationX = 0f
                 val allowLongClick = location != LOCATION_INSERT_OR_EDIT
                 val view = holder.bindView(item, true, allowLongClick) { itemView, layoutPosition ->
                     setupView(itemView, item, holder)

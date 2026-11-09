@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- RecyclerView tag holding the swipe-to-call parts attached to it, so a rebuilt adapter replaces them. -->
+    <item name="swipe_to_call_tag" type="id" />
+</resources>
