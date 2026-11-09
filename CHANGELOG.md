@@ -7,6 +7,43 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+119] — 2026-11-09
+
+Since `1.6.0+117`, still on **Fossify Contacts 1.6.0** and Commons **6.1.6-sk12**.
+
+### Swipe to call
+- **Swipe a contact row to call it** in Contacts and Favorites: left calls its default number with
+  **SIM 1**, right with **SIM 2**. The call goes through the Phone fork with the chosen SIM, which wins
+  over any default SIM saved for the contact; the call confirmation, when on, still asks first.
+- Exactly the Phone fork's swipe, ported unchanged: a drag past a quarter of the row or a quick flick
+  commits, a shorter one springs back; the SIM-coloured band with its 1 / 2 phone mark shows whenever
+  the row is off its place; after release the row slides on to the end of the line at the finger's
+  speed, without a pause; the call is placed when the slide ends; the row then stays filled with the
+  SIM colour and reads **“Dialing…”** until the call screen is in front (or a new swipe starts, or 15 s
+  pass with no call).
+- Single-column list rows only — not in a multi-column grid, while selecting, on letter headings, or on
+  a contact without a number.
+- **UI settings → Swipe to call**: the switch (on by default) and the colours of the SIM 1 band, the
+  SIM 2 band, and the mark and “Dialing…” (red, blue and yellow by default, as in the Phone fork).
+- Asks for the phone-state permission on the first swipe, to tell SIM 1 from SIM 2; refused, the call
+  still goes out and the Phone fork asks which SIM.
+
+### UI settings page
+- **Every row that does something on tap is now an outlined pill** as wide as its label, its
+  explanation beneath: a › when it opens something, none when it acts in place after a confirmation;
+  the main action of a section has the thick frame and bold label. **App settings** is the first pill
+  on the page; *Export / Import…*, *Clean up duplicates*, *Check again* (with the live system-storage
+  status as its explanation), *Move every contact to private*, the vCard actions in the Export / Import
+  panel and the automation token's *Regenerate* are pills.
+- Explanations are a **dim gold of their own**, with a thin dim-gold rule down the left of the item;
+  a switch with an explanation has a bold yellow label. The colour is settable: Foundation →
+  *Settings explanations* (default `#C8C800`). The panels' hints use it too.
+- Rows are only as tall as their content: no minimum height, 2 dp above and below.
+
+### Fixes
+- **The ⋮ over a contact's photo** is a yellow glyph with its dark halo again, like the icons beside it,
+  instead of a white, meshed blob: the toolbar tinted the whole haloed icon, halo included.
+
 ## [1.6.0+117] — 2026-11-03
 
 Since `1.6.0+116`, still on **Fossify Contacts 1.6.0** and Commons **6.1.6-sk12**.

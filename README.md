@@ -6,11 +6,11 @@
 
 **A black-and-yellow, deeply customizable contacts app — your list, your layout, your colors.**
 
-A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: private contacts that stay private yet can be made visible to other apps one by one, every Android contact field shown, editable and backed up, a duplicate cleaner, Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, tap-to-dial on the Favorites grid while the car is connected, per-contact default SIM, category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
+A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: private contacts that stay private yet can be made visible to other apps one by one, every Android contact field shown, editable and backed up, a duplicate cleaner, Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, swipe a contact to call it with SIM 1 or SIM 2, tap-to-dial on the Favorites grid while the car is connected, per-contact default SIM, category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+117`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+119`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -75,6 +75,11 @@ Broadcasts let the companion task runner (白い熊 自由作業盤) back this a
 **The authorization token is now optional, and off by default.** A pasted secret cannot survive a wipe, which is precisely the situation this is for. Automation is on out of the box; if you want the old behavior, 「認証トークンを使う？」 in the Export / Import section turns the token back on, and the token itself only appears once you ask for it.
 
 **A wiped phone can now be put back.** Alongside the broadcasts sits a **data door** — a provider the app-manager fork (白い熊 応用管理) calls to describe what this app holds, stream an export straight into the backup it is assembling, and put it back afterwards. It writes into a **file handle the caller opens**, so the backup stays encrypted and checksummed as a whole rather than having a stray plaintext file dropped into it. Nothing anonymous gets in: a caller is checked by **exact package name, kernel-reported uid, and a pinned signing certificate**, and **restoring is only ever possible through that door** — never over a broadcast any app on the phone could send.
+
+---
+
+## 👉 Swipe to call, with the SIM you swipe to
+In Contacts and Favorites, **swipe a row left to call its default number with SIM 1, right with SIM 2** — the same gesture, with the same look, as the companion Phone fork's call history. A quarter of the row or a quick flick is enough; the row slides on at your finger's speed into a band in the SIM's colour, then stays there reading **“Dialing…”** until the call screen comes up, so a swipe never looks as if it did nothing. On/off and the band colours live on the UI page.
 
 ---
 
