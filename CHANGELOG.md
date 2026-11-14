@@ -7,6 +7,34 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+122] — 2026-11-14
+
+Since `1.6.0+119`, still on **Fossify Contacts 1.6.0**; Commons is now **6.1.6-sk13**.
+
+### Call history on the contact screen
+- **A contact's latest calls are listed under its fields** (heading *発着信履歴* / *Call history*), read
+  straight from the system call log and matched to the contact's numbers by their last nine digits.
+- **Drawn like the Phone fork's Recents**: a heading per day (今日 / 昨日, else the imperial date with
+  the weekday), and per call the SIM badge (with two SIMs), the direction arrow coloured as missed /
+  incoming / outgoing, the time, the duration, and the place for a number from another country.
+- **The look is the Phone fork's own**: its colours, fonts (imported font files included), line weights,
+  text size and time / duration / date formats are read from it each time the screen opens, so a change
+  there shows here. Without a Phone fork that serves its look (before `1.11.1+100`), its defaults apply.
+- A contact with several numbers shows, in dim gold, which number each call used (its type when that
+  tells them apart, else the number).
+- **Tap a call** to open the Phone fork's Recents filtered to that number; **the pill
+  *All calls in 白い熊 電話 ›*** opens it filtered to the whole contact. A long press copies the number.
+- **UI settings → Swipe to call → Call history on the contact screen**: the switch (on by default) and
+  *Calls shown* (3 / 5 / 10 / 20 / 50, default 10).
+
+### Shared with the Phone fork through Commons sk13
+- **Swipe to call** and the **call-log time, duration and imperial-date formats** now come from the
+  shared Commons library instead of a copy kept here, so both apps always behave the same. Nothing
+  changes in use.
+
+### Packaging
+- New dependencies: libphonenumber and its geocoder, for the place of a foreign number.
+
 ## [1.6.0+119] — 2026-11-09
 
 Since `1.6.0+117`, still on **Fossify Contacts 1.6.0** and Commons **6.1.6-sk12**.

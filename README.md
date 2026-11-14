@@ -10,7 +10,7 @@ A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **majo
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+119`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+122`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -80,6 +80,11 @@ Broadcasts let the companion task runner (白い熊 自由作業盤) back this a
 
 ## 👉 Swipe to call, with the SIM you swipe to
 In Contacts and Favorites, **swipe a row left to call its default number with SIM 1, right with SIM 2** — the same gesture, with the same look, as the companion Phone fork's call history. A quarter of the row or a quick flick is enough; the row slides on at your finger's speed into a band in the SIM's colour, then stays there reading **“Dialing…”** until the call screen comes up, so a swipe never looks as if it did nothing. On/off and the band colours live on the UI page.
+
+---
+
+## 📞 A contact's calls, on the contact's own screen
+Open a contact and its latest calls are listed under its fields — drawn exactly like the Phone fork's Recents: day headings, the SIM badge, the direction arrow, the time, the duration and the place. The colours, fonts, line weights and formats are **the Phone fork's own settings**, read from it live, so the two screens always match. Tap a call, or the pill beneath the list, and the Phone fork opens its Recents filtered to that number or to the whole contact.
 
 ---
 
