@@ -457,4 +457,10 @@
     <string name="auto_keep_clean">Keep the phone clean automatically</string>
     <string name="auto_keep_clean_desc">Each time this app opens, anything that has appeared in system storage — a contact another app added, a SIM card’s entries — moves into private storage, backed up first. Visible copies are never touched.</string>
     <string name="auto_clean_done">Moved %d new system contacts to private</string>
+    <string name="contact_call_history">Call history</string>
+    <string name="contact_call_history_all">All calls in 白い熊 電話 ›</string>
+    <string name="contact_call_history_settings">Call history on the contact screen</string>
+    <string name="contact_call_history_enable">Show the call history</string>
+    <string name="contact_call_history_desc">The latest calls with the contact, under its details — drawn exactly like the 白い熊 電話 call history, in its own colours, fonts and formats. Tap a call to see that number’s calls in 白い熊 電話; long-press to copy the number</string>
+    <string name="contact_call_history_count">Calls shown</string>
 </resources>

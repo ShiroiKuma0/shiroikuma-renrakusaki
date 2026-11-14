@@ -115,6 +115,7 @@ private const val DIALOG_INDENT_STEP_DP = 24
 // content (black-yellow theme, "Row padding — minimal, every row").
 private const val ROW_PADDING_VERTICAL_DP = 2
 private const val SECTION_GAP_DP = 20
+private val CONTACT_CALL_HISTORY_COUNTS = listOf(3, 5, 10, 20, 50)
 
 // How many hex characters of the automation token stay visible at each end.
 private const val TOKEN_ABBREVIATION_EDGE = 8
@@ -994,6 +995,28 @@ class ThemeActivity : SimpleActivity() {
         addColorRow(ThemeSlot.SWIPE_SIM1, stepPx)
         addColorRow(ThemeSlot.SWIPE_SIM2, stepPx)
         addColorRow(ThemeSlot.SWIPE_TEXT, stepPx)
+        addContactCallHistorySection(primaryColor, stepPx)
+    }
+
+    // 発着信履歴 on the contact screen. Its look is denwa's own (served by denwa), so only these two here.
+    private fun addContactCallHistorySection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.contact_call_history_settings), primaryColor)
+        addSwitchRow(
+            title = getString(R.string.contact_call_history_enable),
+            checked = config.contactCallHistory,
+            indent = stepPx,
+            description = getString(R.string.contact_call_history_desc),
+        ) { config.contactCallHistory = it }
+        lateinit var countRow: ItemThemeValueBinding
+        countRow = addValueRow(getString(R.string.contact_call_history_count), config.contactCallHistoryCount.toString(), stepPx) {
+            val choices = CONTACT_CALL_HISTORY_COUNTS
+            val items = ArrayList(choices.mapIndexed { index, count -> RadioItem(index, count.toString(), count) })
+            val checked = choices.indexOf(config.contactCallHistoryCount).coerceAtLeast(0)
+            RadioGroupDialog(this, items, checked) { value ->
+                config.contactCallHistoryCount = value as Int
+                countRow.themeValueValue.text = value.toString()
+            }
+        }
     }
 
     private fun rebuildRowStyling(entries: List<RowFieldEntry>, stepPx: Int) {

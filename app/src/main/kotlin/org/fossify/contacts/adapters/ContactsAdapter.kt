@@ -30,10 +30,7 @@ import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.ItemTouchHelper
 import org.fossify.commons.helpers.VIEW_TYPE_LIST
 import org.fossify.contacts.helpers.numberToCall
-import org.fossify.contacts.helpers.SwipeToCallCallback
 import org.fossify.contacts.extensions.callNumberWithSim
-import org.fossify.contacts.extensions.removeSwipeToCall
-import org.fossify.contacts.extensions.setupSwipeToCall
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -147,7 +144,7 @@ class ContactsAdapter(
     }
 
     // Swipe a row to call its default number — left with SIM 1, right with SIM 2 — exactly as in
-    // denwa's call history (helpers/SwipeToCallCallback, ported from denwa). Contacts and Favorites
+    // denwa's call history (SwipeToCallCallback, shared with denwa through commons sk13). Contacts and Favorites
     // only, single-column list rows only (a grid cell has no line to slide along), never while
     // selecting, and never on a letter-section header or a contact without a number.
     private fun setupSwipeToCall() {
@@ -169,6 +166,8 @@ class ContactsAdapter(
                         activity.callNumberWithSim(number.value, contact.getNameToDisplay(), useSim1)
                     }
                 },
+                simTextColor = activity.themeColor(ThemeSlot.SWIPE_TEXT),
+                dialingText = activity.getString(R.string.dialing),
             )
         )
     }

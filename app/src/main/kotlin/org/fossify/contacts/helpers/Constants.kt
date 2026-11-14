@@ -83,6 +83,11 @@ val dialerTabsList = arrayListOf(TAB_CONTACTS, TAB_FAVORITES, TAB_CALL_HISTORY)
 
 // Our Phone fork, release then debug — the mirror of denwa's `contactsAppPackages`.
 val dialerAppPackages = arrayListOf("shiroikuma.denwa", "shiroikuma.denwa.debug")
+// Denwa's Recents, narrowed: the numbers to keep (ArrayList<String>) and the name to show for the filter.
+// Sent with OPEN_TAB_INTENT_EXTRA = TAB_CALL_HISTORY by the contact screen's 発着信履歴. Keep in sync with denwa.
+const val RECENTS_FILTER_NUMBERS_EXTRA = "shiroikuma_recents_filter_numbers"
+const val RECENTS_FILTER_NAME_EXTRA = "shiroikuma_recents_filter_name"
+
 const val DIALER_APP_MAIN_ACTIVITY = "org.fossify.phone.activities.MainActivity"
 
 // denwa's dial screen. A call we place goes through THIS component explicitly — never a bare
@@ -247,6 +252,8 @@ const val SHOW_VISIBILITY_BADGES = "show_visibility_badges"
 
 // Swipe a contact row to call its default number: left with SIM 1, right with SIM 2 (denwa's swipe).
 const val SWIPE_TO_CALL = "swipe_to_call"
+const val CONTACT_CALL_HISTORY = "contact_call_history"
+const val CONTACT_CALL_HISTORY_COUNT = "contact_call_history_count"
 const val LONG_PRESS_PHOTO_VISIBILITY = "long_press_photo_visibility"
 const val SHOW_VISIBILITY_ROW = "show_visibility_row"
 // Duplicate groups 白い熊 marked as different contacts sharing a name (DuplicateCleaner), by name key.

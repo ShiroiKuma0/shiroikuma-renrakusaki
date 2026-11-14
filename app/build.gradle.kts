@@ -186,6 +186,8 @@ tasks.register("buildFoss") {
 
 dependencies {
     implementation(libs.fossify.commons)
+    implementation(libs.libphonenumber)
+    implementation(libs.geocoder)
     implementation(libs.androidx.swiperefreshlayout)
     implementation(libs.androidx.documentfile)
     implementation(libs.autofittextview)

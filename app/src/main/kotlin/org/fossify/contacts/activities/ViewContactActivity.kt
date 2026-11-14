@@ -8,11 +8,14 @@ import android.media.AudioManager
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Bundle
+import android.provider.CallLog
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds
+import android.util.TypedValue
 import android.view.View
 import android.view.WindowManager
 import android.widget.RelativeLayout
+import android.widget.TextView
 import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.FitCenter
@@ -47,6 +50,7 @@ class ViewContactActivity : ContactActivity() {
 
     companion object {
         private const val COMPARABLE_PHONE_NUMBER_LENGTH = 9
+        private const val CALL_HISTORY_HEADING_SCALE = 1.1f
 
         // Kinds with their own fields on this screen; a kept row of one of them only carries extra columns.
         private val MODELLED_KINDS = setOf(
@@ -334,6 +338,7 @@ class ViewContactActivity : ContactActivity() {
         setupRingtone()
         setupOrganization()
         updateTextColors(binding.contactScrollview)
+        setupCallHistory()
     }
 
     private fun launchEditContact(contact: Contact, editExactContact: Boolean) {
@@ -733,6 +738,214 @@ class ViewContactActivity : ContactActivity() {
         }
 
         holder.beVisibleIf(holder.childCount > 0)
+    }
+
+    // 発着信履歴 — the contact's latest calls under its fields, drawn exactly like denwa's Recents: its
+    // day headings, SIM badge, arrow, time, duration and place, in denwa's own colours, fonts and formats
+    // (served by denwa, helpers/DenwaCallLogStyle). setupContactDetails runs more than once while the
+    // duplicates and sources arrive, so a newer load supersedes an older one.
+    private var callHistoryGeneration = 0
+
+    private fun setupCallHistory() {
+        val holder = binding.contactCallsHolder
+        val generation = ++callHistoryGeneration
+        val numbers = fullContact?.phoneNumbers.orEmpty().toList()
+        if (!config.contactCallHistory || numbers.isEmpty()) {
+            holder.removeAllViews()
+            holder.beGone()
+            return
+        }
+        val limit = config.contactCallHistoryCount
+        val text = getProperTextColor()
+        val primary = getProperPrimaryColor()
+        ensureBackgroundThread {
+            val calls = loadContactCalls(numbers.map { it.value }, limit)
+            val style = loadDenwaCallLogStyle(text, primary)
+            val faces = CallHistoryFaces(
+                date = denwaTypeface(style.dateFont),
+                subtitle = denwaTypeface(style.subtitleFont),
+                dayDate = denwaTypeface(style.dayDateFont, android.graphics.Typeface.BOLD),
+            )
+            runOnUiThread {
+                if (generation == callHistoryGeneration && !isFinishing && !isDestroyed) {
+                    showCallHistory(calls, numbers, style, faces)
+                }
+            }
+        }
+    }
+
+    private class CallHistoryFaces(
+        val date: android.graphics.Typeface,
+        val subtitle: android.graphics.Typeface,
+        val dayDate: android.graphics.Typeface,
+    )
+
+    private fun showCallHistory(calls: List<ContactCall>, numbers: List<PhoneNumber>, style: DenwaCallLogStyle, faces: CallHistoryFaces) {
+        val holder = binding.contactCallsHolder
+        holder.removeAllViews()
+        if (calls.isEmpty()) {
+            holder.beGone()
+            return
+        }
+
+        val baseSizePx = if (style.textSizePx > 0f) style.textSizePx else getTextSize()
+        val primary = getProperPrimaryColor()
+
+        // The section heading: bold, underlined accent, like every heading of ours.
+        ItemContactCallDayBinding.inflate(layoutInflater, holder, false).apply {
+            contactCallDayDivider.beGone()
+            contactCallDayText.text = getString(R.string.contact_call_history)
+            contactCallDayText.setTextColor(primary)
+            contactCallDayText.setTextSize(TypedValue.COMPLEX_UNIT_PX, getTextSize() * CALL_HISTORY_HEADING_SCALE)
+            contactCallDayUnderline.setBackgroundColor(primary)
+            holder.addView(root)
+        }
+
+        val labels = numberLabels(numbers, style)
+        val region = callLogRegion()
+        var lastDay: java.time.LocalDate? = null
+        calls.forEach { call ->
+            val day = call.timestamp.callDayKey()
+            if (day != lastDay) {
+                lastDay = day
+                holder.addView(callDayRow(call, style, faces, baseSizePx))
+            }
+            holder.addView(callRow(call, style, faces, baseSizePx, labels, region))
+        }
+
+        holder.addView(
+            pillRow(
+                pill(getString(R.string.contact_call_history_all)) { openDenwaRecents(numbers.map { it.value }, fullContact?.getNameToDisplay()) },
+                startPaddingPx = resources.getDimensionPixelSize(org.fossify.commons.R.dimen.activity_margin),
+            )
+        )
+        holder.beVisible()
+    }
+
+    private fun callDayRow(call: ContactCall, style: DenwaCallLogStyle, faces: CallHistoryFaces, baseSizePx: Float): View =
+        ItemContactCallDayBinding.inflate(layoutInflater, binding.contactCallsHolder, false).apply {
+            applyCallLine(contactCallDayDivider, style.dayDivider, style.dayDividerDp)
+            applyCallLine(contactCallDayUnderline, style.dateUnderline, style.dateUnderlineDp)
+            contactCallDayText.apply {
+                text = call.timestamp.callDayHeading(this@ViewContactActivity, style.imperialDate)
+                setTextColor(style.dayDate)
+                typeface = faces.dayDate
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, baseSizePx * style.dayHeaderScale)
+                if (style.dayDateFont.sizeSp > 0) setTextSize(TypedValue.COMPLEX_UNIT_SP, style.dayDateFont.sizeSp.toFloat())
+            }
+        }.root
+
+    @Suppress("LongParameterList")
+    private fun callRow(
+        call: ContactCall,
+        style: DenwaCallLogStyle,
+        faces: CallHistoryFaces,
+        baseSizePx: Float,
+        labels: Map<String, String>,
+        region: String,
+    ): View = ItemContactCallBinding.inflate(layoutInflater, binding.contactCallsHolder, false).apply {
+        applyCallLine(contactCallDivider, style.divider, style.dividerDp)
+        val missed = call.type == CallLog.Calls.MISSED_TYPE
+        val showDuration = !missed && call.type != CallLog.Calls.REJECTED_TYPE && call.duration > 0
+
+        fun TextView.styled(color: Int, face: android.graphics.Typeface, font: DenwaFont) {
+            setTextColor(color)
+            typeface = face
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, baseSizePx)
+            if (font.sizeSp > 0) setTextSize(TypedValue.COMPLEX_UNIT_SP, font.sizeSp.toFloat())
+        }
+
+        contactCallTime.text = call.timestamp.formatCallTime(this@ViewContactActivity, style.timeFormat)
+        contactCallTime.styled(if (missed) style.missed else style.date, faces.date, style.dateFont)
+
+        contactCallSeparator.setTextColor(style.subtitle)
+        contactCallSeparator.setTextSize(TypedValue.COMPLEX_UNIT_PX, baseSizePx)
+        contactCallSeparator.beVisibleIf(showDuration)
+        contactCallDuration.text = call.duration.formatCallDuration(this@ViewContactActivity, style.durationFormat)
+        contactCallDuration.styled(style.subtitle, faces.subtitle, style.subtitleFont)
+        contactCallDuration.beVisibleIf(showDuration)
+
+        val label = labels.entries.firstOrNull { sameNumber(it.key, call.number) }?.value
+        contactCallNumberLabel.text = label
+        contactCallNumberLabel.setTextColor(themeColor(ThemeSlot.SETTINGS_NOTE))
+        contactCallNumberLabel.beVisibleIf(!label.isNullOrEmpty())
+
+        val location = callLocation(call.number, region)
+        contactCallLocation.text = location
+        contactCallLocation.styled(style.subtitle, faces.subtitle, style.subtitleFont)
+        contactCallLocation.beVisibleIf(location != null)
+
+        val showSim = call.simId != -1
+        contactCallSimImage.beVisibleIf(showSim)
+        contactCallSimId.beVisibleIf(showSim)
+        if (showSim) {
+            contactCallSimImage.applyColorFilter(style.simColor(call.simId))
+            contactCallSimId.setTextColor(style.simText)
+            contactCallSimId.setTypeface(null, if (style.simTextBold) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+            contactCallSimId.text = call.simId.toString()
+        }
+
+        val (icon, iconColor) = when (call.type) {
+            CallLog.Calls.OUTGOING_TYPE -> R.drawable.ic_call_made_vector to style.outgoing
+            CallLog.Calls.MISSED_TYPE -> R.drawable.ic_call_missed_vector to style.missed
+            else -> R.drawable.ic_call_received_vector to style.incoming
+        }
+        contactCallType.setImageDrawable(resources.getColoredDrawableWithColor(icon, iconColor))
+
+        // As in denwa, tapping a call narrows Recents to its number.
+        root.setOnClickListener { openDenwaRecents(listOf(call.number), fullContact?.getNameToDisplay()) }
+        root.setOnLongClickListener {
+            copyToClipboard(call.number)
+            true
+        }
+    }.root
+
+    /**
+     * The label telling the contact's numbers apart on a call row — empty when there is only one number.
+     * The type label (携帯, 自宅…) when that alone is unique, else the number itself.
+     */
+    private fun numberLabels(numbers: List<PhoneNumber>, style: DenwaCallLogStyle): Map<String, String> {
+        if (numbers.size < 2) return emptyMap()
+        val types = numbers.map { getPhoneNumberTypeText(it.type, it.label) }
+        return numbers.mapIndexed { index, number ->
+            val type = types[index]
+            val label = if (type.isNotEmpty() && types.count { it == type } == 1) {
+                type
+            } else if (style.formatNumbers) {
+                number.value.formatPhoneNumber()
+            } else {
+                number.value
+            }
+            number.value to label
+        }.toMap()
+    }
+
+    // The place, as denwa shows it: only for a number that carries its own country code, and not when it
+    // is simply this phone's own country.
+    @Suppress("SwallowedException")
+    private fun callLocation(number: String, region: String): String? {
+        val parsed = try {
+            com.google.i18n.phonenumbers.PhoneNumberUtil.getInstance().parse(number, region)
+        } catch (e: com.google.i18n.phonenumbers.NumberParseException) {
+            return null
+        }
+        if (parsed.countryCodeSource == com.google.i18n.phonenumbers.Phonenumber.PhoneNumber.CountryCodeSource.FROM_DEFAULT_COUNTRY) {
+            return null
+        }
+        val locale = Locale.getDefault()
+        val location = com.google.i18n.phonenumbers.geocoding.PhoneNumberOfflineGeocoder.getInstance()
+            .getDescriptionForNumber(parsed, locale, region)
+        return location.takeIf { it.isNotEmpty() && it != locale.displayCountry }
+    }
+
+    private fun applyCallLine(view: View, color: Int, thicknessDp: Int) {
+        if (thicknessDp <= 0) {
+            view.beGone()
+        } else {
+            view.beVisible()
+            view.setBackgroundColor(color)
+            view.layoutParams = view.layoutParams.apply { height = (thicknessDp * resources.displayMetrics.density).toInt() }
+        }
     }
 
     private fun setupGroups() {

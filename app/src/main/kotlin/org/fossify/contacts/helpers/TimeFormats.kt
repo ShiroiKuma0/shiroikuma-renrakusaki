@@ -2,6 +2,8 @@ package org.fossify.contacts.helpers
 
 import android.content.Context
 import org.fossify.commons.extensions.formatDateOrTime
+import org.fossify.commons.extensions.toJapaneseClockString
+import org.fossify.commons.extensions.toKanjiNumeral
 import org.fossify.contacts.extensions.config
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -67,32 +69,6 @@ private fun Long.formatSafely(pattern: String, fallback: String): String = try {
     SimpleDateFormat(fallback, Locale.getDefault()).format(Date(this))
 }
 
-// Sino-Japanese clock readings: e.g. 14:53 -> 午後二時五十三分, 9:30 -> 午前九時半.
-// :00 drops the minute part, :30 becomes 半; noon/midnight get the special words 正午 / 正子.
-fun Long.toJapaneseClockString(): String {
-    val time = Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault())
-    val hour = time.hour
-    val minute = time.minute
-    when {
-        hour == 12 && minute == 0 -> return "正午"
-        hour == 12 && minute == 30 -> return "正午半"
-        hour == 0 && minute == 0 -> return "正子"
-        hour == 0 && minute == 30 -> return "正子半"
-    }
-    val period = if (hour < 12) "午前" else "午後"
-    val hour12 = when {
-        hour == 0 -> 12
-        hour <= 12 -> hour
-        else -> hour - 12
-    }
-    val minutePart = when (minute) {
-        0 -> ""
-        30 -> "半"
-        else -> "${minute.toKanjiNumeral()}分"
-    }
-    return "$period${hour12.toKanjiNumeral()}時$minutePart"
-}
-
 // Today -> just the clock; yesterday -> 昨日; this year -> 六月三十日; older -> 令和七年三月五日.
 private fun Long.toJapaneseDateTimeString(): String {
     val date = toLocalDate()
@@ -104,13 +80,14 @@ private fun Long.toJapaneseDateTimeString(): String {
         date.year == today.year ->
             "${date.monthValue.toKanjiNumeral()}月${date.dayOfMonth.toKanjiNumeral()}日 $clock"
 
-        else -> "${date.toImperialDateString()} $clock"
+        else -> "${date.toCompactImperialDateString()} $clock"
     }
 }
 
-// A compact imperial-era (和暦) date, e.g. 令和七年五月二十九日. Era boundaries are fixed so the
-// output does not depend on JapaneseEra API availability; the era's first year is written 元年.
-private fun LocalDate.toImperialDateString(): String {
+// A compact imperial-era (和暦) date without the weekday, e.g. 令和七年五月二十九日 — commons' (sk13)
+// Long.toImperialDateString adds the weekday, which these detail lines leave out. Era boundaries are
+// fixed so the output does not depend on JapaneseEra API availability; the first year is written 元年.
+private fun LocalDate.toCompactImperialDateString(): String {
     val (era, baseYear) = when {
         !isBefore(LocalDate.of(2019, 5, 1)) -> "令和" to 2018
         !isBefore(LocalDate.of(1989, 1, 8)) -> "平成" to 1988
@@ -121,26 +98,6 @@ private fun LocalDate.toImperialDateString(): String {
     val eraYear = year - baseYear
     val yearPart = if (eraYear == 1) "元" else eraYear.toKanjiNumeral()
     return "$era${yearPart}年${monthValue.toKanjiNumeral()}月${dayOfMonth.toKanjiNumeral()}日"
-}
-
-// Converts 1..99 to everyday kanji numerals (e.g. 29 -> 二十九) — covers era years, months and days.
-internal fun Int.toKanjiNumeral(): String {
-    if (this <= 0) {
-        return "〇"
-    }
-    val digits = arrayOf("", "一", "二", "三", "四", "五", "六", "七", "八", "九")
-    val tens = this / 10
-    val ones = this % 10
-    return buildString {
-        when (tens) {
-            0 -> {}
-            1 -> append("十")
-            else -> append(digits[tens]).append("十")
-        }
-        if (ones != 0) {
-            append(digits[ones])
-        }
-    }
 }
 
 private fun Long.toLocalDate(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).toLocalDate()

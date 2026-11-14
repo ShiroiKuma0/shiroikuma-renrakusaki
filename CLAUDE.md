@@ -44,7 +44,7 @@ Every build with changes bumps the build number (+1 → +2 → …). Use the `bu
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew buildFoss < /dev/null
 ```
 
-`buildFoss` builds the signed `fossRelease` APK, copies it to `~/tmp/<apk name>`, then bumps `BUILD_NUMBER`. After building, ask whether to `adb push` it to the phone (see the `build-apk` skill for why the push is done manually, not via the task's own prompt). Signing reads `keystore.properties` (gitignored) → `~/.android-keystores/shiroikuma-renrakusaki.jks` (alias `renrakusaki`).
+`buildFoss` builds the signed `fossRelease` APK, copies it to `~/tmp/<apk name>`, then bumps `BUILD_NUMBER`. After building, ask whether to `adb push` it to the phone (see the `build-apk` skill for why the push is done manually, not via the task's own prompt). Signing reads `keystore.properties` (gitignored) → `~/.android-keystores/shiroikuma-denwa.jks` (alias `denwa`) — the same key as denwa.
 
 **JDK note:** AGP 9.x requires JDK 17+, but the default `java` on this machine is 11 — always prefix Gradle invocations with `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`.
 
@@ -117,7 +117,7 @@ colors") whenever the installed app id is not `org.fossify.*` — always the cas
 
 - **Source:** the `shiroikuma-commons` fork (`~/git/shiroikuma-commons`, branch `custom`), which strips
   Commons' anti-tamper "fake version" / sideloading checks out entirely.
-- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk12"` in
+- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk13"` in
   `gradle/libs.versions.toml` (`mavenLocal()` is already a repository in `settings.gradle.kts`).
 - Because Commons itself no longer nags, this app carries **no** in-app workaround — no `getPackageName`
   spoof, no `SIDELOADING_FALSE`, no `res/raw/keep.xml`.
@@ -172,16 +172,34 @@ app is untouched. The point is that Recents never vanishes, so the dialer is alw
 
 The feature is only visible with **both** halves installed; denwa ships the sending side.
 
-## Swipe to call — a port of denwa's, keep the two in step
+## Swipe to call — shared with denwa through commons
 
 Contacts and Favorites rows swipe to call the contact's default number (`numberToCall()`): left = SIM 1,
-right = SIM 2. `helpers/SwipeToCallCallback.kt` is denwa's file (`shiroikuma-denwa`,
-`helpers/SwipeToCallCallback.kt`) ported verbatim — only the colours (`ThemeSlot.SWIPE_SIM1/2/TEXT`,
-defaulting to denwa's red / blue / yellow) and the string differ — so a change to the swipe in denwa is
-copied here, not re-derived. `extensions/SwipeToCall.kt` holds denwa's `setupSwipeToCall` (plus removing
-the parts an earlier adapter attached, kept in the list's `R.id.swipe_to_call_tag`) and the call itself:
-through denwa's DialerActivity with the SIM as `EXTRA_PHONE_ACCOUNT_HANDLE`, which needs
-`READ_PHONE_STATE`. Switch and colours: UI settings → *Swipe to call* (`Config.swipeToCall`, default on).
+right = SIM 2. The swipe itself is **commons sk13**, shared with denwa: `org.fossify.commons.helpers.SwipeToCallCallback`
+and `RecyclerView.setupSwipeToCall` / `removeSwipeToCall` (tag `org.fossify.commons.R.id.swipe_to_call_tag`).
+A change to the swipe is made once, in shiroikuma-commons, never re-ported here. Our side only passes the
+colours (`ThemeSlot.SWIPE_SIM1/2/TEXT`, defaulting to denwa's red / blue / yellow) and `R.string.dialing`
+(`ContactsAdapter.setupSwipeToCall`), and places the call: `extensions/SwipeToCall.kt` calls through denwa's
+DialerActivity with the SIM as `EXTRA_PHONE_ACCOUNT_HANDLE`, which needs `READ_PHONE_STATE`. Switch and
+colours: UI settings → *Swipe to call* (`Config.swipeToCall`, default on).
+
+## Call history on the contact screen — denwa's look, served by denwa
+
+`ViewContactActivity.setupCallHistory` lists the contact's latest calls (`Config.contactCallHistoryCount`,
+default 10; switch `Config.contactCallHistory`, UI settings → *Call history on the contact screen*) under
+its fields, drawn like denwa's Recents: `item_contact_call.xml` / `item_contact_call_day.xml` are denwa's
+`item_recent_call` / `item_recents_date` without avatar, name and ⋮. The calls come straight from the
+system call log (`helpers/ContactCallHistory.kt`: suffix match, denwa's SIM lookup, libphonenumber geocoder
+for the place); the time / duration / imperial-date formats are commons sk13's `CallFormats.kt`, shared with
+denwa (`CALL_TIME_*` / `CALL_DURATION_*` are the ordinals denwa's style provider serves).
+
+The look is **not** a setting of ours: denwa serves it from `<denwa id>.calllogstyle` (gated to our
+package) — `/style` key/value rows (colours, thicknesses, `font.<slot>.*`, `text_size_px`, formats) and
+`/font/<file>` for its imported fonts (cached in `cacheDir/denwa-fonts`). `helpers/DenwaCallLogStyle.kt`
+reads it each time and falls back to denwa's defaults. The pill *All calls in 白い熊 電話 ›* and a tap on a
+call open denwa's Recents with `shiroikuma_recents_filter_numbers` (ArrayList<String>) and
+`shiroikuma_recents_filter_name`. Both contracts are documented on denwa's side too — keep the key names
+in sync.
 
 ## Private contacts: the provider gate and the visible copies
 

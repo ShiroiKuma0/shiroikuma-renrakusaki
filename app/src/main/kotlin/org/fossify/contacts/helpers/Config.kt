@@ -252,6 +252,15 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(SWIPE_TO_CALL, true)
         set(value) = prefs.edit().putBoolean(SWIPE_TO_CALL, value).apply()
 
+    // 発着信履歴 on the contact screen: on/off, and how many of the latest calls it lists.
+    var contactCallHistory: Boolean
+        get() = prefs.getBoolean(CONTACT_CALL_HISTORY, true)
+        set(value) = prefs.edit().putBoolean(CONTACT_CALL_HISTORY, value).apply()
+
+    var contactCallHistoryCount: Int
+        get() = prefs.getInt(CONTACT_CALL_HISTORY_COUNT, 10)
+        set(value) = prefs.edit().putInt(CONTACT_CALL_HISTORY_COUNT, value).apply()
+
     var showVisibilityBadges: Boolean
         get() = prefs.getBoolean(SHOW_VISIBILITY_BADGES, true)
         set(value) = prefs.edit().putBoolean(SHOW_VISIBILITY_BADGES, value).apply()

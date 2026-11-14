@@ -421,4 +421,10 @@
     <string name="auto_keep_clean">自動で端末をきれいに保つ</string>
     <string name="auto_keep_clean_desc">このアプリを開くたびに、システムの保存領域に現れたもの（他のアプリが追加した連絡先、SIMカードの項目）を、先にバックアップしてから非公開ストレージへ移動します。表示用コピーには触れません。</string>
     <string name="auto_clean_done">新しいシステムの連絡先%d件を非公開へ移動しました</string>
+    <string name="contact_call_history">発着信履歴</string>
+    <string name="contact_call_history_all">白い熊 電話で全履歴 ›</string>
+    <string name="contact_call_history_settings">連絡先画面の発着信履歴</string>
+    <string name="contact_call_history_enable">発着信履歴を表示</string>
+    <string name="contact_call_history_desc">連絡先の詳細の下に最近の通話を表示します — 白い熊 電話の通話履歴と同じ色・フォント・書式です。通話をタップするとその番号の履歴を白い熊 電話で開き、長押しで番号をコピーします</string>
+    <string name="contact_call_history_count">表示する件数</string>
 </resources>

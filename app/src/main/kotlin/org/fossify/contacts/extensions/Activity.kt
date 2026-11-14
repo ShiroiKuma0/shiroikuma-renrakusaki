@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
+import org.fossify.commons.helpers.TAB_CALL_HISTORY
 import android.net.Uri
 import androidx.core.view.children
 import com.google.android.material.appbar.MaterialToolbar
@@ -44,6 +45,8 @@ import org.fossify.contacts.helpers.SystemMirror
 import org.fossify.contacts.helpers.DEFAULT_FILE_NAME
 import org.fossify.contacts.helpers.DIALER_APP_MAIN_ACTIVITY
 import org.fossify.contacts.helpers.OPEN_TAB_INTENT_EXTRA
+import org.fossify.contacts.helpers.RECENTS_FILTER_NAME_EXTRA
+import org.fossify.contacts.helpers.RECENTS_FILTER_NUMBERS_EXTRA
 import org.fossify.contacts.helpers.dialerAppPackages
 import org.fossify.contacts.helpers.VcfExporter
 
@@ -239,11 +242,12 @@ fun Context.getInstalledDialerAppPackage() = dialerAppPackages.firstOrNull { isP
 // deliver the extra when the app is already running — and swaps with no animation, so a tap on the shared
 // bar reads as a tab change rather than an app switch. We are deliberately left running: both activities
 // stay alive, which is what makes alternating taps a warm task swap.
-fun Activity.launchDialerApp(tab: Int) {
+fun Activity.launchDialerApp(tab: Int, extras: Intent.() -> Unit = {}) {
     val dialerPackage = getInstalledDialerAppPackage() ?: return
     Intent().apply {
         setClassName(dialerPackage, DIALER_APP_MAIN_ACTIVITY)
         putExtra(OPEN_TAB_INTENT_EXTRA, tab)
+        extras()
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         try {
             val noAnimation = ActivityOptions.makeCustomAnimation(this@launchDialerApp, 0, 0).toBundle()
@@ -251,5 +255,16 @@ fun Activity.launchDialerApp(tab: Int) {
         } catch (e: Exception) {
             showErrorToast(e)
         }
+    }
+}
+
+/**
+ * Denwa's Recents narrowed to [numbers] (the contact screen's 発着信履歴: its pill, and a tap on one call).
+ * A denwa without the filter extras simply opens Recents whole.
+ */
+fun Activity.openDenwaRecents(numbers: List<String>, name: String?) {
+    launchDialerApp(TAB_CALL_HISTORY) {
+        putStringArrayListExtra(RECENTS_FILTER_NUMBERS_EXTRA, ArrayList(numbers))
+        name?.let { putExtra(RECENTS_FILTER_NAME_EXTRA, it) }
     }
 }

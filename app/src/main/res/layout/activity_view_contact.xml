@@ -430,6 +430,17 @@
                 android:textSize="@dimen/bigger_text_size"
                 android:visibility="gone" />
 
+            <!-- Fork: 発着信履歴 — this contact's calls, drawn like denwa's Recents (ViewContactActivity.setupCallHistory). -->
+            <LinearLayout
+                android:id="@+id/contact_calls_holder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/contact_sources_holder"
+                android:layout_marginTop="@dimen/normal_margin"
+                android:orientation="vertical"
+                android:paddingBottom="@dimen/activity_margin"
+                android:visibility="gone" />
+
         </RelativeLayout>
     </ScrollView>
 
