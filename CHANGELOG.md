@@ -7,6 +7,62 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+127] — 2026-11-17
+
+Since `1.6.0+122`, still on **Fossify Contacts 1.6.0**; Commons is now **6.1.6-sk14**.
+
+### One bottom bar, shared with 白い熊 電話 and 白い熊 臨電話
+- **The bar is fixed at four tabs — Favorites, Contacts, 電話, 臨電話** — the same in all three apps,
+  however this one was opened. 電話 opens the Phone fork's call history and 臨電話 the SIP-phone fork's,
+  each as a warm swap with no animation; a tab whose app is not installed is left out.
+- **Drawn as card-folder tabs across the full width**: one bold line along the bar's top edge that dives
+  around the tab in front, the others fainter behind it; the selected label is bold.
+- **Groups has no tab any more.** It stays a page, reached from ⋮ → *Groups* or by paging past Contacts
+  (the bar then shows nothing selected); UI settings → Tabs → *Groups page* switches it off.
+- Gone: wearing the dialer's tab mask when opened from the Phone fork, and the *Manage shown tabs* setting.
+
+### Calling through 白い熊 臨電話
+- **Route badges on every number of the contact screen**: 1 (red), 2 (blue) and 臨N. A tap dials by that
+  route — a SIM through the Phone fork, 臨 through the SIP-phone fork's call door. UI settings →
+  *Call routes*: the switch and the badge colours.
+- **Each 臨N badge wears its own account's colours**, as set in 臨電話 (from its `+019`); our own 臨
+  colours apply only when 臨電話 names none.
+- **A default 臨 account** (UI settings → Call routes; default: the one selected in 臨電話) and **a
+  per-contact override**: long-press a contact's 臨 badge, or selection menu → *Set 臨電話 account*.
+  The picker lists the accounts with their coloured badges.
+- A refused or failed 臨 call says why (not allowed, no such account, not ready, 臨電話 unavailable).
+
+### Swipe to call
+- **Each side has its own route**: SIM 1, SIM 2, the 臨 default, a particular 臨N, or off (UI settings →
+  *Swipe to call*; defaults stay SIM 1 left, SIM 2 right). A 臨 side shows its 臨N mark on a band in that
+  account's colours, with two fallback colours of our own.
+
+### Menus
+- **Every popup menu row is a full-width outlined pill with its icon** — toolbar ⋮, the selection menu's
+  overflow and submenus. A › marks a row that opens something, a destructive row is drawn in the warning
+  colour, a checkable row is a plain row with an outlined switch, and group dividers are a clear line.
+- **Icons are coloured by role**: call green, message blue, contact cyan, copy / share orange,
+  view / settings yellow, block magenta, delete red — all settable under UI settings → *Menus*.
+
+### Call history on the contact screen
+- **The row follows the Phone fork's three-line row, less the name**: the number of the call and the
+  contact's label for it, with ✉ (write to that number) and ☎ (call back on the SIM that call used) at
+  the right; beneath, the SIM badge, arrow, time · duration and the country.
+- A call you placed that was not answered takes the Phone fork's *unanswered* colour for arrow and time;
+  an answered one takes the outgoing colour for both.
+- The line between two calls is thin, inset from both edges, and left out under a day's last call.
+- Reads the Phone fork's newer look settings (number, label, duration, country, the two action colours,
+  their fonts and the number line's scale); an older Phone fork falls back to its subtitle look.
+
+### Private contacts
+- **白い熊 臨電話 may read private contacts by default**, and was added once to a list stored earlier.
+- **The provider now announces changes**: after any write to the private contacts, observers of its
+  `contacts` address are notified, so 臨電話 refreshes its names without polling.
+
+### Packaging
+- Commons **6.1.6-sk14**: the swipe takes a switch, mark, colour and label per side.
+- `<queries>` now names `shiroikuma.rindenwa`.
+
 ## [1.6.0+122] — 2026-11-14
 
 Since `1.6.0+119`, still on **Fossify Contacts 1.6.0**; Commons is now **6.1.6-sk13**.

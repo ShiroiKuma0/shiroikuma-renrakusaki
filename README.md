@@ -6,11 +6,11 @@
 
 **A black-and-yellow, deeply customizable contacts app — your list, your layout, your colors.**
 
-A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: private contacts that stay private yet can be made visible to other apps one by one, every Android contact field shown, editable and backed up, a duplicate cleaner, Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, swipe a contact to call it with SIM 1 or SIM 2, tap-to-dial on the Favorites grid while the car is connected, per-contact default SIM, category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
+A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: private contacts that stay private yet can be made visible to other apps one by one, every Android contact field shown, editable and backed up, a duplicate cleaner, Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, one bottom bar shared with the Phone and SIP-phone forks, calling through a SIP account from badges on every number, swipe a contact to call it by the route you gave that side, pill menus, tap-to-dial on the Favorites grid while the car is connected, per-contact default SIM, category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+122`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+127`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -78,13 +78,18 @@ Broadcasts let the companion task runner (白い熊 自由作業盤) back this a
 
 ---
 
-## 👉 Swipe to call, with the SIM you swipe to
-In Contacts and Favorites, **swipe a row left to call its default number with SIM 1, right with SIM 2** — the same gesture, with the same look, as the companion Phone fork's call history. A quarter of the row or a quick flick is enough; the row slides on at your finger's speed into a band in the SIM's colour, then stays there reading **“Dialing…”** until the call screen comes up, so a swipe never looks as if it did nothing. On/off and the band colours live on the UI page.
+## 👉 Swipe to call, by the route you gave each side
+In Contacts and Favorites, **swipe a row to call its default number** — the same gesture, with the same look, as the companion Phone fork's call history. **Each side has its own route**: SIM 1, SIM 2, the default SIP account of 白い熊 臨電話, one particular 臨N account, or nothing at all. A quarter of the row or a quick flick is enough; the row slides on into a band in the route's colour — a 臨 side wears its account's own colours and mark — then stays there reading **“Dialing…”** until the call is up. Routes, on/off and the band colours live on the UI page.
+
+---
+
+## ☎️ Call through 白い熊 臨電話, from every number
+On the contact screen each number carries its routes as badges: **1** and **2** for the SIMs and **臨N** for the SIP account — **tap a badge and the call goes out that way**. The 臨 badge is drawn in the colours that account has in 臨電話, so a glance says which line it is. A default 臨 account is set on the UI page, and any contact can have its own (long-press its 臨 badge, or *Set 臨電話 account* in the selection menu).
 
 ---
 
 ## 📞 A contact's calls, on the contact's own screen
-Open a contact and its latest calls are listed under its fields — drawn exactly like the Phone fork's Recents: day headings, the SIM badge, the direction arrow, the time, the duration and the place. The colours, fonts, line weights and formats are **the Phone fork's own settings**, read from it live, so the two screens always match. Tap a call, or the pill beneath the list, and the Phone fork opens its Recents filtered to that number or to the whole contact.
+Open a contact and its latest calls are listed under its fields — drawn like the Phone fork's Recents: day headings, then per call the **number and its label** with a ✉ and a ☎ beside it, and beneath them the SIM badge, the direction arrow, the time, the duration and the place. ✉ writes to that number; ☎ calls it back on the SIM that call used. The colours, fonts, line weights and formats are **the Phone fork's own settings**, read from it live, so the two screens always match. Tap a call, or the pill beneath the list, and the Phone fork opens its Recents filtered to that number or to the whole contact.
 
 ---
 
@@ -102,8 +107,13 @@ Only where it should be: **Never / Only while the car is connected / Always**, d
 
 ---
 
-## 🔗 Tab hand-off from the Phone fork — and the dialer's own bar
-Our companion Phone fork (`shiroikuma.denwa`) launches this app straight to the **Contacts** or **Favorites** tab — tap a tab there and you land exactly where you expect here, with no extra hop. And when you arrive that way, **this app wears the dialer's bottom bar**: Contacts | Favorites | **Recents**, built from the dialer's own visible tabs so the two bars match tab for tab. Recents is always one tap away instead of vanishing behind our bar, and tapping it swaps back with no animation and nothing shut down — the two apps trade places like tabs of one app. Groups steps aside for that visit only; opened from its own launcher icon, this app looks exactly as it always did.
+## 🔗 One bottom bar across three apps
+This app, the Phone fork (`shiroikuma.denwa`) and the SIP-phone fork 白い熊 臨電話 (`shiroikuma.rindenwa`) show **the same four tabs in the same order — Favorites | Contacts | 電話 | 臨電話** — drawn as card-folder tabs across the full width. Each app owns its own tabs and hands over to the others with no animation and nothing shut down, so the three trade places like tabs of one app. A tab whose app is not installed is simply left out. Groups keeps its page, reached from ⋮ → Groups or by paging past Contacts.
+
+---
+
+## 💊 Menus you can read at a glance
+Every menu row — the toolbar ⋮, the selection menu, submenus — is an **outlined pill with its icon**, the icon coloured by what the row does: call green, message blue, contact cyan, copy and share orange, view and settings yellow, block magenta, delete red. A › marks a row that opens something; a toggle is a plain row with an outlined switch.
 
 ---
 
