@@ -33,6 +33,10 @@
         android:title="@string/ui_settings_title"
         app:showAsAction="never" />
     <item
+        android:id="@+id/open_groups"
+        android:title="@string/groups_tab"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/select_favorites"
         android:title="@string/select"
         app:showAsAction="never" />

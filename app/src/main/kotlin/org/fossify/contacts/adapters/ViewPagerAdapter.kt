@@ -7,12 +7,12 @@ import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.helpers.TAB_CONTACTS
 import org.fossify.commons.helpers.TAB_FAVORITES
-import org.fossify.commons.helpers.TAB_GROUPS
 import org.fossify.contacts.R
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.fragments.MyViewPagerFragment
 
-class ViewPagerAdapter(val activity: SimpleActivity, val currTabsList: ArrayList<Int>, val showTabs: Int) : PagerAdapter() {
+// One page per entry of [pages] (commons TAB_* masks), in that order.
+class ViewPagerAdapter(val activity: SimpleActivity, private val pages: List<Int>) : PagerAdapter() {
 
     override fun instantiateItem(container: ViewGroup, position: Int): Any {
         val layout = getFragment(position)
@@ -31,24 +31,13 @@ class ViewPagerAdapter(val activity: SimpleActivity, val currTabsList: ArrayList
         container.removeView(item as View)
     }
 
-    override fun getCount() = currTabsList.filter { it and showTabs != 0 }.size
+    override fun getCount() = pages.size
 
     override fun isViewFromObject(view: View, item: Any) = view == item
 
-    private fun getFragment(position: Int): Int {
-        val fragments = arrayListOf<Int>()
-        if (showTabs and TAB_CONTACTS != 0) {
-            fragments.add(R.layout.fragment_contacts)
-        }
-
-        if (showTabs and TAB_FAVORITES != 0) {
-            fragments.add(R.layout.fragment_favorites)
-        }
-
-        if (showTabs and TAB_GROUPS != 0) {
-            fragments.add(R.layout.fragment_groups)
-        }
-
-        return fragments[position]
+    private fun getFragment(position: Int) = when (pages[position]) {
+        TAB_FAVORITES -> R.layout.fragment_favorites
+        TAB_CONTACTS -> R.layout.fragment_contacts
+        else -> R.layout.fragment_groups
     }
 }

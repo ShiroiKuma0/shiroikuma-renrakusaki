@@ -122,6 +122,9 @@ class SettingsActivity : SimpleActivity() {
     }
 
     private fun setupManageShownTabs() {
+        // Retired: the bottom bar is the four tabs shared with 電話 and 臨電話 (the Groups page has its own
+        // switch in UI settings → Tabs).
+        binding.settingsManageShownTabsHolder.beGone()
         binding.settingsManageShownTabsHolder.setOnClickListener {
             ManageVisibleTabsDialog(this)
         }

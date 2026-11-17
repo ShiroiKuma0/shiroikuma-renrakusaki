@@ -239,7 +239,7 @@ class InsertOrEditContactActivity : SimpleActivity(), RefreshContactsListener {
         }
 
         if (binding.viewPager.adapter == null) {
-            binding.viewPager.adapter = ViewPagerAdapter(this, contactsFavoritesList, getTabsMask())
+            binding.viewPager.adapter = ViewPagerAdapter(this, contactsFavoritesList.filter { it and getTabsMask() != 0 })
         }
 
         this.getOwnContacts {

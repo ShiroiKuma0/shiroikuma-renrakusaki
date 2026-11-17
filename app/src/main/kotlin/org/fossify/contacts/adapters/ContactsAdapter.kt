@@ -59,7 +59,18 @@ import org.fossify.contacts.dialogs.SetDefaultSimDialog
 import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.applyThemeFont
 import org.fossify.contacts.extensions.callNumberViaDialerApp
+import org.fossify.contacts.extensions.callByRoute
 import org.fossify.contacts.extensions.colorItemTitles
+import org.fossify.contacts.dialogs.pickRinAccount
+import org.fossify.contacts.helpers.RIN_MARK
+import org.fossify.contacts.helpers.ROUTE_RIN
+import org.fossify.contacts.helpers.ROUTE_RIN_PREFIX
+import org.fossify.contacts.helpers.ROUTE_SIM1
+import org.fossify.contacts.helpers.ROUTE_SIM2
+import org.fossify.contacts.helpers.Rindenwa
+import org.fossify.contacts.helpers.contactRinAccount
+import org.fossify.contacts.helpers.rinBadge
+import org.fossify.contacts.helpers.setContactRinAccount
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.editContact
 import org.fossify.contacts.extensions.isFavoriteTapToDialActive
@@ -143,33 +154,82 @@ class ContactsAdapter(
         setupSwipeToCall()
     }
 
-    // Swipe a row to call its default number — left with SIM 1, right with SIM 2 — exactly as in
-    // denwa's call history (SwipeToCallCallback, shared with denwa through commons sk13). Contacts and Favorites
+    // Swipe a row to call its default number. Each side dials by the route set for it in UI settings —
+    // SIM 1, SIM 2, the 臨 default, a specific 臨N, or nothing (left = SIM 1 and right = SIM 2 unless changed,
+    // as in denwa's call history). SwipeToCallCallback is shared with denwa through commons. Contacts and Favorites
     // only, single-column list rows only (a grid cell has no line to slide along), never while
     // selecting, and never on a letter-section header or a contact without a number.
     private fun setupSwipeToCall() {
         val onTab = location == LOCATION_CONTACTS_TAB || location == LOCATION_FAVORITES_TAB
-        if (!onTab || !config.swipeToCall) {
+        val left = SwipeSide(config.swipeLeftRoute)
+        val right = SwipeSide(config.swipeRightRoute)
+        if (!onTab || !config.swipeToCall || (!left.enabled && !right.enabled)) {
             recyclerView.removeSwipeToCall()
             return
         }
         recyclerView.setupSwipeToCall(
             SwipeToCallCallback(
                 activity = activity,
-                sim1Color = activity.themeColor(ThemeSlot.SWIPE_SIM1),
-                sim2Color = activity.themeColor(ThemeSlot.SWIPE_SIM2),
+                sim1Color = left.band,
+                sim2Color = right.band,
                 canSwipe = { position -> swipeableContactAt(position) != null },
-                onSwipe = { position, useSim1 ->
+                onSwipe = { position, swipedLeft ->
                     val contact = swipeableContactAt(position)
                     val number = contact?.numberToCall()
                     if (contact != null && number != null) {
-                        activity.callNumberWithSim(number.value, contact.getNameToDisplay(), useSim1)
+                        val route = if (swipedLeft) left.route else right.route
+                        activity.callByRoute(contact, number.value, contact.getNameToDisplay(), route)
                     }
                 },
                 simTextColor = activity.themeColor(ThemeSlot.SWIPE_TEXT),
                 dialingText = activity.getString(R.string.dialing),
+                leftEnabled = left.enabled,
+                rightEnabled = right.enabled,
+                leftTextColor = left.mark,
+                rightTextColor = right.mark,
+                leftIconRes = left.icon,
+                rightIconRes = right.icon,
+                leftLabel = left.label,
+                rightLabel = right.label,
             )
         )
+    }
+
+    // How one swipe side looks for its route: the band's colour, the colour of its marking, and the marking
+    // itself — the 1 / 2 phone glyph of a SIM, or the text 臨 / 臨N. A 臨 route is off while Rindenwa is missing.
+    private inner class SwipeSide(val route: String) {
+        private val isRin = route == ROUTE_RIN || route.startsWith(ROUTE_RIN_PREFIX)
+        val enabled = when {
+            isRin -> Rindenwa.isInstalled(activity)
+            else -> route == ROUTE_SIM1 || route == ROUTE_SIM2
+        }
+        // A 臨 side wears its account's own badge colours from Rindenwa (the 臨 default: those of the default
+        // account); our 臨 band colours stand in when Rindenwa names none.
+        private val rinAccount = when {
+            route == ROUTE_RIN -> config.rinDefaultAccount
+            else -> route.removePrefix(ROUTE_RIN_PREFIX).toIntOrNull() ?: -1
+        }
+        private val rinOwn = Rindenwa.cachedAccounts(activity)
+            .firstOrNull { if (rinAccount >= 0) it.number == rinAccount else it.isDefault }
+        val band = when {
+            isRin -> rinOwn?.badgeColor ?: activity.themeColor(ThemeSlot.SWIPE_RIN)
+            route == ROUTE_SIM2 -> activity.themeColor(ThemeSlot.SWIPE_SIM2)
+            else -> activity.themeColor(ThemeSlot.SWIPE_SIM1)
+        }
+        val mark = when {
+            isRin -> rinOwn?.badgeTextColor ?: activity.themeColor(ThemeSlot.SWIPE_RIN_TEXT)
+            else -> activity.themeColor(ThemeSlot.SWIPE_TEXT)
+        }
+        val icon = if (route == ROUTE_SIM2) {
+            org.fossify.commons.R.drawable.ic_phone_two_vector
+        } else {
+            org.fossify.commons.R.drawable.ic_phone_one_vector
+        }
+        val label: String? = when {
+            route == ROUTE_RIN -> RIN_MARK
+            isRin -> rinBadge(rinAccount)
+            else -> null
+        }
     }
 
     private fun swipeableContactAt(position: Int): Contact? {
@@ -196,6 +256,7 @@ class ContactsAdapter(
                 isOreoPlus() && isOneItemSelected() && (location == LOCATION_FAVORITES_TAB || location == LOCATION_CONTACTS_TAB)
             // CAB only opens where long-press is enabled (never in INSERT_OR_EDIT), so one-selected suffices.
             findItem(R.id.cab_set_default_sim).isVisible = isOneItemSelected()
+            findItem(R.id.cab_set_rin_account).isVisible = isOneItemSelected() && Rindenwa.isInstalled(activity)
             // "Visible to other apps" in bulk — only meaningful for private contacts (helpers/SystemMirror).
             val anyPrivate = getSelectedItems().any { it.isPrivate() }
             findItem(R.id.cab_make_visible).isVisible = anyPrivate
@@ -226,6 +287,7 @@ class ContactsAdapter(
             R.id.cab_send_email_to_contacts -> sendEmailToContacts()
             R.id.cab_create_shortcut -> createShortcut()
             R.id.cab_set_default_sim -> setDefaultSim()
+            R.id.cab_set_rin_account -> setRinAccount()
             R.id.cab_make_visible -> setVisibleToOtherApps(true)
             R.id.cab_make_private_only -> setVisibleToOtherApps(false)
             R.id.cab_remove -> removeContacts()
@@ -748,6 +810,15 @@ class ContactsAdapter(
 
     // Long-press ➜ CAB ➜ "Set default SIM for contact": pick SIM 1 / SIM 2 / None for every number the
     // contact has. The Phone fork reads this (via the content provider) to choose the SIM, incl. Android Auto.
+    // The contact's own 臨電話 account, beside its SIM: what the 臨 default dials through for it.
+    private fun setRinAccount() {
+        val contact = getSelectedItems().firstOrNull() ?: return
+        activity.pickRinAccount(activity.contactRinAccount(contact), activity.getString(R.string.rin_account_use_default)) { account ->
+            activity.setContactRinAccount(contact, account)
+            finishActMode()
+        }
+    }
+
     private fun setDefaultSim() {
         val contact = getSelectedItems().firstOrNull() ?: return
         SetDefaultSimDialog(activity, contactSimSlot(contact)) { slot ->

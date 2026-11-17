@@ -32,7 +32,9 @@ enum class ThemeGroup(@StringRes val labelRes: Int) {
     SECTIONS(R.string.theme_sections_group),
     ROWS(R.string.theme_group_rows),
     LISTS(R.string.theme_group_lists),
+    ROUTES(R.string.call_routes),
     SWIPE_CALL(R.string.swipe_to_call),
+    MENUS(R.string.theme_group_menus),
 }
 
 enum class ThemeSlot(
@@ -83,6 +85,26 @@ enum class ThemeSlot(
     SWIPE_SIM1("theme_swipe_sim1", ThemeGroup.SWIPE_CALL, R.string.swipe_sim1_color),
     SWIPE_SIM2("theme_swipe_sim2", ThemeGroup.SWIPE_CALL, R.string.swipe_sim2_color),
     SWIPE_TEXT("theme_swipe_text", ThemeGroup.SWIPE_CALL, R.string.swipe_text_color),
+    // …and the same for a side that dials through 白い熊 臨電話: its band and the 臨 mark + "Dialing…" on it
+    SWIPE_RIN("theme_swipe_rin", ThemeGroup.SWIPE_CALL, R.string.swipe_rin_color),
+    SWIPE_RIN_TEXT("theme_swipe_rin_text", ThemeGroup.SWIPE_CALL, R.string.swipe_rin_text_color),
+
+    // Route badges on the contact screen's numbers: 1 and 2 (SIM), 臨N (Rindenwa account) — ground and text
+    ROUTE_SIM1("theme_route_sim1", ThemeGroup.ROUTES, R.string.route_sim1_color),
+    ROUTE_SIM2("theme_route_sim2", ThemeGroup.ROUTES, R.string.route_sim2_color),
+    ROUTE_SIM_TEXT("theme_route_sim_text", ThemeGroup.ROUTES, R.string.route_sim_text_color),
+    ROUTE_RIN("theme_route_rin", ThemeGroup.ROUTES, R.string.route_rin_color),
+    ROUTE_RIN_TEXT("theme_route_rin_text", ThemeGroup.ROUTES, R.string.route_rin_text_color),
+
+    // Menus: an icon is coloured by what its row does; a destructive row is the warning colour throughout.
+    // (Frame and label of the other rows: Search bar → the ⋮ menu text.)
+    MENU_ICON_CALL("theme_menu_icon_call", ThemeGroup.MENUS, R.string.menu_icon_call),
+    MENU_ICON_MESSAGE("theme_menu_icon_message", ThemeGroup.MENUS, R.string.menu_icon_message),
+    MENU_ICON_CONTACT("theme_menu_icon_contact", ThemeGroup.MENUS, R.string.menu_icon_contact),
+    MENU_ICON_SHARE("theme_menu_icon_share", ThemeGroup.MENUS, R.string.menu_icon_share),
+    MENU_ICON_VIEW("theme_menu_icon_view", ThemeGroup.MENUS, R.string.menu_icon_view),
+    MENU_ICON_BLOCK("theme_menu_icon_block", ThemeGroup.MENUS, R.string.menu_icon_block),
+    MENU_WARNING("theme_menu_warning", ThemeGroup.MENUS, R.string.menu_warning),
 
     // Contact lists — one subgroup per tab (name + phone number + fast-scroller)
     CONTACT_NAME(
@@ -194,6 +216,16 @@ private const val SETTINGS_NOTE_DIM_GOLD = 0xFFC8C800.toInt()
 // denwa's own SIM fills (its PALETTE_RED / PALETTE_BLUE), so a swiped row is the same colour in both apps.
 private const val SWIPE_SIM1_DEFAULT = 0xFFFF0000.toInt()
 private const val SWIPE_SIM2_DEFAULT = 0xFF0000FF.toInt()
+// The 臨 mark: yellow ground, blue text — the reverse of nothing else on screen, so it reads as its own route.
+private const val ROUTE_BLUE = 0xFF0000FF.toInt()
+// Menu icon roles (白い熊, 2026-11-17). The message blue is lighter than the SIM blue: a thin icon in pure
+// blue on black cannot be made out.
+private const val MENU_GREEN = 0xFF00FF00.toInt()
+private const val MENU_BLUE = 0xFF4D94FF.toInt()
+private const val MENU_CYAN = 0xFF00FFFF.toInt()
+private const val MENU_ORANGE = 0xFFFF8800.toInt()
+private const val MENU_MAGENTA = 0xFFFF00FF.toInt()
+private const val MENU_RED = 0xFFFF0000.toInt()
 private const val ALPHA_SEARCH_HINT = 0.5f
 private const val ALPHA_UNSELECTED_TAB = 0.6f
 
@@ -216,6 +248,20 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.SWIPE_SIM1 -> SWIPE_SIM1_DEFAULT
     ThemeSlot.SWIPE_SIM2 -> SWIPE_SIM2_DEFAULT
     ThemeSlot.SWIPE_TEXT -> PALETTE_YELLOW
+    ThemeSlot.SWIPE_RIN -> themeColor(ThemeSlot.ROUTE_RIN)
+    ThemeSlot.SWIPE_RIN_TEXT -> themeColor(ThemeSlot.ROUTE_RIN_TEXT)
+    ThemeSlot.ROUTE_SIM1 -> SWIPE_SIM1_DEFAULT
+    ThemeSlot.ROUTE_SIM2 -> SWIPE_SIM2_DEFAULT
+    ThemeSlot.ROUTE_SIM_TEXT -> PALETTE_YELLOW
+    ThemeSlot.ROUTE_RIN -> PALETTE_YELLOW
+    ThemeSlot.ROUTE_RIN_TEXT -> ROUTE_BLUE
+    ThemeSlot.MENU_ICON_CALL -> MENU_GREEN
+    ThemeSlot.MENU_ICON_MESSAGE -> MENU_BLUE
+    ThemeSlot.MENU_ICON_CONTACT -> MENU_CYAN
+    ThemeSlot.MENU_ICON_SHARE -> MENU_ORANGE
+    ThemeSlot.MENU_ICON_VIEW -> themeColor(ThemeSlot.PRIMARY)
+    ThemeSlot.MENU_ICON_BLOCK -> MENU_MAGENTA
+    ThemeSlot.MENU_WARNING -> MENU_RED
 
     // Search bar: black fill, yellow text/icon/border by inheriting foundation
     ThemeSlot.SEARCH_FILL -> themeColor(ThemeSlot.BACKGROUND)

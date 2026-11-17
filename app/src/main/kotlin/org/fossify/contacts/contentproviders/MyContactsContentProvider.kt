@@ -27,6 +27,9 @@ class MyContactsContentProvider : ContentProvider() {
             return null
         }
 
+        // A reader that is about to watch for changes must find the watch attached to the live database.
+        org.fossify.contacts.helpers.PrivateContactsWatch.ensure(ctx)
+
         // Per-contact default SIM lookup for the Phone fork: content://<authority>/sim_slot,
         // selectionArgs[0] = the dialed number. Returns a one-row cursor with the SIM slot (1/2, 0 = none).
         if (uri.lastPathSegment == SIM_SLOT_PROVIDER_PATH) {

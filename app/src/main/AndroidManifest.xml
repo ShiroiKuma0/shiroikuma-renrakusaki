@@ -69,6 +69,10 @@
         <package android:name="shiroikuma.denwa" />
         <package android:name="shiroikuma.denwa.debug" />
 
+        <!-- 白い熊 臨電話 (Rindenwa): the 臨電話 tab opens it, and calls by a 臨 route go through its call door
+             (content://shiroikuma.rindenwa.calls). Debug and release share this one package id. -->
+        <package android:name="shiroikuma.rindenwa" />
+
         <!-- Android Auto. Its CarConnection provider is how we know the phone is projecting to the
              car, which is what "tap a favorite to call, only in the car" turns on. Without this entry
              the provider is simply invisible on API 30+ and the check silently answers "not in a

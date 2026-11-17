@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Bundle
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.extensions.getColoredDrawableWithColor
 import org.fossify.commons.extensions.getProperTextColor
@@ -14,6 +15,12 @@ import org.fossify.contacts.helpers.LOCATION_CONTACTS_TAB
 import org.fossify.contacts.helpers.LOCATION_FAVORITES_TAB
 
 open class SimpleActivity : BaseSimpleActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // The private-contacts database may be a fresh instance by now; its change watch follows it.
+        org.fossify.contacts.helpers.PrivateContactsWatch.ensure(this)
+    }
+
     override fun getAppIconIDs() = arrayListOf(
         R.mipmap.ic_launcher_red,
         R.mipmap.ic_launcher_pink,

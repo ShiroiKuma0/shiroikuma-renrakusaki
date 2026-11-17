@@ -17,6 +17,10 @@ class App : FossifyApp() {
         seedDialogFrame()
         // Switch saved list layouts to the "Lastname, Firstname" name field once.
         applySurnameFirstDefaultIfNeeded()
+        // 臨電話 reads the private contacts since +123: admit it where the list was stored before that, once.
+        org.fossify.contacts.helpers.Config.newInstance(this).addRindenwaToPrivateDataAppsOnce()
+        // Readers of the private-contacts provider hear of every change (helpers/PrivateContactsWatch).
+        org.fossify.contacts.helpers.PrivateContactsWatch.ensure(this)
         // Fold the 1.6.0+097/+098 side file of private-contact extras into the contacts (commons sk11).
         org.fossify.commons.helpers.ensureBackgroundThread { org.fossify.contacts.helpers.PrivateExtras.migrateIntoContacts(this) }
     }

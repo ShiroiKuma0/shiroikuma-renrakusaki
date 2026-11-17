@@ -51,14 +51,18 @@ import org.fossify.contacts.fragments.ContactsFragment
 import org.fossify.contacts.fragments.FavoritesFragment
 import org.fossify.contacts.fragments.MyViewPagerFragment
 import org.fossify.contacts.helpers.SystemStorage
+import org.fossify.contacts.extensions.getInstalledDialerAppPackage
 import org.fossify.contacts.helpers.ALL_TABS_MASK
-import org.fossify.contacts.helpers.DIALER_TABS_INTENT_EXTRA
 import org.fossify.contacts.helpers.OPEN_TAB_INTENT_EXTRA
-import org.fossify.contacts.helpers.dialerTabsList
+import org.fossify.contacts.helpers.ROUTE_RIN
+import org.fossify.contacts.helpers.Rindenwa
+import org.fossify.contacts.helpers.TAB_RINDENWA
+import org.fossify.contacts.helpers.barTabsList
+import org.fossify.contacts.helpers.launchRindenwa
+import org.fossify.contacts.helpers.pagerTabsList
 import org.fossify.contacts.helpers.loadContactEvents
 import org.fossify.contacts.helpers.loadContactExtras
 import org.fossify.contacts.helpers.migrateSortFieldKeys
-import org.fossify.contacts.helpers.tabsList
 import org.fossify.contacts.interfaces.RefreshContactsListener
 import java.util.Arrays
 
@@ -67,9 +71,9 @@ private const val SEARCH_BAR_CORNER_RADIUS_DP = 16f
 private const val INACTIVE_COLUMN_BUTTON_ALPHA = 0.35f
 private const val SEARCH_BAR_STROKE_DP = 2
 
-// Survives a recreate (process death, or the deliberate rebuild in onNewIntent) so a hand-off
-// session does not drop back to our own bottom bar underneath 白い熊.
-private const val DIALER_TABS_STATE_KEY = "dialer_tabs_mask"
+// The labels of the two hand-over tabs are the apps' own names, the same in every language.
+private const val DENWA_TAB_LABEL = "電話"
+private const val RINDENWA_TAB_LABEL = "臨電話"
 
 class MainActivity : SimpleActivity(), RefreshContactsListener {
     private var werePermissionsHandled = false
@@ -80,25 +84,26 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
     private var storedShowPhoneNumbers = false
     private var storedStartNameWithSurname = false
     private var storedFontSize = 0
-    private var storedShowTabs = 0
+    private var storedShowGroupsPage = true
     private var storedContactsListRevision = 0
 
-    // Non-zero while this activity instance was entered from denwa's bottom bar: denwa's own visible-tab
-    // mask (commons TAB_* bits). The bar then wears denwa's tab set instead of ours — Groups drops out,
-    // Recents comes in — so getting back to the dialer never means backing out of this app.
-    private var dialerTabsMask = 0
-
-    // The TAB_* masks the bottom bar shows, in bar order: denwa's list during a hand-off, ours otherwise.
-    private val barTabs: List<Int>
-        get() = if (dialerTabsMask != 0) {
-            dialerTabsList.filter { dialerTabsMask and it != 0 }
-        } else {
-            tabsList.filter { config.showTabs and it != 0 }
+    // The bottom bar: Favorites, Contacts, 電話, 臨電話 — shared with denwa and Rindenwa, the same however we
+    // were opened. Decided once per instance: a hand-over tab whose app is not installed is left out.
+    private val barTabs: List<Int> by lazy {
+        barTabsList.filter {
+            when (it) {
+                TAB_CALL_HISTORY -> getInstalledDialerAppPackage() != null
+                TAB_RINDENWA -> Rindenwa.isInstalled(this)
+                else -> true
+            }
         }
+    }
 
-    // The bar tabs that are actually pages of ours — the bar minus Recents, which only launches denwa.
-    private val pagerTabsMask: Int
-        get() = (if (dialerTabsMask != 0) dialerTabsMask else config.showTabs) and ALL_TABS_MASK
+    // The pages behind it: Favorites and Contacts under their tabs, then Groups, which has no tab — it is
+    // opened from ⋮ (or by paging past Contacts) and shows the bar with nothing selected.
+    private val pagerTabs: List<Int> by lazy {
+        pagerTabsList.filter { it != TAB_GROUPS || config.showGroupsPage }
+    }
 
     // The "contacts per row" toolbar buttons (一 二 三 四 → 1–4 columns, 詳 → detail rows with
     // last-call / last-SMS lines), left of the sort/filter/overflow icons.
@@ -113,9 +118,9 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         appLaunched(BuildConfig.APPLICATION_ID)
-        // Decided before anything reads the tab set: a launch from denwa's bottom bar wears denwa's tabs
-        // for the life of this instance.
-        dialerTabsMask = sanitizeDialerTabs(takeDialerTabs() ?: savedInstanceState?.getInt(DIALER_TABS_STATE_KEY) ?: 0)
+        // The "manage shown tabs" setting is retired with the shared bar; a tab hidden there long ago
+        // must not leave its page blank.
+        if (config.showTabs != ALL_TABS_MASK) config.showTabs = ALL_TABS_MASK
         setupOptionsMenu()
         refreshMenuItems()
         setupEdgeToEdge(
@@ -127,28 +132,9 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         checkWhatsNewDialog()
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putInt(DIALER_TABS_STATE_KEY, dialerTabsMask)
-    }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-
-        // The bar's shape is fixed at setup, so a launch that changes it — the dialer's tab set arriving,
-        // or a plain launch dropping it — rebuilds the activity on the new shape. The field is set first
-        // so the state this recreate saves already carries the new mode, and the intent keeps its extras,
-        // so the fresh onCreate() consumes them exactly as a cold start does.
-        val wantedDialerTabs = sanitizeDialerTabs(intent.getIntExtra(DIALER_TABS_INTENT_EXTRA, 0))
-        if (wantedDialerTabs != dialerTabsMask) {
-            dialerTabsMask = wantedDialerTabs
-            config.lastUsedViewPagerPage = 0
-            recreate()
-            return
-        }
-
-        intent.removeExtra(DIALER_TABS_INTENT_EXTRA)
         takeRequestedTab()?.let {
             binding.viewPager.currentItem = it
         }
@@ -192,17 +178,37 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         }
     }
 
+    // The swipe bands wear each 臨 account's own colours, which are set in Rindenwa: ask for the list on
+    // every return, and rebuild the lists when it changed.
+    private fun refreshRinAccounts() {
+        if (!config.swipeToCall || !Rindenwa.isInstalled(this)) return
+        val usesRin = listOf(config.swipeLeftRoute, config.swipeRightRoute).any { it.startsWith(ROUTE_RIN) }
+        if (!usesRin) return
+        val appContext = applicationContext
+        ensureBackgroundThread {
+            val before = Rindenwa.cachedAccounts(appContext)
+            val now = Rindenwa.refreshAccounts(appContext)
+            if (now != null && now != before) {
+                runOnUiThread {
+                    if (isDestroyed || isFinishing) return@runOnUiThread
+                    findViewById<MyViewPagerFragment<*>>(R.id.contacts_fragment)?.forceListRedraw = true
+                    findViewById<MyViewPagerFragment<*>>(R.id.favorites_fragment)?.forceListRedraw = true
+                    refreshContacts(TAB_CONTACTS or TAB_FAVORITES)
+                }
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         keepPhoneCleanIfWanted()
+        refreshRinAccounts()
         if (storedShowPhoneNumbers != config.showPhoneNumbers) {
             System.exit(0)
             return
         }
 
-        // In a hand-off session the bar comes from denwa, not from config.showTabs — restarting on a
-        // change to ours would only throw the session away (the intent extras are already consumed).
-        if (dialerTabsMask == 0 && storedShowTabs != config.showTabs) {
+        if (storedShowGroupsPage != config.showGroupsPage) {
             config.lastUsedViewPagerPage = 0
             finish()
             startActivity(intent)
@@ -217,8 +223,6 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         }
 
         val properPrimaryColor = getProperPrimaryColor()
-        binding.mainTabsHolder.background = ColorDrawable(getProperBackgroundColor())
-        binding.mainTabsHolder.setSelectedTabIndicatorColor(properPrimaryColor)
         getAllFragments().forEach {
             it?.setupColors(getProperTextColor(), properPrimaryColor)
         }
@@ -296,6 +300,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             findItem(R.id.change_view_type).isVisible = currentFragment == findViewById(R.id.favorites_fragment)
             findItem(R.id.column_count).isVisible = currentFragment == findViewById(R.id.favorites_fragment) && config.viewType == VIEW_TYPE_GRID
             findItem(R.id.more_apps_from_us).isVisible = !resources.getBoolean(org.fossify.commons.R.bool.hide_google_relations)
+            findItem(R.id.open_groups).isVisible = TAB_GROUPS in pagerTabs && currentFragment != findViewById(R.id.groups_fragment)
             val onContactsTab = currentFragment == findViewById(R.id.contacts_fragment)
             columnButtonIds.forEach { findItem(it).isVisible = onContactsTab }
 
@@ -330,6 +335,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         binding.mainMenu.requireToolbar().setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.ui_settings -> launchUiSettings()
+                R.id.open_groups -> binding.viewPager.currentItem = pagerTabs.indexOf(TAB_GROUPS)
                 R.id.select_favorites -> findViewById<FavoritesFragment>(R.id.favorites_fragment)?.startSelectMode()
                 R.id.set_favorite_numbers ->
                     findViewById<FavoritesFragment>(R.id.favorites_fragment)?.setNumbersForCalling()
@@ -506,7 +512,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             storedShowContactThumbnails = showContactThumbnails
             storedShowPhoneNumbers = showPhoneNumbers
             storedStartNameWithSurname = startNameWithSurname
-            storedShowTabs = showTabs
+            storedShowGroupsPage = showGroupsPage
             storedFontSize = fontSize
             storedContactsListRevision = contactsListRevision
         }
@@ -543,36 +549,46 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             .build()
     }
 
-    private fun getCurrentFragment(): MyViewPagerFragment<*>? {
-        val showTabs = pagerTabsMask
-        val fragments = arrayListOf<MyViewPagerFragment<*>>()
-        if (showTabs and TAB_CONTACTS != 0) {
-            fragments.add(findViewById(R.id.contacts_fragment))
-        }
+    private fun getCurrentFragment(): MyViewPagerFragment<*>? = when (pagerTabs.getOrNull(binding.viewPager.currentItem)) {
+        TAB_FAVORITES -> findViewById(R.id.favorites_fragment)
+        TAB_CONTACTS -> findViewById(R.id.contacts_fragment)
+        TAB_GROUPS -> findViewById(R.id.groups_fragment)
+        else -> null
+    }
 
-        if (showTabs and TAB_FAVORITES != 0) {
-            fragments.add(findViewById(R.id.favorites_fragment))
-        }
+    // The bar position of the page being shown, or -1 on Groups, which has no tab.
+    private fun currentBarPosition() = barTabs.indexOf(pagerTabs.getOrNull(binding.viewPager.currentItem))
 
-        if (showTabs and TAB_GROUPS != 0) {
-            fragments.add(findViewById(R.id.groups_fragment))
+    // Brings the bar in line with the page: its tab selected, or none at all on Groups.
+    private fun selectBarTabForPage() {
+        val position = currentBarPosition()
+        if (position >= 0) {
+            binding.mainTabsHolder.getTabAt(position)?.select()
+        } else {
+            binding.mainTabsHolder.selectTab(null)
+            binding.mainTabsFolder.clearSelection()
+            setupTabColors()
         }
-
-        return fragments.getOrNull(binding.viewPager.currentItem)
     }
 
     private fun setupTabColors() {
-        val activeView = binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.customView
-        updateBottomTabItemColors(activeView, true, getSelectedTabDrawableIds()[binding.viewPager.currentItem])
-        colorTabItem(activeView, themeColor(ThemeSlot.TAB_SELECTED))
-
-        getInactiveTabIndexes(binding.viewPager.currentItem).forEach { index ->
-            val inactiveView = binding.mainTabsHolder.getTabAt(index)?.customView
-            updateBottomTabItemColors(inactiveView, false, getDeselectedTabDrawableIds()[index])
-            colorTabItem(inactiveView, themeColor(ThemeSlot.TAB_UNSELECTED))
+        val active = currentBarPosition()
+        for (index in 0 until binding.mainTabsHolder.tabCount) {
+            val view = binding.mainTabsHolder.getTabAt(index)?.customView
+            val isActive = index == active
+            updateBottomTabItemColors(view, isActive, getBarTabDrawableId(barTabs[index], isActive))
+            colorTabItem(view, themeColor(if (isActive) ThemeSlot.TAB_SELECTED else ThemeSlot.TAB_UNSELECTED))
+            boldTabLabel(view, isActive)
         }
 
-        binding.mainTabsHolder.setBackgroundColor(themeColor(ThemeSlot.TAB_BACKGROUND))
+        // The folder tabs behind the bar carry its background and the line around the selected tab.
+        binding.mainTabsHolder.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        binding.mainTabsFolder.setColors(themeColor(ThemeSlot.TAB_SELECTED), themeColor(ThemeSlot.TAB_BACKGROUND))
+    }
+
+    private fun boldTabLabel(view: View?, bold: Boolean) {
+        view?.findViewById<TextView>(org.fossify.commons.R.id.tab_item_label)
+            ?.setTypeface(null, if (bold) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
     }
 
     private fun colorTabItem(view: View?, color: Int) {
@@ -580,59 +596,33 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         view?.findViewById<TextView>(org.fossify.commons.R.id.tab_item_label)?.setTextColor(color)
     }
 
-    private fun getInactiveTabIndexes(activeIndex: Int) = (0 until binding.mainTabsHolder.tabCount).filter { it != activeIndex }
-
-    // Indexed by bar position, not by page: in a hand-off the bar carries one more entry (Recents) than
-    // the pager has pages, and setupTabColors() walks every bar position.
-    private fun getSelectedTabDrawableIds() = barTabs.map {
-        when (it) {
-            TAB_CONTACTS -> org.fossify.commons.R.drawable.ic_person_vector
-            TAB_FAVORITES -> org.fossify.commons.R.drawable.ic_star_vector
-            TAB_CALL_HISTORY -> org.fossify.commons.R.drawable.ic_clock_filled_vector
-            else -> org.fossify.commons.R.drawable.ic_people_vector
-        }
+    // The same icons as the other two apps' bars: star, person, clock for 電話's call history, a phone for 臨電話.
+    private fun getBarTabDrawableId(tabMask: Int, selected: Boolean) = when (tabMask) {
+        TAB_FAVORITES -> if (selected) org.fossify.commons.R.drawable.ic_star_vector else org.fossify.commons.R.drawable.ic_star_outline_vector
+        TAB_CONTACTS -> if (selected) org.fossify.commons.R.drawable.ic_person_vector else org.fossify.commons.R.drawable.ic_person_outline_vector
+        TAB_CALL_HISTORY -> if (selected) org.fossify.commons.R.drawable.ic_clock_filled_vector else org.fossify.commons.R.drawable.ic_clock_vector
+        else -> org.fossify.commons.R.drawable.ic_phone_vector
     }
 
-    private fun getDeselectedTabDrawableIds() = barTabs.map {
-        when (it) {
-            TAB_CONTACTS -> org.fossify.commons.R.drawable.ic_person_outline_vector
-            TAB_FAVORITES -> org.fossify.commons.R.drawable.ic_star_outline_vector
-            TAB_CALL_HISTORY -> org.fossify.commons.R.drawable.ic_clock_vector
-            else -> org.fossify.commons.R.drawable.ic_people_outline_vector
-        }
+    private fun getBarTabIcon(tabMask: Int): Drawable =
+        resources.getColoredDrawableWithColor(getBarTabDrawableId(tabMask, false), getProperTextColor())
+
+    private fun getBarTabLabel(tabMask: Int): String = when (tabMask) {
+        TAB_FAVORITES -> resources.getString(org.fossify.commons.R.string.favorites_tab)
+        TAB_CONTACTS -> resources.getString(org.fossify.commons.R.string.contacts_tab)
+        TAB_CALL_HISTORY -> DENWA_TAB_LABEL
+        else -> RINDENWA_TAB_LABEL
     }
-
-    // Bar icon and label by TAB_* mask. Recents deliberately borrows denwa's own clock icon and
-    // "call history" label, so no new resources are needed and the two bars are pixel-identical.
-    private fun getBarTabIcon(tabMask: Int): Drawable {
-        val drawableId = when (tabMask) {
-            TAB_CONTACTS -> org.fossify.commons.R.drawable.ic_person_vector
-            TAB_FAVORITES -> org.fossify.commons.R.drawable.ic_star_vector
-            TAB_CALL_HISTORY -> org.fossify.commons.R.drawable.ic_clock_vector
-            else -> org.fossify.commons.R.drawable.ic_people_vector
-        }
-
-        return resources.getColoredDrawableWithColor(drawableId, getProperTextColor())
-    }
-
-    private fun getBarTabLabel(tabMask: Int) = resources.getString(
-        when (tabMask) {
-            TAB_CONTACTS -> org.fossify.commons.R.string.contacts_tab
-            TAB_FAVORITES -> org.fossify.commons.R.string.favorites_tab
-            TAB_CALL_HISTORY -> org.fossify.commons.R.string.call_history_tab
-            else -> org.fossify.commons.R.string.groups_tab
-        }
-    )
 
     private fun initFragments() {
-        binding.viewPager.offscreenPageLimit = tabsList.size - 1
+        binding.viewPager.offscreenPageLimit = pagerTabsList.size - 1
         binding.viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
             override fun onPageScrollStateChanged(state: Int) {}
 
             override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {}
 
             override fun onPageSelected(position: Int) {
-                binding.mainTabsHolder.getTabAt(position)?.select()
+                selectBarTabForPage()
                 getAllFragments().forEach {
                     it?.finishActMode()
                 }
@@ -688,26 +678,27 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
         binding.mainTabsHolder.onTabSelectionChanged(
             tabUnselectedAction = {
-                updateBottomTabItemColors(it.customView, false, getDeselectedTabDrawableIds()[it.position])
+                updateBottomTabItemColors(it.customView, false, getBarTabDrawableId(barTabs[it.position], false))
+                colorTabItem(it.customView, themeColor(ThemeSlot.TAB_UNSELECTED))
+                boldTabLabel(it.customView, false)
             },
             tabSelectedAction = {
-                // Recents is a launcher, not a page: it hands back to denwa and bounces the selection to
-                // the page we are actually staying on, the way denwa does for its own hand-off tabs.
-                if (barTabs.getOrNull(it.position) == TAB_CALL_HISTORY) {
-                    launchDialerApp(TAB_CALL_HISTORY)
-                    Handler(Looper.getMainLooper()).post {
-                        binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.select()
-                    }
+                // 電話 and 臨電話 are launchers, not pages: each hands over to its app's call history and the
+                // selection bounces back to the page we are staying on, as the other two apps do for ours.
+                val tab = barTabs.getOrNull(it.position)
+                if (tab == TAB_CALL_HISTORY || tab == TAB_RINDENWA) {
+                    if (tab == TAB_CALL_HISTORY) launchDialerApp(TAB_CALL_HISTORY) else launchRindenwa()
+                    Handler(Looper.getMainLooper()).post { selectBarTabForPage() }
                     return@onTabSelectionChanged
                 }
 
                 getCurrentFragment()?.onSearchQueryChanged(binding.mainMenu.getCurrentQuery())
-                binding.viewPager.currentItem = it.position
-                updateBottomTabItemColors(it.customView, true, getSelectedTabDrawableIds()[it.position])
+                binding.viewPager.currentItem = pagerTabs.indexOf(tab)
+                setupTabColors()
             }
         )
 
-        binding.mainTabsHolder.beGoneIf(binding.mainTabsHolder.tabCount == 1)
+        binding.mainTabsFolder.attach(binding.mainTabsHolder)
     }
 
     private fun showSortingDialog(showCustomSorting: Boolean) {
@@ -766,8 +757,9 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         isGettingContacts = true
 
         if (binding.viewPager.adapter == null) {
-            binding.viewPager.adapter = ViewPagerAdapter(this, tabsList, pagerTabsMask)
+            binding.viewPager.adapter = ViewPagerAdapter(this, pagerTabs)
             binding.viewPager.currentItem = takeRequestedTab() ?: getDefaultTab()
+            binding.viewPager.post { selectBarTabForPage() }
         }
 
         this.getOwnContacts { contacts ->
@@ -843,8 +835,8 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         findViewById(R.id.groups_fragment)
     )
 
-    // Tab requested via OPEN_TAB_INTENT_EXTRA (sent by our Phone fork) as a page position;
-    // consumed on use, null when absent or when the requested tab is hidden.
+    // Tab requested via OPEN_TAB_INTENT_EXTRA (sent by denwa and Rindenwa for the bar's first two tabs)
+    // as a page position; consumed on use, null when absent or not a page of ours.
     private fun takeRequestedTab(): Int? {
         val wantedTab = intent.getIntExtra(OPEN_TAB_INTENT_EXTRA, 0)
         if (wantedTab == 0) {
@@ -852,59 +844,12 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
         }
 
         intent.removeExtra(OPEN_TAB_INTENT_EXTRA)
-        val showTabs = pagerTabsMask
-        if (showTabs and wantedTab == 0) {
-            return null
-        }
-
-        return when (wantedTab) {
-            TAB_CONTACTS -> 0
-            TAB_FAVORITES -> if (showTabs and TAB_CONTACTS != 0) 1 else 0
-            else -> null
-        }
+        return pagerTabs.indexOf(wantedTab).takeIf { it >= 0 }
     }
 
-    // Denwa's own visible-tab mask, sent with DIALER_TABS_INTENT_EXTRA when this launch came from the
-    // dialer's bottom bar. Consumed on use like takeRequestedTab(); null when absent.
-    private fun takeDialerTabs(): Int? {
-        val mask = intent.getIntExtra(DIALER_TABS_INTENT_EXTRA, 0)
-        if (mask == 0) {
-            return null
-        }
-
-        intent.removeExtra(DIALER_TABS_INTENT_EXTRA)
-        return mask
-    }
-
-    // A dialer mask holding none of our own pages would leave the pager empty, so it is no hand-off at all.
-    private fun sanitizeDialerTabs(mask: Int) = if (mask and ALL_TABS_MASK != 0) mask else 0
-
-    private fun getDefaultTab(): Int {
-        val showTabsMask = pagerTabsMask
-        return when (config.defaultTab) {
-            TAB_LAST_USED -> config.lastUsedViewPagerPage
-            TAB_CONTACTS -> 0
-            TAB_FAVORITES -> if (showTabsMask and TAB_CONTACTS > 0) 1 else 0
-            else -> {
-                if (showTabsMask and TAB_GROUPS > 0) {
-                    if (showTabsMask and TAB_CONTACTS > 0) {
-                        if (showTabsMask and TAB_FAVORITES > 0) {
-                            2
-                        } else {
-                            1
-                        }
-                    } else {
-                        if (showTabsMask and TAB_FAVORITES > 0) {
-                            1
-                        } else {
-                            0
-                        }
-                    }
-                } else {
-                    0
-                }
-            }
-        }
+    private fun getDefaultTab(): Int = when (val wanted = config.defaultTab) {
+        TAB_LAST_USED -> config.lastUsedViewPagerPage.coerceIn(0, pagerTabs.size - 1)
+        else -> pagerTabs.indexOf(wanted).coerceAtLeast(0)
     }
 
     private fun checkWhatsNewDialog() {

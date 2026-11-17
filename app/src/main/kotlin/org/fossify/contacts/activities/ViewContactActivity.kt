@@ -33,9 +33,17 @@ import org.fossify.contacts.databinding.*
 import org.fossify.contacts.dialogs.ChangeVisibilityDialog
 import org.fossify.contacts.dialogs.ChooseSocialDialog
 import org.fossify.contacts.dialogs.ManageVisibleFieldsDialog
+import org.fossify.contacts.dialogs.pickRinAccount
 import org.fossify.contacts.extensions.*
 import org.fossify.contacts.helpers.*
 import java.util.Locale
+
+// Route badges on the contact screen's numbers (dp / sp).
+private const val ROUTE_BADGE_SIZE_DP = 30
+private const val ROUTE_BADGE_PAD_DP = 7
+private const val ROUTE_BADGE_GAP_DP = 6
+private const val ROUTE_BADGE_RADIUS_DP = 7f
+private const val ROUTE_BADGE_TEXT_SP = 16f
 
 class ViewContactActivity : ContactActivity() {
     private var isViewIntent = false
@@ -51,6 +59,7 @@ class ViewContactActivity : ContactActivity() {
     companion object {
         private const val COMPARABLE_PHONE_NUMBER_LENGTH = 9
         private const val CALL_HISTORY_HEADING_SCALE = 1.1f
+        private const val CALL_NUMBER_LABEL_SEPARATOR = " · "
 
         // Kinds with their own fields on this screen; a kept row of one of them only carries extra columns.
         private val MODELLED_KINDS = setOf(
@@ -454,7 +463,78 @@ class ViewContactActivity : ContactActivity() {
         return parts.filter { it.isNotEmpty() }.joinToString(" ")
     }
 
+    // Route badges on a number: red 1 and blue 2 dial through that SIM (by way of denwa), the yellow 臨N
+    // through 白い熊 臨電話 — the contact's own 臨 account, else the default from UI settings. One tap dials;
+    // a long-press on 臨 picks the contact's account. A route whose app is not installed has no badge.
+    private fun setupRouteBadges(holder: android.widget.LinearLayout, number: String) {
+        holder.removeAllViews()
+        if (!config.routeBadges) return
+        val shown = fullContact ?: contact ?: return
+        val name = shown.getNameToDisplay()
+        if (getInstalledDialerAppPackage() != null) {
+            val simText = themeColor(ThemeSlot.ROUTE_SIM_TEXT)
+            holder.addView(routeBadge("1", themeColor(ThemeSlot.ROUTE_SIM1), simText) { callNumberWithSim(number, name, true) })
+            holder.addView(routeBadge("2", themeColor(ThemeSlot.ROUTE_SIM2), simText) { callNumberWithSim(number, name, false) })
+        }
+        if (Rindenwa.isInstalled(this)) {
+            // each 臨 account wears the colours 白い熊 gave it in Rindenwa
+            val account = effectiveRinAccount(shown)
+            val (rinGround, rinText) = rinBadgeColors(account)
+            val badge = routeBadge(rinBadgeFor(account), rinGround, rinText) {
+                callNumberViaRindenwa(number, name, effectiveRinAccount(shown))
+            }
+            badge.setOnLongClickListener {
+                pickRinAccount(contactRinAccount(shown), getString(R.string.rin_account_use_default)) { account ->
+                    setContactRinAccount(shown, account)
+                    setupPhoneNumbers()
+                }
+                true
+            }
+            holder.addView(badge)
+        }
+    }
+
+    private fun routeBadge(label: String, ground: Int, text: Int, onClick: () -> Unit): TextView {
+        val density = resources.displayMetrics.density
+        return TextView(this).apply {
+            this.text = label
+            setTextColor(text)
+            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, ROUTE_BADGE_TEXT_SP)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            gravity = android.view.Gravity.CENTER
+            includeFontPadding = false
+            minWidth = (ROUTE_BADGE_SIZE_DP * density).toInt()
+            val pad = (ROUTE_BADGE_PAD_DP * density).toInt()
+            setPadding(pad, 0, pad, 0)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = ROUTE_BADGE_RADIUS_DP * density
+                setColor(ground)
+            }
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, (ROUTE_BADGE_SIZE_DP * density).toInt()
+            ).apply { marginStart = (ROUTE_BADGE_GAP_DP * density).toInt() }
+            setOnClickListener { onClick() }
+        }
+    }
+
+    // Rindenwa's account list decides what a 臨 badge reads; ask for it once per visit and redraw on news.
+    private var rinAccountsAsked = false
+
+    private fun refreshRinAccountsOnce() {
+        if (rinAccountsAsked || !config.routeBadges || !Rindenwa.isInstalled(this)) return
+        rinAccountsAsked = true
+        val appContext = applicationContext
+        ensureBackgroundThread {
+            val before = Rindenwa.cachedAccounts(appContext)
+            val now = Rindenwa.refreshAccounts(appContext)
+            if (now != null && now != before) {
+                runOnUiThread { if (!isFinishing && !isDestroyed && contact != null) setupPhoneNumbers() }
+            }
+        }
+    }
+
     private fun setupPhoneNumbers() {
+        refreshRinAccountsOnce()
         var phoneNumbers = contact!!.phoneNumbers.toMutableSet() as LinkedHashSet<PhoneNumber>
 
         if (mergeDuplicate) {
@@ -520,6 +600,7 @@ class ViewContactActivity : ContactActivity() {
 
                     defaultToggleIcon.isVisible = phoneNumber.isPrimary
                     defaultToggleIcon.applyColorFilter(getProperTextColor())
+                    setupRouteBadges(contactNumberRoutes, phoneNumber.value)
                 }
             }
             binding.contactNumbersImage.beVisible()
@@ -741,7 +822,8 @@ class ViewContactActivity : ContactActivity() {
     }
 
     // 発着信履歴 — the contact's latest calls under its fields, drawn exactly like denwa's Recents: its
-    // day headings, SIM badge, arrow, time, duration and place, in denwa's own colours, fonts and formats
+    // day headings and its three-line row less the name (number · label with ✉ and ☎, then SIM badge,
+    // arrow, time, duration and place), in denwa's own colours, fonts and formats
     // (served by denwa, helpers/DenwaCallLogStyle). setupContactDetails runs more than once while the
     // duplicates and sources arrive, so a newer load supersedes an older one.
     private var callHistoryGeneration = 0
@@ -763,7 +845,9 @@ class ViewContactActivity : ContactActivity() {
             val style = loadDenwaCallLogStyle(text, primary)
             val faces = CallHistoryFaces(
                 date = denwaTypeface(style.dateFont),
-                subtitle = denwaTypeface(style.subtitleFont),
+                number = denwaTypeface(style.numberFont),
+                duration = denwaTypeface(style.durationFont),
+                country = denwaTypeface(style.countryFont),
                 dayDate = denwaTypeface(style.dayDateFont, android.graphics.Typeface.BOLD),
             )
             runOnUiThread {
@@ -776,7 +860,9 @@ class ViewContactActivity : ContactActivity() {
 
     private class CallHistoryFaces(
         val date: android.graphics.Typeface,
-        val subtitle: android.graphics.Typeface,
+        val number: android.graphics.Typeface,
+        val duration: android.graphics.Typeface,
+        val country: android.graphics.Typeface,
         val dayDate: android.graphics.Typeface,
     )
 
@@ -801,16 +887,15 @@ class ViewContactActivity : ContactActivity() {
             holder.addView(root)
         }
 
-        val labels = numberLabels(numbers, style)
         val region = callLogRegion()
-        var lastDay: java.time.LocalDate? = null
-        calls.forEach { call ->
-            val day = call.timestamp.callDayKey()
-            if (day != lastDay) {
-                lastDay = day
+        val days = calls.map { it.timestamp.callDayKey() }
+        calls.forEachIndexed { index, call ->
+            if (days[index] != days.getOrNull(index - 1)) {
                 holder.addView(callDayRow(call, style, faces, baseSizePx))
             }
-            holder.addView(callRow(call, style, faces, baseSizePx, labels, region))
+            // no line under a day's last call: the next day's own line, or the pill, follows
+            val lineBelow = days.getOrNull(index + 1) == days[index]
+            holder.addView(callRow(call, style, faces, baseSizePx, numbers, region, lineBelow))
         }
 
         holder.addView(
@@ -841,11 +926,13 @@ class ViewContactActivity : ContactActivity() {
         style: DenwaCallLogStyle,
         faces: CallHistoryFaces,
         baseSizePx: Float,
-        labels: Map<String, String>,
+        numbers: List<PhoneNumber>,
         region: String,
+        lineBelow: Boolean,
     ): View = ItemContactCallBinding.inflate(layoutInflater, binding.contactCallsHolder, false).apply {
-        applyCallLine(contactCallDivider, style.divider, style.dividerDp)
+        applyCallLine(contactCallDivider, style.divider, if (lineBelow) style.dividerDp else 0)
         val missed = call.type == CallLog.Calls.MISSED_TYPE
+        val unanswered = call.type == CallLog.Calls.OUTGOING_TYPE && call.duration <= 0
         val showDuration = !missed && call.type != CallLog.Calls.REJECTED_TYPE && call.duration > 0
 
         fun TextView.styled(color: Int, face: android.graphics.Typeface, font: DenwaFont) {
@@ -855,24 +942,62 @@ class ViewContactActivity : ContactActivity() {
             if (font.sizeSp > 0) setTextSize(TypedValue.COMPLEX_UNIT_SP, font.sizeSp.toFloat())
         }
 
-        contactCallTime.text = call.timestamp.formatCallTime(this@ViewContactActivity, style.timeFormat)
-        contactCallTime.styled(if (missed) style.missed else style.date, faces.date, style.dateFont)
+        // The number line: the number as the call log has it, and what the contact files it under.
+        // The label after the “·” keeps its own colour; the number before it is the paler one.
+        val shownNumber = if (style.formatNumbers) call.number.formatPhoneNumber() else call.number
+        val label = numbers.firstOrNull { sameNumber(it.value, call.number) }?.let { getPhoneNumberTypeText(it.type, it.label) }.orEmpty()
+        val numberLine = android.text.SpannableString(if (label.isBlank()) shownNumber else "$shownNumber$CALL_NUMBER_LABEL_SEPARATOR$label")
+        if (label.isNotBlank()) {
+            numberLine.setSpan(
+                android.text.style.ForegroundColorSpan(style.numberLabel),
+                shownNumber.length + CALL_NUMBER_LABEL_SEPARATOR.length,
+                numberLine.length,
+                android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        contactCallNumber.apply {
+            text = numberLine
+            setTextColor(style.number)
+            typeface = faces.number
+            // a quieter line than the time below, unless denwa gives it a size of its own
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, baseSizePx * style.numberScale)
+            if (style.numberFont.sizeSp > 0) setTextSize(TypedValue.COMPLEX_UNIT_SP, style.numberFont.sizeSp.toFloat())
+        }
 
-        contactCallSeparator.setTextColor(style.subtitle)
+        // ✉ writes to this number; ☎ calls it back on the SIM this call used
+        val name = fullContact?.getNameToDisplay().orEmpty()
+        contactCallMessage.applyColorFilter(style.actionMessage)
+        contactCallMessage.setOnClickListener { launchSendSMSIntent(call.number) }
+        contactCallCall.applyColorFilter(style.actionCall)
+        contactCallCall.setOnClickListener {
+            if (call.simId == 1 || call.simId == 2) {
+                callNumberWithSim(call.number, name, useSim1 = call.simId == 1)
+            } else {
+                startCallIntent(call.number)
+            }
+        }
+
+        // the time takes its arrow's colour for the calls that have a say: one we missed, one we placed,
+        // and one we placed in vain
+        val timeColor = when {
+            missed -> style.missed
+            call.type != CallLog.Calls.OUTGOING_TYPE -> style.date
+            unanswered -> style.unanswered
+            else -> style.outgoing
+        }
+        contactCallTime.text = call.timestamp.formatCallTime(this@ViewContactActivity, style.timeFormat)
+        contactCallTime.styled(timeColor, faces.date, style.dateFont)
+
+        contactCallSeparator.setTextColor(style.duration)
         contactCallSeparator.setTextSize(TypedValue.COMPLEX_UNIT_PX, baseSizePx)
         contactCallSeparator.beVisibleIf(showDuration)
         contactCallDuration.text = call.duration.formatCallDuration(this@ViewContactActivity, style.durationFormat)
-        contactCallDuration.styled(style.subtitle, faces.subtitle, style.subtitleFont)
+        contactCallDuration.styled(style.duration, faces.duration, style.durationFont)
         contactCallDuration.beVisibleIf(showDuration)
-
-        val label = labels.entries.firstOrNull { sameNumber(it.key, call.number) }?.value
-        contactCallNumberLabel.text = label
-        contactCallNumberLabel.setTextColor(themeColor(ThemeSlot.SETTINGS_NOTE))
-        contactCallNumberLabel.beVisibleIf(!label.isNullOrEmpty())
 
         val location = callLocation(call.number, region)
         contactCallLocation.text = location
-        contactCallLocation.styled(style.subtitle, faces.subtitle, style.subtitleFont)
+        contactCallLocation.styled(style.country, faces.country, style.countryFont)
         contactCallLocation.beVisibleIf(location != null)
 
         val showSim = call.simId != -1
@@ -886,7 +1011,7 @@ class ViewContactActivity : ContactActivity() {
         }
 
         val (icon, iconColor) = when (call.type) {
-            CallLog.Calls.OUTGOING_TYPE -> R.drawable.ic_call_made_vector to style.outgoing
+            CallLog.Calls.OUTGOING_TYPE -> R.drawable.ic_call_made_vector to (if (unanswered) style.unanswered else style.outgoing)
             CallLog.Calls.MISSED_TYPE -> R.drawable.ic_call_missed_vector to style.missed
             else -> R.drawable.ic_call_received_vector to style.incoming
         }
@@ -899,26 +1024,6 @@ class ViewContactActivity : ContactActivity() {
             true
         }
     }.root
-
-    /**
-     * The label telling the contact's numbers apart on a call row — empty when there is only one number.
-     * The type label (携帯, 自宅…) when that alone is unique, else the number itself.
-     */
-    private fun numberLabels(numbers: List<PhoneNumber>, style: DenwaCallLogStyle): Map<String, String> {
-        if (numbers.size < 2) return emptyMap()
-        val types = numbers.map { getPhoneNumberTypeText(it.type, it.label) }
-        return numbers.mapIndexed { index, number ->
-            val type = types[index]
-            val label = if (type.isNotEmpty() && types.count { it == type } == 1) {
-                type
-            } else if (style.formatNumbers) {
-                number.value.formatPhoneNumber()
-            } else {
-                number.value
-            }
-            number.value to label
-        }.toMap()
-    }
 
     // The place, as denwa shows it: only for a number that carries its own country code, and not when it
     // is simply this phone's own country.

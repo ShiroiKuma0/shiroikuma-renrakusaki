@@ -22,6 +22,10 @@ private const val INCOMING_DEFAULT = 0xFF1E88E5.toInt() // md_blue_600
 private const val SIM1_DEFAULT = 0xFFFF0000.toInt()
 private const val SIM2_DEFAULT = 0xFF0000FF.toInt()
 private const val DAY_HEADER_SCALE_DEFAULT = 0.76f
+private const val NUMBER_SCALE_DEFAULT = 0.78f
+private const val NUMBER_DEFAULT = 0xFFFFFFB0.toInt() // denwa's PALETTE_PALE_YELLOW
+private const val DIVIDER_DEFAULT = 0xFF8C8C00.toInt() // denwa's PALETTE_DIM_YELLOW
+private const val ACTION_CALL_DEFAULT = 0xFF00FF00.toInt() // denwa's call role
 private const val SEMIBOLD_WEIGHT = 600
 private const val BOLD_WEIGHT = 700
 const val DENWA_MONOSPACE_FONT = "@monospace"
@@ -57,6 +61,23 @@ data class DenwaCallLogStyle(
     val durationFormat: Int = CALL_DURATION_JAPANESE,
     val imperialDate: Boolean = true,
     val formatNumbers: Boolean = true,
+    // The three-line row (denwa 1.11.1+104 and later). An older denwa serves none of these, and each
+    // then takes what that denwa drew instead: see loadDenwaCallLogStyle.
+    /** The number on the number line; [numberLabel] is the contact's label after its “·”. */
+    val number: Int = NUMBER_DEFAULT,
+    val numberLabel: Int = PALETTE_YELLOW,
+    val duration: Int,
+    val country: Int,
+    /** The ✉ and the ☎ at the right end of the number line. */
+    val actionMessage: Int,
+    val actionCall: Int = ACTION_CALL_DEFAULT,
+    /** Arrow and time of a call we placed that was not answered. */
+    val unanswered: Int = SIM2_DEFAULT,
+    val numberFont: DenwaFont = DenwaFont(),
+    val durationFont: DenwaFont = DenwaFont(),
+    val countryFont: DenwaFont = DenwaFont(),
+    /** The number line is drawn at the base size × this, unless [numberFont] has a size of its own. */
+    val numberScale: Float = NUMBER_SCALE_DEFAULT,
     /** True when the values came from denwa itself rather than these defaults. */
     val fromDenwa: Boolean = false,
 ) {
@@ -71,7 +92,8 @@ data class DenwaCallLogStyle(
 fun Context.loadDenwaCallLogStyle(text: Int, primary: Int): DenwaCallLogStyle {
     val defaults = DenwaCallLogStyle(
         name = text, subtitle = text, date = text, dayDate = text,
-        divider = primary, dayDivider = primary, dateUnderline = primary,
+        divider = DIVIDER_DEFAULT, dayDivider = primary, dateUnderline = primary,
+        duration = primary, country = primary, actionMessage = primary,
     )
     val authority = denwaStyleAuthority() ?: return defaults
     val values = HashMap<String, String>()
@@ -97,15 +119,19 @@ fun Context.loadDenwaCallLogStyle(text: Int, primary: Int): DenwaCallLogStyle {
         weight = int("font.$slot.weight", 0),
         sizeSp = int("font.$slot.size", 0),
     )
+    // A slot an older denwa does not serve borrows the one it drew that text with
+    fun font(slot: String, older: String) = font(if ("font.$slot.family" in values) slot else older)
+    val subtitle = color("subtitle", defaults.subtitle)
+    val outgoing = color("outgoing", defaults.outgoing)
 
     return DenwaCallLogStyle(
         name = color("name", defaults.name),
-        subtitle = color("subtitle", defaults.subtitle),
+        subtitle = subtitle,
         date = color("date", defaults.date),
         dayDate = color("day_date", defaults.dayDate),
         missed = color("missed", defaults.missed),
         incoming = color("incoming", defaults.incoming),
-        outgoing = color("outgoing", defaults.outgoing),
+        outgoing = outgoing,
         divider = color("divider", defaults.divider),
         dayDivider = color("day_divider", defaults.dayDivider),
         dateUnderline = color("date_underline", defaults.dateUnderline),
@@ -126,6 +152,17 @@ fun Context.loadDenwaCallLogStyle(text: Int, primary: Int): DenwaCallLogStyle {
         durationFormat = int("duration_format", defaults.durationFormat),
         imperialDate = flag("imperial_date", defaults.imperialDate),
         formatNumbers = flag("format_numbers", defaults.formatNumbers),
+        number = color("number", subtitle),
+        numberLabel = color("number_label", subtitle),
+        duration = color("duration", subtitle),
+        country = color("country", subtitle),
+        actionMessage = color("action_message", primary),
+        actionCall = color("action_call", defaults.actionCall),
+        unanswered = color("unanswered", outgoing),
+        numberFont = font("number", "subtitle"),
+        durationFont = font("duration", "subtitle"),
+        countryFont = font("country", "subtitle"),
+        numberScale = values["number_scale"]?.toFloatOrNull() ?: defaults.numberScale,
         fromDenwa = true,
     )
 }

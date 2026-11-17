@@ -117,7 +117,7 @@ colors") whenever the installed app id is not `org.fossify.*` — always the cas
 
 - **Source:** the `shiroikuma-commons` fork (`~/git/shiroikuma-commons`, branch `custom`), which strips
   Commons' anti-tamper "fake version" / sideloading checks out entirely.
-- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk13"` in
+- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk14"` in
   `gradle/libs.versions.toml` (`mavenLocal()` is already a repository in `settings.gradle.kts`).
 - Because Commons itself no longer nags, this app carries **no** in-app workaround — no `getPackageName`
   spoof, no `SIDELOADING_FALSE`, no `res/raw/keep.xml`.
@@ -132,63 +132,85 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew :commons:publishToMavenLo
 
 Then set this app's `commons` pin to `<ver>-sk1`. The patched AAR lives only in `~/.m2`, not in the repo.
 
-## Tab hand-off from our Phone fork (denwa)
+## The shared bottom bar — Favorites, Contacts, 電話, 臨電話
 
-Our Phone fork (`shiroikuma.denwa`, repo `~/git/shiroikuma-denwa`) launches this app's `MainActivity`
-directly when its Contacts/Favorites tabs are tapped. The contract is two int extras, both defined in
-`helpers/Constants.kt` here and in denwa's `helpers/Constants.kt` there — **keep the names in sync
-across the two repos**:
+連絡先, 電話 (denwa, `shiroikuma.denwa`) and 臨電話 (Rindenwa, `shiroikuma.rindenwa`) show **the same four
+tabs in the same order** (白い熊, 2026-11-17; here from `+123`), however each app was opened. Each owns
+its own tabs and launches the others for the rest:
 
-| extra | ours | denwa's | meaning |
-| --- | --- | --- | --- |
-| `shiroikuma_open_tab` | `OPEN_TAB_INTENT_EXTRA` | `CONTACTS_APP_OPEN_TAB_EXTRA` | which tab to open (a commons `TAB_*` mask). Bidirectional: denwa sends it to us, we send it back with `TAB_CALL_HISTORY`. |
-| `shiroikuma_dialer_tabs` | `DIALER_TABS_INTENT_EXTRA` | `CONTACTS_APP_DIALER_TABS_EXTRA` | denwa's own visible-tab mask. Non-zero = this launch came from the dialer's bottom bar. |
+| tab | owner | how we open it |
+| --- | --- | --- |
+| Favorites, Contacts | us | pages of `MainActivity`; the others launch it with int extra `shiroikuma_open_tab` (`OPEN_TAB_INTENT_EXTRA`) = commons `TAB_FAVORITES` / `TAB_CONTACTS` |
+| 電話 | denwa | `launchDialerApp(TAB_CALL_HISTORY)` (extensions/Activity.kt) |
+| 臨電話 | Rindenwa | `launchRindenwa()` (helpers/Rindenwa.kt): `org.linphone.ui.main.MainActivity` with boolean extra `shiroikuma_open_history` |
 
-### Wearing denwa's bottom bar
+- `barTabsList` / `pagerTabsList` (helpers/Constants.kt) are the bar and the pager. `TAB_RINDENWA` is a
+  bar-only id of ours. A hand-over tab whose app is not installed is left out (`MainActivity.barTabs`).
+- 電話 and 臨電話 are **launchers, not pages**: `tabSelectedAction` starts the other app with no animation
+  and posts the selection back (`selectBarTabForPage`). We never `finish()`, so it is a warm task swap.
+- **Groups has no tab.** It stays a pager page (`Config.showGroupsPage`, UI settings → Tabs), reached from
+  ⋮ → Groups or by paging past Contacts; the bar then shows nothing selected.
+- The old “wear the dialer's tab mask” model (`shiroikuma_dialer_tabs`) is gone and the extra is ignored;
+  the *manage shown tabs* setting is retired (`showTabs` is forced to all).
+- `<queries>` names `shiroikuma.denwa[.debug]` and `shiroikuma.rindenwa`.
 
-When `shiroikuma_dialer_tabs` arrives non-zero, `MainActivity` keeps rendering our contacts UI but
-**wears denwa's tab set for the life of that activity instance** — Contacts | Favorites | Recents,
-built from denwa's mask so both bars match tab-for-tab even when 白い熊 hides one of them in denwa.
-Groups drops out of the bar *and* the pager for that session; launched from our own launcher icon the
-app is untouched. The point is that Recents never vanishes, so the dialer is always one tap away.
+## Calling through 臨電話 — routes, badges, swipes (`helpers/Rindenwa.kt`)
 
-- `dialerTabsMask` holds the mode; `takeDialerTabs()` consumes the extra the way `takeRequestedTab()`
-  does (read, then `removeExtra`), and `onSaveInstanceState` carries it through a recreate.
-- `barTabs` is the bar (denwa's `dialerTabsList` order during a hand-off, our `tabsList` otherwise);
-  `pagerTabsMask` is the subset that are real pages — everything the bar shows `and ALL_TABS_MASK`.
-- Recents is a **launcher, not a page**: `tabSelectedAction` intercepts it, calls `launchDialerApp()`
-  (extensions/Activity.kt) and posts the selection back to the page we stay on. We never `finish()`,
-  so alternating taps are a warm task swap; the start uses `ActivityOptions.makeCustomAnimation(0, 0)`
-  so it reads as a tab change rather than an app switch.
-- The Recents entry borrows commons' `ic_clock_vector` / `ic_clock_filled_vector` and
-  `R.string.call_history_tab` — exactly what denwa's own bar uses, so no new resources on either side.
-- `onNewIntent` `recreate()`s when the mask changes (denwa handing off to an already-running instance,
-  or a plain launch dropping the mode), because the bar's shape is decided once at setup. Note this
-  only fires when the intent is actually delivered: tapping our launcher icon while the task is already
-  alive resumes it without an `onNewIntent`, so a hand-off session keeps denwa's bar until it is
-  backed out of.
-- `<queries>` in the manifest names `shiroikuma.denwa` and `shiroikuma.denwa.debug` — without package
-  visibility the hand-back start fails on Android 11+.
+Rindenwa's call door is a ContentProvider driven by `ContentResolver.call()`, authority
+`shiroikuma.rindenwa.calls` (its `SkCallsProvider`; gated by Rindenwa's own allow-list, we are on it by
+default). **Keep the names in sync with Rindenwa.**
 
-The feature is only visible with **both** halves installed; denwa ships the sending side.
+- `accounts` → `{result: "OK", accounts: <JSON array of {number, identity, name, registered, default,
+  badge_color, badge_text_color}>}`. `number` is the 臨 number (0–9, unique; -1 = none), shown as 臨0 … 臨9,
+  a bare 臨 when unknown. The two colours (ARGB, since Rindenwa `+019`) are that account's own badge pair,
+  set in Rindenwa's UI: every 臨N we draw — contact screen, account picker, swipe band — wears them
+  (`rinBadgeColors`); our `ROUTE_RIN*` / `SWIPE_RIN*` slots are only the fallback when they are absent.
+- `dial`, extras `{to, account?}` (a 臨 number as a string; absent = the account selected in Rindenwa)
+  → `{result: "OK"}` or `ERROR:not allowed | no such account | not a number | no number | not ready`.
+- Both cross processes: never on the main thread. The last account list is cached (`Config.rinAccountsCache`).
+
+A **call route** is a string: `sim1`, `sim2`, `rin` (the 臨 default), `rin:N`, `off`. The 臨 default for a
+contact is its own account (`Config.getRinAccount`, per number like the per-number SIM; set by a long-press
+on the 臨 badge or selection menu → *Set 臨電話 account*), else `Config.rinDefaultAccount` (UI settings →
+Call routes; -1 = as selected in 臨電話).
+
+- **Contact screen:** each number carries badges 1 (red), 2 (blue) and 臨N (yellow ground, blue text) —
+  `ViewContactActivity.setupRouteBadges`; a tap dials by that route. Switch and colours: UI settings →
+  *Call routes* (`Config.routeBadges`, `ThemeSlot.ROUTE_*`).
 
 ## Swipe to call — shared with denwa through commons
 
-Contacts and Favorites rows swipe to call the contact's default number (`numberToCall()`): left = SIM 1,
-right = SIM 2. The swipe itself is **commons sk13**, shared with denwa: `org.fossify.commons.helpers.SwipeToCallCallback`
+Contacts and Favorites rows swipe to call the contact's default number (`numberToCall()`). **Each side
+dials by its own route** (`Config.swipeLeftRoute` / `swipeRightRoute`, default SIM 1 / SIM 2): UI settings →
+*Swipe to call*. The swipe itself is **commons**, shared with denwa: `org.fossify.commons.helpers.SwipeToCallCallback`
 and `RecyclerView.setupSwipeToCall` / `removeSwipeToCall` (tag `org.fossify.commons.R.id.swipe_to_call_tag`).
-A change to the swipe is made once, in shiroikuma-commons, never re-ported here. Our side only passes the
-colours (`ThemeSlot.SWIPE_SIM1/2/TEXT`, defaulting to denwa's red / blue / yellow) and `R.string.dialing`
-(`ContactsAdapter.setupSwipeToCall`), and places the call: `extensions/SwipeToCall.kt` calls through denwa's
-DialerActivity with the SIM as `EXTRA_PHONE_ACCOUNT_HANDLE`, which needs `READ_PHONE_STATE`. Switch and
-colours: UI settings → *Swipe to call* (`Config.swipeToCall`, default on).
+A change to the swipe is made once, in shiroikuma-commons, never re-ported here; **sk14** added the per-side
+parameters (enabled, mark colour, glyph, text label) with defaults that keep denwa's sk13 behaviour.
+Our side passes the look (`ContactsAdapter.SwipeSide`: `ThemeSlot.SWIPE_SIM1/2/TEXT`, `SWIPE_RIN`,
+`SWIPE_RIN_TEXT`) and places the call: `callByRoute` (extensions/SwipeToCall.kt) — a SIM route calls through
+denwa's DialerActivity with the SIM as `EXTRA_PHONE_ACCOUNT_HANDLE` (needs `READ_PHONE_STATE`), a 臨 route
+goes through Rindenwa's call door. Master switch: `Config.swipeToCall`, default on.
+
+## Menus — pills with coloured icons
+
+Every popup menu row (toolbar ⋮, selection-menu overflow, submenus) is drawn by `views/PillMenuItemView`,
+swapped in through our copies of AppCompat 1.7.1's `abc_popup_menu_item_layout.xml` and
+`abc_cascading_menu_item_layout.xml` (diff them when AppCompat is upgraded). `helpers/MenuPills.ROWS`
+gives each item id its role (icon colour: `ThemeSlot.MENU_ICON_*`, `MENU_WARNING`; UI settings → *Menus*),
+whether it opens something (›) and an icon when the menu resource has none. **A new menu item needs a
+line there.** `androidx/appcompat/view/menu/ForkMenuAccess.kt` exists only to read `MenuItemImpl.mMenu`.
 
 ## Call history on the contact screen — denwa's look, served by denwa
 
 `ViewContactActivity.setupCallHistory` lists the contact's latest calls (`Config.contactCallHistoryCount`,
 default 10; switch `Config.contactCallHistory`, UI settings → *Call history on the contact screen*) under
 its fields, drawn like denwa's Recents: `item_contact_call.xml` / `item_contact_call_day.xml` are denwa's
-`item_recent_call` / `item_recents_date` without avatar, name and ⋮. The calls come straight from the
+`item_recent_call` / `item_recents_date` without avatar, name line and ⋮ — the shared three-line row less its
+name (from `+127`): *number · label* with ✉ (writes to that number) and ☎ (calls back on the SIM that call
+used) at its right end, then SIM badge, arrow, time · duration and country. The thin line between two calls
+is inset 16 dp and left out under a day's last call. Style keys read for it: `color.number`, `.number_label`,
+`.duration`, `.country`, `.action_message`, `.action_call`, `.unanswered`, `font.number.*` / `.duration.*` /
+`.country.*`, `number_scale`; an older denwa that serves none falls back to its `subtitle` slot. The calls come straight from the
 system call log (`helpers/ContactCallHistory.kt`: suffix match, denwa's SIM lookup, libphonenumber geocoder
 for the place); the time / duration / imperial-date formats are commons sk13's `CallFormats.kt`, shared with
 denwa (`CALL_TIME_*` / `CALL_DURATION_*` are the ordinals denwa's style provider serves).
@@ -219,11 +241,16 @@ authority (Messēji, yotehyo). **Never rename the authority or the `contacts` pa
 - **The gate is `query()` itself:** `callingPackage` (vouched for by the framework) must be our own
   package or in `Config.privateDataApps` — UI settings → Private contacts → *Apps allowed to read them*.
   A `.debug` caller is admitted when its release id is. Defaults: `DEFAULT_PRIVATE_DATA_APPS` =
-  denwa, messeji, yotehyo. A refused caller gets `null`, for contacts and `sim_slot` alike.
+  denwa, messeji, yotehyo, rindenwa. A refused caller gets `null`, for contacts and `sim_slot` alike.
 - **Photos:** a private contact keeps its picture as bytes in Room (its stored `photo_uri` is always
   empty), so the cursor's `photo_uri` points back into the provider —
   `content://…contactsprovider/photo/<private id>?v=<hash of the bytes>` — and `openFile` serves it
   (same gate, `getType` = `image/jpeg` so `loadThumbnail` works). Without it denwa showed placeholders.
+- 臨電話 (`shiroikuma.rindenwa`) is a default since `+123`, and was added once to lists stored before that
+  (`Config.addRindenwaToPrivateDataAppsOnce`).
+- **Change notification:** `helpers/PrivateContactsWatch` calls `notifyChange` on
+  `content://<our id>.contactsprovider/contacts` after any write to the private contacts table (Room's
+  invalidation tracker, re-attached whenever the database singleton is rebuilt). Rindenwa observes it.
 - The list is device-local: `PRIVATE_DATA_APPS` is in `SettingsExport.PREFS_EXCLUDE`.
 - The picker lists launchable apps, hence the `MAIN`/`LAUNCHER` `<intent>` in `<queries>`.
 

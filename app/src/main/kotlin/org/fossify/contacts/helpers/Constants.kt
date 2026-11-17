@@ -70,16 +70,15 @@ const val MAX_CONTACTS_LIST_DIVIDER_DP = 12
 // sent by our Phone fork (shiroikuma-denwa) when its Contacts/Favorites tabs hand off to this app.
 const val OPEN_TAB_INTENT_EXTRA = "shiroikuma_open_tab"
 
-// Int extra carrying denwa's own visible-tab mask (commons TAB_* bits), sent alongside
-// OPEN_TAB_INTENT_EXTRA. Non-zero marks a launch that came from the dialer's bottom bar: MainActivity
-// then wears denwa's tab set — Contacts | Favorites | Recents — so Recents stays one tap away instead
-// of vanishing behind our own bar. Kept in sync with denwa's CONTACTS_APP_DIALER_TABS_EXTRA.
-const val DIALER_TABS_INTENT_EXTRA = "shiroikuma_dialer_tabs"
-
-// The dialer's bottom bar in its own order — a mirror of denwa's `tabsList`, so the two bars lay the
-// same tabs out in the same places. TAB_CALL_HISTORY is the one entry that is not a page of ours: it
-// only hands back to denwa, and it sits last, so our pages keep the bar's own positions.
-val dialerTabsList = arrayListOf(TAB_CONTACTS, TAB_FAVORITES, TAB_CALL_HISTORY)
+// The bottom bar shared by 連絡先, 電話 and 臨電話 (2026-11-17): Favorites, Contacts, 電話, 臨電話 — the same
+// four tabs in the same order in all three apps, however this one was opened. The first two are our
+// pages; 電話 (TAB_CALL_HISTORY) only hands over to denwa's call history and 臨電話 (TAB_RINDENWA, a bar-only
+// id of ours) to Rindenwa's. A tab whose app is not installed is left out.
+// The earlier "wear the dialer's tab mask" model (extra shiroikuma_dialer_tabs) is gone; the extra is ignored.
+const val TAB_RINDENWA = 1 shl 20
+val barTabsList = listOf(TAB_FAVORITES, TAB_CONTACTS, TAB_CALL_HISTORY, TAB_RINDENWA)
+// The pager behind the bar, in bar order; Groups has no tab and comes last (Config.showGroupsPage).
+val pagerTabsList = listOf(TAB_FAVORITES, TAB_CONTACTS, TAB_GROUPS)
 
 // Our Phone fork, release then debug — the mirror of denwa's `contactsAppPackages`.
 val dialerAppPackages = arrayListOf("shiroikuma.denwa", "shiroikuma.denwa.debug")
@@ -242,7 +241,43 @@ const val AUTOMATION_TOKEN = "automation_token"
 // against this set instead; a ".debug" build is admitted when its release id is. Device-local — never
 // carried by a settings export (see SettingsExport.PREFS_EXCLUDE).
 const val PRIVATE_DATA_APPS = "private_data_apps"
-val DEFAULT_PRIVATE_DATA_APPS = setOf("shiroikuma.denwa", "shiroikuma.messeji", "shiroikuma.yotehyo")
+val DEFAULT_PRIVATE_DATA_APPS = setOf("shiroikuma.denwa", "shiroikuma.messeji", "shiroikuma.yotehyo", "shiroikuma.rindenwa")
+
+// 臨電話 joined the defaults in +123. A phone whose list was already stored never sees a new default, so
+// it is added to the stored list once (App.onCreate) — once, so unticking it afterwards sticks.
+const val PRIVATE_DATA_RINDENWA_ADDED = "private_data_rindenwa_added"
+
+// ---- 白い熊 臨電話 (Rindenwa, our SIP phone) ----
+// Its call door: a ContentProvider driven by ContentResolver.call() — "accounts" lists its SIP accounts,
+// "dial" places a call (helpers/Rindenwa.kt). Gated by Rindenwa's own allow-list; we are on it by default.
+// The same contract is documented on Rindenwa's side (SkCallsProvider) — keep the names in sync.
+const val RINDENWA_PACKAGE = "shiroikuma.rindenwa"
+const val RINDENWA_MAIN_ACTIVITY = "org.linphone.ui.main.MainActivity"
+const val RINDENWA_CALLS_AUTHORITY = "shiroikuma.rindenwa.calls"
+// Boolean extra for Rindenwa's MainActivity: land on the call history whatever was open (the 臨電話 tab).
+const val RINDENWA_OPEN_HISTORY_EXTRA = "shiroikuma_open_history"
+
+// The 臨 account calls go out through when nothing says otherwise: a 臨 number (0–9), or RIN_ACCOUNT_SELECTED
+// for "whichever account is selected in 臨電話". A contact can override it, per number like its SIM.
+const val RIN_DEFAULT_ACCOUNT = "rin_default_account"
+const val RIN_ACCOUNT_PREFIX = "rin_account_"
+const val RIN_ACCOUNT_SELECTED = -1
+// The last account list Rindenwa gave us (JSON), so badges and pickers have it before Rindenwa answers.
+const val RIN_ACCOUNTS_CACHE = "rin_accounts_cache"
+
+// Call routes — what a swipe side or a route badge dials through. Stored as strings: sim1, sim2,
+// rin (the 臨 default: the contact's own account, else the setting above), rin:N (always 臨N), off.
+const val ROUTE_SIM1 = "sim1"
+const val ROUTE_SIM2 = "sim2"
+const val ROUTE_RIN = "rin"
+const val ROUTE_RIN_PREFIX = "rin:"
+const val ROUTE_OFF = "off"
+const val SWIPE_LEFT_ROUTE = "swipe_left_route"
+const val SWIPE_RIGHT_ROUTE = "swipe_right_route"
+// The 1 / 2 / 臨N badges on each number of the contact screen.
+const val ROUTE_BADGES = "route_badges"
+// The Groups page: no tab of its own in the shared four-tab bar, reached from ⋮ or by paging past Contacts.
+const val SHOW_GROUPS_PAGE = "show_groups_page"
 
 // "Visible to other apps" (helpers/SystemMirror): the account copies are written to ("" = the phone's
 // own local account) and whether a copy carries the photo.

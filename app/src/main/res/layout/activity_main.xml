@@ -38,13 +38,30 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- The card-folder tabs the bar is drawn as (the bar shared with 電話 and 臨電話). Declared before
+             the TabLayout, whose own background is transparent, so each tab's icon and label sit inside
+             their folder tab. The tabs share the whole width equally at any screen width (fixed + fill,
+             no max width: Material's 264 dp cap huddled them in the middle of the unfolded phone). -->
+        <org.fossify.contacts.views.FolderTabsView
+            android:id="@+id/main_tabs_folder"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="@+id/main_tabs_holder"
+            app:layout_constraintEnd_toEndOf="@+id/main_tabs_holder"
+            app:layout_constraintStart_toStartOf="@+id/main_tabs_holder"
+            app:layout_constraintTop_toTopOf="@+id/main_tabs_holder" />
+
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/main_tabs_holder"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:tabGravity="fill"
             app:tabIndicator="@null"
-            app:tabMinWidth="150dp"
+            app:tabMaxWidth="0dp"
+            app:tabMinWidth="0dp"
+            app:tabMode="fixed"
             app:tabRippleColor="@null" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

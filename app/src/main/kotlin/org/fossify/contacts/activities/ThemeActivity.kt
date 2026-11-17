@@ -60,6 +60,15 @@ import org.fossify.contacts.databinding.ItemThemeValueBinding
 import org.fossify.contacts.dialogs.AlphaColorPickerDialog
 import org.fossify.contacts.dialogs.ExportContactsDialog
 import org.fossify.contacts.dialogs.FontPickerDialog
+import org.fossify.contacts.dialogs.pickRinAccount
+import org.fossify.contacts.helpers.ROUTE_OFF
+import org.fossify.contacts.helpers.ROUTE_RIN
+import org.fossify.contacts.helpers.ROUTE_RIN_PREFIX
+import org.fossify.contacts.helpers.ROUTE_SIM1
+import org.fossify.contacts.helpers.ROUTE_SIM2
+import org.fossify.contacts.helpers.Rindenwa
+import org.fossify.contacts.helpers.pickerLabel
+import org.fossify.contacts.helpers.rinBadge
 import org.fossify.contacts.extensions.tryImportContactsFromFile
 import org.fossify.contacts.helpers.SettingsExport
 import org.fossify.commons.views.MyTextView
@@ -807,6 +816,10 @@ class ThemeActivity : SimpleActivity() {
             addSwipeCallSection(primaryColor, stepPx)
             return
         }
+        if (group == ThemeGroup.ROUTES) {
+            addRoutesSection(primaryColor, stepPx)
+            return
+        }
 
         addSectionHeader(getString(group.labelRes), primaryColor)
 
@@ -823,6 +836,83 @@ class ThemeActivity : SimpleActivity() {
             // section's direct controls indent one step; a subgroup's controls indent two
             val indent = if (subgroup != null) stepPx * 2 else stepPx
             if (slot.hasFont) addTextSlot(slot, indent, stepPx) else addColorRow(slot, indent)
+        }
+
+        if (group == ThemeGroup.TABS) {
+            addSwitchRow(
+                title = getString(R.string.show_groups_page),
+                checked = config.showGroupsPage,
+                indent = stepPx,
+                description = getString(R.string.show_groups_page_desc),
+            ) {
+                config.showGroupsPage = it
+            }
+        }
+    }
+
+    // "Call routes": the 1 / 2 / 臨N badges on the contact screen and the 臨電話 account calls go out through.
+    private fun addRoutesSection(primaryColor: Int, stepPx: Int) {
+        addSectionHeader(getString(R.string.call_routes), primaryColor)
+        addSwitchRow(
+            title = getString(R.string.route_badges_enable),
+            checked = config.routeBadges,
+            indent = stepPx,
+            description = getString(R.string.route_badges_desc),
+        ) {
+            config.routeBadges = it
+        }
+        var row: ItemThemeValueBinding? = null
+        row = addValueRow(getString(R.string.rin_default_account), rinDefaultAccountLabel(), stepPx) {
+            pickRinAccount(config.rinDefaultAccount, getString(R.string.rin_account_as_selected)) { account ->
+                config.rinDefaultAccount = account
+                row?.themeValueValue?.text = rinDefaultAccountLabel()
+            }
+        }
+        ThemeSlot.entries.filter { it.group == ThemeGroup.ROUTES }.forEach { addColorRow(it, stepPx) }
+    }
+
+    private fun rinDefaultAccountLabel(): String {
+        val account = config.rinDefaultAccount
+        return if (account < 0) getString(R.string.rin_account_as_selected) else rinBadge(account)
+    }
+
+    // What a swipe side dials through: SIM 1, SIM 2, the 臨 default, one 臨 account, or nothing.
+    private fun routeLabel(route: String): String = when {
+        route == ROUTE_SIM1 -> getString(R.string.sim_slot_1)
+        route == ROUTE_SIM2 -> getString(R.string.sim_slot_2)
+        route == ROUTE_RIN -> getString(R.string.route_rin_default)
+        route.startsWith(ROUTE_RIN_PREFIX) -> {
+            val number = route.removePrefix(ROUTE_RIN_PREFIX).toIntOrNull() ?: -1
+            Rindenwa.cachedAccounts(this).firstOrNull { it.number == number }?.pickerLabel() ?: rinBadge(number)
+        }
+        else -> getString(R.string.route_off)
+    }
+
+    private fun addSwipeRouteRow(titleRes: Int, stepPx: Int, get: () -> String, set: (String) -> Unit) {
+        var row: ItemThemeValueBinding? = null
+        row = addValueRow(getString(titleRes), routeLabel(get()), stepPx) {
+            val appContext = applicationContext
+            ensureBackgroundThread {
+                if (Rindenwa.isInstalled(appContext)) Rindenwa.refreshAccounts(appContext)
+                runOnUiThread {
+                    val routes = ArrayList<String>()
+                    routes.add(ROUTE_SIM1)
+                    routes.add(ROUTE_SIM2)
+                    if (Rindenwa.isInstalled(this)) {
+                        routes.add(ROUTE_RIN)
+                        Rindenwa.cachedAccounts(this).filter { it.number >= 0 }.sortedBy { it.number }
+                            .forEach { routes.add(ROUTE_RIN_PREFIX + it.number) }
+                    }
+                    if (get() !in routes && get() != ROUTE_OFF) routes.add(get())
+                    routes.add(ROUTE_OFF)
+                    val items = ArrayList(routes.mapIndexed { index, route -> RadioItem(index, routeLabel(route)) })
+                    RadioGroupDialog(this, items, routes.indexOf(get())) { chosen ->
+                        set(routes[chosen as Int])
+                        config.contactsListRevision += 1 // the lists rebuild their adapters with the new routes
+                        row?.themeValueValue?.text = routeLabel(get())
+                    }
+                }
+            }
         }
     }
 
@@ -992,9 +1082,13 @@ class ThemeActivity : SimpleActivity() {
             config.swipeToCall = it
             config.contactsListRevision += 1 // the lists rebuild their adapters, attaching or dropping the swipe
         }
+        addSwipeRouteRow(R.string.swipe_left_route, stepPx, { config.swipeLeftRoute }) { config.swipeLeftRoute = it }
+        addSwipeRouteRow(R.string.swipe_right_route, stepPx, { config.swipeRightRoute }) { config.swipeRightRoute = it }
         addColorRow(ThemeSlot.SWIPE_SIM1, stepPx)
         addColorRow(ThemeSlot.SWIPE_SIM2, stepPx)
         addColorRow(ThemeSlot.SWIPE_TEXT, stepPx)
+        addColorRow(ThemeSlot.SWIPE_RIN, stepPx)
+        addColorRow(ThemeSlot.SWIPE_RIN_TEXT, stepPx)
         addContactCallHistorySection(primaryColor, stepPx)
     }
 
@@ -1378,7 +1472,7 @@ class ThemeActivity : SimpleActivity() {
     // Styling a contacts-list field or a letter-section element must trigger a list redraw; other
     // slots don't affect the list.
     private fun bumpRowRevisionIfNeeded(slot: ThemeSlot) {
-        if (slot.group == ThemeGroup.ROWS || slot.group == ThemeGroup.SECTIONS) {
+        if (slot.group == ThemeGroup.ROWS || slot.group == ThemeGroup.SECTIONS || slot.group == ThemeGroup.SWIPE_CALL) {
             config.contactsListRevision += 1
         }
     }

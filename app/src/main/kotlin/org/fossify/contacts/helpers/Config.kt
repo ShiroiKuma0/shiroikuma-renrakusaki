@@ -247,6 +247,48 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getString(MIRROR_ACCOUNT, "") ?: ""
         set(value) = prefs.edit().putString(MIRROR_ACCOUNT, value).apply()
 
+    // ---- 臨電話: default account, per-number override, the cached account list ----
+    var rinDefaultAccount: Int
+        get() = prefs.getInt(RIN_DEFAULT_ACCOUNT, RIN_ACCOUNT_SELECTED)
+        set(value) = prefs.edit().putInt(RIN_DEFAULT_ACCOUNT, value).apply()
+
+    // Per-number 臨 account (a 臨 number; RIN_ACCOUNT_SELECTED clears it). Keyed like the per-number SIM.
+    fun getRinAccount(number: String): Int = prefs.getInt(RIN_ACCOUNT_PREFIX + number, RIN_ACCOUNT_SELECTED)
+
+    fun setRinAccount(number: String, account: Int) {
+        val editor = prefs.edit()
+        if (account < 0) editor.remove(RIN_ACCOUNT_PREFIX + number) else editor.putInt(RIN_ACCOUNT_PREFIX + number, account)
+        editor.apply()
+    }
+
+    var rinAccountsCache: String
+        get() = prefs.getString(RIN_ACCOUNTS_CACHE, "") ?: ""
+        set(value) = prefs.edit().putString(RIN_ACCOUNTS_CACHE, value).apply()
+
+    var swipeLeftRoute: String
+        get() = prefs.getString(SWIPE_LEFT_ROUTE, ROUTE_SIM1) ?: ROUTE_SIM1
+        set(value) = prefs.edit().putString(SWIPE_LEFT_ROUTE, value).apply()
+
+    var swipeRightRoute: String
+        get() = prefs.getString(SWIPE_RIGHT_ROUTE, ROUTE_SIM2) ?: ROUTE_SIM2
+        set(value) = prefs.edit().putString(SWIPE_RIGHT_ROUTE, value).apply()
+
+    var routeBadges: Boolean
+        get() = prefs.getBoolean(ROUTE_BADGES, true)
+        set(value) = prefs.edit().putBoolean(ROUTE_BADGES, value).apply()
+
+    var showGroupsPage: Boolean
+        get() = prefs.getBoolean(SHOW_GROUPS_PAGE, true)
+        set(value) = prefs.edit().putBoolean(SHOW_GROUPS_PAGE, value).apply()
+
+    // Adds 臨電話 to an allow-list that was stored before it became a default. Once.
+    fun addRindenwaToPrivateDataAppsOnce() {
+        if (prefs.getBoolean(PRIVATE_DATA_RINDENWA_ADDED, false)) return
+        val stored = prefs.getStringSet(PRIVATE_DATA_APPS, null)
+        if (stored != null && RINDENWA_PACKAGE !in stored) privateDataApps = stored + RINDENWA_PACKAGE
+        prefs.edit().putBoolean(PRIVATE_DATA_RINDENWA_ADDED, true).apply()
+    }
+
     // The open-lock / eye badge on contact photos in the lists.
     var swipeToCall: Boolean
         get() = prefs.getBoolean(SWIPE_TO_CALL, true)

@@ -10,7 +10,15 @@ import org.fossify.commons.dialogs.CallConfirmationDialog
 import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.helpers.PERMISSION_CALL_PHONE
 import org.fossify.commons.helpers.PERMISSION_READ_PHONE_STATE
+import org.fossify.commons.models.contacts.Contact
 import org.fossify.contacts.helpers.DIALER_APP_DIALER_ACTIVITY
+import org.fossify.contacts.helpers.RIN_ACCOUNT_SELECTED
+import org.fossify.contacts.helpers.ROUTE_RIN
+import org.fossify.contacts.helpers.ROUTE_RIN_PREFIX
+import org.fossify.contacts.helpers.ROUTE_SIM1
+import org.fossify.contacts.helpers.ROUTE_SIM2
+import org.fossify.contacts.helpers.callNumberViaRindenwa
+import org.fossify.contacts.helpers.effectiveRinAccount
 import org.fossify.contacts.helpers.DIALER_APP_DIALPAD_ACTIVITY
 
 // Attaching the swipe to a list (setupSwipeToCall / removeSwipeToCall) and SwipeToCallCallback itself
@@ -30,6 +38,20 @@ fun BaseSimpleActivity.callNumberWithSim(number: String, name: String, useSim1: 
         }
     }
     if (config.showCallConfirmation) CallConfirmationDialog(this, name) { call() } else call()
+}
+
+/**
+ * Call [number] by a call route (helpers/Constants: sim1, sim2, rin, rin:N) — what a swipe side is set to.
+ * "rin" is the 臨 default: [contact]'s own 臨 account, else the default from UI settings.
+ */
+fun BaseSimpleActivity.callByRoute(contact: Contact?, number: String, name: String, route: String) {
+    when {
+        route == ROUTE_SIM1 -> callNumberWithSim(number, name, useSim1 = true)
+        route == ROUTE_SIM2 -> callNumberWithSim(number, name, useSim1 = false)
+        route == ROUTE_RIN -> callNumberViaRindenwa(number, name, effectiveRinAccount(contact))
+        route.startsWith(ROUTE_RIN_PREFIX) ->
+            callNumberViaRindenwa(number, name, route.removePrefix(ROUTE_RIN_PREFIX).toIntOrNull() ?: RIN_ACCOUNT_SELECTED)
+    }
 }
 
 // The SIM at [index] among the call-capable accounts, in the order denwa numbers them (1, 2).
