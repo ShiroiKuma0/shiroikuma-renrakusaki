@@ -7,6 +7,7 @@ import android.os.Build
 import org.fossify.commons.extensions.CALL_DURATION_JAPANESE
 import org.fossify.commons.extensions.CALL_TIME_JAPANESE
 import org.fossify.contacts.extensions.getInstalledDialerAppPackage
+import org.json.JSONObject
 import java.io.File
 
 // The look of denwa's call log, borrowed for the 発着信履歴 section of the contact screen. 白い熊 wants
@@ -165,6 +166,66 @@ fun Context.loadDenwaCallLogStyle(text: Int, primary: Int): DenwaCallLogStyle {
         numberScale = values["number_scale"]?.toFloatOrNull() ?: defaults.numberScale,
         fromDenwa = true,
     )
+}
+
+/**
+ * The SIM badge of one call as denwa stamped it when the call was made (denwa 1.11.1+120 and later), so
+ * an old call keeps the badge of the card it went through after the cards are swapped or recoloured.
+ * A colour or weight the stamp does not carry is null and taken from today's style.
+ */
+data class CallBadge(val digit: Int, val color: Int?, val textColor: Int?, val bold: Boolean?)
+
+/**
+ * [calls] with denwa's call stamps attached: `<denwa id>.calllogstyle/stamps` — rows of `date` (the call
+ * log's DATE), `number` (as logged) and `stamp` (JSON; the badge is its `digit`, `color`, `text`, `bold`),
+ * narrowed to [numbers] by the selection arguments. A call is matched on date plus number; one without a
+ * stamp, a stamp without a badge (`digit` 0) and an older denwa without the path all leave the call as
+ * it is, drawn from its slot. Call on a background thread.
+ */
+@Suppress("TooGenericExceptionCaught", "SwallowedException") // no stamps = today's badges
+fun Context.withCallStamps(calls: List<ContactCall>, numbers: Collection<String>): List<ContactCall> {
+    if (calls.isEmpty()) return calls
+    val authority = denwaStyleAuthority() ?: return calls
+    val stamps = HashMap<Long, MutableList<Pair<String, CallBadge>>>()
+    try {
+        val uri = Uri.parse("content://$authority/stamps")
+        contentResolver.query(uri, null, null, numbers.toTypedArray(), null)?.use { cursor ->
+            val dateIndex = cursor.getColumnIndex("date")
+            val numberIndex = cursor.getColumnIndex("number")
+            val stampIndex = cursor.getColumnIndex("stamp")
+            if (dateIndex < 0 || numberIndex < 0 || stampIndex < 0) return calls
+            while (cursor.moveToNext()) {
+                val badge = parseCallBadge(cursor.getString(stampIndex)) ?: continue
+                stamps.getOrPut(cursor.getLong(dateIndex)) { ArrayList() }.add(cursor.getString(numberIndex).orEmpty() to badge)
+            }
+        }
+    } catch (e: Exception) {
+        return calls
+    }
+    if (stamps.isEmpty()) return calls
+    return calls.map { call ->
+        val sameDate = stamps[call.timestamp] ?: return@map call
+        val badge = sameDate.firstOrNull { it.first == call.number } ?: sameDate.firstOrNull { sameNumber(it.first, call.number) }
+        if (badge == null) call else call.copy(badge = badge.second)
+    }
+}
+
+@Suppress("TooGenericExceptionCaught", "SwallowedException") // an unreadable stamp = no stamp
+private fun parseCallBadge(json: String?): CallBadge? {
+    if (json.isNullOrEmpty()) return null
+    return try {
+        val stamp = JSONObject(json)
+        val digit = stamp.optInt("digit", 0)
+        if (digit <= 0) return null
+        CallBadge(
+            digit = digit,
+            color = if (stamp.has("color")) stamp.getLong("color").toInt() else null,
+            textColor = if (stamp.has("text")) stamp.getLong("text").toInt() else null,
+            bold = if (stamp.has("bold")) stamp.getBoolean("bold") else null,
+        )
+    } catch (e: Exception) {
+        null
+    }
 }
 
 private fun Context.denwaStyleAuthority(): String? = getInstalledDialerAppPackage()?.let { it + STYLE_AUTHORITY_SUFFIX }

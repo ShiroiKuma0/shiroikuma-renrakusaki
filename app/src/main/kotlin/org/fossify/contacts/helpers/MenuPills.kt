@@ -85,6 +85,10 @@ object MenuPills {
         R.id.open_with to Row(Role.VIEW, opens = true, icon = CR.drawable.ic_set_as_vector),
         R.id.visible_to_other_apps to Row(Role.VIEW, icon = CR.drawable.ic_unhide_vector),
         R.id.manage_visible_fields to Row(Role.VIEW, opens = true, icon = CR.drawable.ic_view_contact_details_vector),
+        // long-press on a 臨N badge that can do callback
+        R.id.rin_callback to Row(Role.CALL, icon = R.drawable.ic_call_received_vector),
+        R.id.rin_call to Row(Role.CALL, icon = CR.drawable.ic_phone_vector),
+        R.id.rin_set_account to Row(Role.CALL, opens = true, icon = CR.drawable.ic_people_vector),
         // group screen
         R.id.assign_ringtone_to_group to Row(Role.VIEW, opens = true),
         R.id.send_sms_to_group to Row(Role.MESSAGE, opens = true),

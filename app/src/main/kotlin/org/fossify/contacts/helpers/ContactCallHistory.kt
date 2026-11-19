@@ -30,6 +30,8 @@ data class ContactCall(
     val type: Int,
     /** 1-based SIM, or -1 when the call log does not say (or there is one SIM). */
     val simId: Int,
+    /** The badge denwa stamped on this call when it was made; null = draw it from [simId] and today's colours. */
+    val badge: CallBadge? = null,
 )
 
 private const val NUMBER_SUFFIX_LENGTH = 9

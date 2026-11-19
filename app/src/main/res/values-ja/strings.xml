@@ -436,9 +436,13 @@
     <string name="rin_error_no_account">白い熊 臨電話にアカウント %s はありません</string>
     <string name="rin_error_not_ready">白い熊 臨電話はまだ発信できません</string>
     <string name="rin_error_other">白い熊 臨電話: %s</string>
+    <string name="rin_callback">コールバック</string>
+    <string name="rin_callback_ordering">コールバックを依頼しています…</string>
+    <string name="rin_callback_ordered">コールバックを依頼しました — %s が鳴ります。</string>
+    <string name="rin_error_no_callback">この白い熊 臨電話はコールバックを依頼できません — ビルド +026 以降が必要です</string>
     <string name="call_routes">発信経路</string>
     <string name="route_badges_enable">連絡先画面の経路バッジ</string>
-    <string name="route_badges_desc">連絡先の各番号にバッジを表示します — SIMは 1 と 2、白い熊 臨電話は 臨 とアカウント番号です。タップするとその経路で発信し、臨 を長押しするとその連絡先の臨アカウントを選べます。アプリが入っていない経路のバッジは表示されません</string>
+    <string name="route_badges_desc">連絡先の各番号にバッジを表示します — SIMは 1 と 2、白い熊 臨電話は 臨 とアカウント番号です。タップするとその経路で発信し、臨 を長押しするとその連絡先の臨アカウントを選べます — そのアカウントがコールバックに対応している場合（Odorik）は、コールバック・発信・アカウント選択のメニューが開きます。アプリが入っていない経路のバッジは表示されません</string>
     <string name="route_sim1_color">バッジ 1</string>
     <string name="route_sim2_color">バッジ 2</string>
     <string name="route_sim_text_color">バッジ 1・2 の文字</string>

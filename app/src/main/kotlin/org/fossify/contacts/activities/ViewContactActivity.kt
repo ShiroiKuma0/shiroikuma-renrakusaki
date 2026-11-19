@@ -483,14 +483,40 @@ class ViewContactActivity : ContactActivity() {
             val badge = routeBadge(rinBadgeFor(account), rinGround, rinText) {
                 callNumberViaRindenwa(number, name, effectiveRinAccount(shown))
             }
+            // an account that can do callback offers it first; any other keeps the plain account picker
             badge.setOnLongClickListener {
-                pickRinAccount(contactRinAccount(shown), getString(R.string.rin_account_use_default)) { account ->
-                    setContactRinAccount(shown, account)
-                    setupPhoneNumbers()
-                }
+                if (rinCanCallback(effectiveRinAccount(shown))) showRinBadgeMenu(badge, shown, number, name) else pickOwnRinAccount(shown)
                 true
             }
             holder.addView(badge)
+        }
+    }
+
+    private fun pickOwnRinAccount(shown: Contact) {
+        pickRinAccount(contactRinAccount(shown), getString(R.string.rin_account_use_default)) { account ->
+            setContactRinAccount(shown, account)
+            setupPhoneNumbers()
+        }
+    }
+
+    // The long-press menu of a 臨N badge whose account can set up a callback (Odorik): Callback first,
+    // then the ordinary call the tap places, then the account picker the long-press opened before.
+    private fun showRinBadgeMenu(badge: View, shown: Contact, number: String, name: String) {
+        androidx.appcompat.widget.PopupMenu(
+            this, badge, android.view.Gravity.END, androidx.appcompat.R.attr.actionOverflowMenuStyle, 0
+        ).apply {
+            menu.add(0, R.id.rin_callback, 0, R.string.rin_callback)
+            menu.add(0, R.id.rin_call, 1, org.fossify.commons.R.string.call)
+            menu.add(0, R.id.rin_set_account, 2, R.string.set_rin_account)
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.rin_callback -> orderCallbackViaRindenwa(number, name, effectiveRinAccount(shown))
+                    R.id.rin_call -> callNumberViaRindenwa(number, name, effectiveRinAccount(shown))
+                    R.id.rin_set_account -> pickOwnRinAccount(shown)
+                }
+                true
+            }
+            show()
         }
     }
 
@@ -841,7 +867,8 @@ class ViewContactActivity : ContactActivity() {
         val text = getProperTextColor()
         val primary = getProperPrimaryColor()
         ensureBackgroundThread {
-            val calls = loadContactCalls(numbers.map { it.value }, limit)
+            val numberValues = numbers.map { it.value }
+            val calls = withCallStamps(loadContactCalls(numberValues, limit), numberValues)
             val style = loadDenwaCallLogStyle(text, primary)
             val faces = CallHistoryFaces(
                 date = denwaTypeface(style.dateFont),
@@ -1000,14 +1027,18 @@ class ViewContactActivity : ContactActivity() {
         contactCallLocation.styled(style.country, faces.country, style.countryFont)
         contactCallLocation.beVisibleIf(location != null)
 
-        val showSim = call.simId != -1
+        // the badge as denwa stamped it when the call was made; without a stamp, the slot in today's colours
+        val badge = call.badge
+        val badgeDigit = badge?.digit ?: call.simId
+        val showSim = badgeDigit > 0
         contactCallSimImage.beVisibleIf(showSim)
         contactCallSimId.beVisibleIf(showSim)
         if (showSim) {
-            contactCallSimImage.applyColorFilter(style.simColor(call.simId))
-            contactCallSimId.setTextColor(style.simText)
-            contactCallSimId.setTypeface(null, if (style.simTextBold) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
-            contactCallSimId.text = call.simId.toString()
+            val bold = badge?.bold ?: style.simTextBold
+            contactCallSimImage.applyColorFilter(badge?.color ?: style.simColor(badgeDigit))
+            contactCallSimId.setTextColor(badge?.textColor ?: style.simText)
+            contactCallSimId.setTypeface(null, if (bold) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+            contactCallSimId.text = badgeDigit.toString()
         }
 
         val (icon, iconColor) = when (call.type) {

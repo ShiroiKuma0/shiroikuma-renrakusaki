@@ -472,9 +472,13 @@
     <string name="rin_error_no_account">白い熊 臨電話 has no account %s</string>
     <string name="rin_error_not_ready">白い熊 臨電話 is not ready to call yet</string>
     <string name="rin_error_other">白い熊 臨電話: %s</string>
+    <string name="rin_callback">Callback</string>
+    <string name="rin_callback_ordering">Ordering the callback…</string>
+    <string name="rin_callback_ordered">Callback ordered — %s will ring.</string>
+    <string name="rin_error_no_callback">This 白い熊 臨電話 cannot order a callback — it needs build +026 or later</string>
     <string name="call_routes">Call routes</string>
     <string name="route_badges_enable">Route badges on the contact screen</string>
-    <string name="route_badges_desc">Each number of a contact carries badges — 1 and 2 for the SIMs, 臨 with the account number for 白い熊 臨電話. One tap dials the number by that route; a long-press on 臨 picks the contact’s own 臨 account. A route whose app is not installed has no badge</string>
+    <string name="route_badges_desc">Each number of a contact carries badges — 1 and 2 for the SIMs, 臨 with the account number for 白い熊 臨電話. One tap dials the number by that route; a long-press on 臨 picks the contact’s own 臨 account — or, when that account can set up a callback (Odorik), opens a menu: Callback, Call, and the account picker. A route whose app is not installed has no badge</string>
     <string name="route_sim1_color">Badge 1</string>
     <string name="route_sim2_color">Badge 2</string>
     <string name="route_sim_text_color">Text of badges 1 and 2</string>

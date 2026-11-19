@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- rows of the long-press menu on a 臨N badge (ViewContactActivity.showRinBadgeMenu) -->
+    <item name="rin_callback" type="id" />
+    <item name="rin_call" type="id" />
+    <item name="rin_set_account" type="id" />
+</resources>

@@ -24,7 +24,8 @@ import org.json.JSONObject
  * One SIP account of 白い熊 臨電話. [number] is the 臨 number 白い熊 gave it there (0–9, unique), or -1 when
  * it has none; [isDefault] marks the account selected in Rindenwa's account strip. [badgeColor] and
  * [badgeTextColor] are the colours 白い熊 gave that account's 臨N badge in Rindenwa (ARGB, already resolved
- * there); null from a Rindenwa older than +019, which sends none.
+ * there); null from a Rindenwa older than +019, which sends none. [callback] says the account's provider
+ * can set up a callback (Odorik lines; Rindenwa +026 and later — an older one sends no key, read as false).
  */
 data class RinAccount(
     val number: Int,
@@ -34,6 +35,7 @@ data class RinAccount(
     val isDefault: Boolean,
     val badgeColor: Int? = null,
     val badgeTextColor: Int? = null,
+    val callback: Boolean = false,
 ) {
     val badge: String get() = rinBadge(number)
 }
@@ -46,11 +48,19 @@ private const val RESULT_KEY = "result"
 private const val RESULT_OK = "OK"
 private const val RESULT_ERROR_PREFIX = "ERROR:"
 private const val ACCOUNTS_KEY = "accounts"
+private const val MESSAGE_KEY = "message"
+private const val ERROR_NO_CALLBACK_METHOD = "unknown method: callback"
+
+/** What Rindenwa answered to a callback order: [error] is null when Odorik took it; [message] is its line for 白い熊, or empty. */
+class RinCallbackResult(val error: String?, val message: String)
 
 /**
  * 白い熊 臨電話's call door (authority [RINDENWA_CALLS_AUTHORITY], ContentResolver.call()):
  *  - "accounts" → { result: "OK", accounts: JSON array of {number, identity, name, registered, default,
- *    badge_color, badge_text_color} } — the last two since Rindenwa +019
+ *    badge_color, badge_text_color, callback} } — the colours since Rindenwa +019, callback since +026
+ *  - "callback", the extras of "dial" → { result: "OK" | "ERROR:<why>", message: a line to show, may be empty }.
+ *    Odorik's exchange rings 臨電話 first and, once answered, rings [to] and joins the two. It blocks for an
+ *    HTTPS request to Odorik (up to about 20 s); "OK" means the order was accepted, not that anything rang.
  *  - "dial", extras { to, account? (a 臨 number as a string, or an identity) } → { result: "OK" | "ERROR:<why>" }
  * Rindenwa admits only the packages on its own allow-list (its UI settings); we are on it by default.
  * Every call here crosses processes and may have to start Rindenwa, so none of it runs on the main thread.
@@ -94,6 +104,21 @@ object Rindenwa {
         return if (result == RESULT_OK) null else result.removePrefix(RESULT_ERROR_PREFIX)
     }
 
+    /**
+     * Orders a callback to [to] on the 臨 account numbered [account] (negative = the one selected in Rindenwa).
+     * Blocking, for up to about 20 s.
+     */
+    fun callback(context: Context, to: String, account: Int): RinCallbackResult {
+        val extras = Bundle().apply {
+            putString("to", to)
+            if (account >= 0) putString("account", account.toString())
+        }
+        val bundle = call(context, "callback", extras) ?: return RinCallbackResult("", "")
+        val result = bundle.getString(RESULT_KEY).orEmpty()
+        val message = bundle.getString(MESSAGE_KEY).orEmpty()
+        return RinCallbackResult(if (result == RESULT_OK) null else result.removePrefix(RESULT_ERROR_PREFIX), message)
+    }
+
     private fun call(context: Context, method: String, extras: Bundle?): Bundle? = try {
         context.contentResolver.call(callsUri, method, null, extras)
     } catch (ignored: Exception) {
@@ -113,6 +138,7 @@ object Rindenwa {
                 // ARGB; read as a long so a value written unsigned still lands on the same int
                 badgeColor = if (o.has("badge_color")) o.optLong("badge_color").toInt() else null,
                 badgeTextColor = if (o.has("badge_text_color")) o.optLong("badge_text_color").toInt() else null,
+                callback = o.optBoolean("callback"),
             )
         }
     } catch (ignored: Exception) {
@@ -154,6 +180,10 @@ fun Context.rinBadgeColors(account: Int): Pair<Int, Int> {
     return (known?.badgeColor ?: themeColor(ThemeSlot.ROUTE_RIN)) to (known?.badgeTextColor ?: themeColor(ThemeSlot.ROUTE_RIN_TEXT))
 }
 
+/** Whether [account] (negative = the account selected in Rindenwa) can set up a callback, as last heard from Rindenwa. */
+fun Context.rinCanCallback(account: Int): Boolean =
+    Rindenwa.cachedAccounts(this).firstOrNull { if (account >= 0) it.number == account else it.isDefault }?.callback == true
+
 /** A picker line for an account: 臨1 · name (identity). */
 fun RinAccount.pickerLabel(): String {
     val who = name.ifEmpty { identity.removePrefix("sip:") }
@@ -174,7 +204,31 @@ fun BaseSimpleActivity.callNumberViaRindenwa(number: String, name: String, accou
     if (config.showCallConfirmation) CallConfirmationDialog(this, name) { call() } else call()
 }
 
+/**
+ * Orders a callback to [number] on 臨 account [account] (negative = the one selected in Rindenwa), after the
+ * confirmation when on: Odorik rings 臨電話 first, then the contact. The order takes as long as an HTTPS
+ * request, so a toast says it is on its way and another gives the outcome — Rindenwa's own line when it has one.
+ */
+fun BaseSimpleActivity.orderCallbackViaRindenwa(number: String, name: String, account: Int) {
+    val order = {
+        val appContext = applicationContext
+        toast(R.string.rin_callback_ordering)
+        ensureBackgroundThread {
+            val result = Rindenwa.callback(appContext, number, account)
+            val text = result.message.ifEmpty {
+                val error = result.error
+                if (error == null) appContext.getString(R.string.rin_callback_ordered, appContext.rinBadgeFor(account))
+                else appContext.rinErrorText(error, account)
+            }
+            // from the application: the answer may come after this screen was left
+            runOnUiThread { appContext.toast(text, android.widget.Toast.LENGTH_LONG) }
+        }
+    }
+    if (config.showCallConfirmation) CallConfirmationDialog(this, name) { order() } else order()
+}
+
 private fun Context.rinErrorText(error: String, account: Int): String = when (error) {
+    ERROR_NO_CALLBACK_METHOD -> getString(R.string.rin_error_no_callback)
     "" -> getString(R.string.rin_error_unavailable)
     "not allowed" -> getString(R.string.rin_error_not_allowed)
     "no such account" -> getString(R.string.rin_error_no_account, rinBadge(account))

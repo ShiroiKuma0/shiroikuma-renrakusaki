@@ -161,13 +161,21 @@ Rindenwa's call door is a ContentProvider driven by `ContentResolver.call()`, au
 default). **Keep the names in sync with Rindenwa.**
 
 - `accounts` → `{result: "OK", accounts: <JSON array of {number, identity, name, registered, default,
-  badge_color, badge_text_color}>}`. `number` is the 臨 number (0–9, unique; -1 = none), shown as 臨0 … 臨9,
+  badge_color, badge_text_color, callback}>}`. `callback` (Rindenwa `+026`; absent = false) marks an account
+  whose provider can set up a callback — today Odorik lines. `number` is the 臨 number (0–9, unique; -1 = none), shown as 臨0 … 臨9,
   a bare 臨 when unknown. The two colours (ARGB, since Rindenwa `+019`) are that account's own badge pair,
   set in Rindenwa's UI: every 臨N we draw — contact screen, account picker, swipe band — wears them
   (`rinBadgeColors`); our `ROUTE_RIN*` / `SWIPE_RIN*` slots are only the fallback when they are absent.
 - `dial`, extras `{to, account?}` (a 臨 number as a string; absent = the account selected in Rindenwa)
   → `{result: "OK"}` or `ERROR:not allowed | no such account | not a number | no number | not ready`.
-- Both cross processes: never on the main thread. The last account list is cached (`Config.rinAccountsCache`).
+- `callback`, the extras of `dial` → `{result: "OK" | "ERROR:<why>", message}`: Odorik rings 臨電話 first and,
+  once answered, rings the contact and joins the two. **It blocks for an HTTPS request (up to ~20 s)**; `OK`
+  means the order was accepted, not that anything rang. `message` is Rindenwa's line to show, empty on
+  `not ready` / `not allowed` / `unknown method: callback` (an older Rindenwa) — ours then (`rinErrorText`).
+  Offered by a long-press on a 臨N badge whose effective account has the flag
+  (`ViewContactActivity.showRinBadgeMenu`): pills *Callback*, *Call*, *Set 臨電話 account ›*. Any other 臨N
+  keeps the long-press that opens the account picker directly.
+- All of them cross processes: never on the main thread. The last account list is cached (`Config.rinAccountsCache`).
 
 A **call route** is a string: `sim1`, `sim2`, `rin` (the 臨 default), `rin:N`, `off`. The 臨 default for a
 contact is its own account (`Config.getRinAccount`, per number like the per-number SIM; set by a long-press
@@ -222,6 +230,25 @@ reads it each time and falls back to denwa's defaults. The pill *All calls in �
 call open denwa's Recents with `shiroikuma_recents_filter_numbers` (ArrayList<String>) and
 `shiroikuma_recents_filter_name`. Both contracts are documented on denwa's side too — keep the key names
 in sync.
+
+### Call stamps — an old call keeps the badge of the card it was made with (from `+129`)
+
+The call log records only the slot, so a badge worked out from it shows a swapped or recoloured card's
+colours on old calls. denwa (from `1.11.1+120`) keeps a **stamp** per call and serves them from the same
+provider and allow-list (a pure addition, style `version` stays 1):
+
+- `content://<denwa id>.calllogstyle/stamps`; selection arguments (optional) = the contact's numbers as
+  stored, which narrow the cursor to calls with them (compared as phone numbers); none = all stamps.
+- Columns: `date` (long, the call log's `DATE`), `number` (as logged), `stamp` (JSON).
+- Badge keys: `digit` (int; 0 = no badge), `color` (ARGB fill), `text` (ARGB digit colour), `bold`.
+  Others, for an eventual detail dialog like denwa's: `src`, `num`, `op`, `slot`, `end`, `ring`, `net`,
+  `roam`, `roam_op`, `roam_iso`, `route`, `dbm`, `lvl`, `cid`. An absent key means “not known”.
+
+`withCallStamps` (helpers/DenwaCallLogStyle.kt) queries it once per contact screen and attaches a
+`CallBadge` to each `ContactCall` matched on **date plus number**; `callRow` draws a stamped call's badge
+from the stamp alone. No stamp, `digit` 0 or an older denwa without the path → the slot plus `color.sim1` /
+`color.sim2`, as before. ☎ still calls back by the slot. The contract is denwa's (“Call stamps — a call
+keeps the SIM it was made through” in its CLAUDE.md) — **keep the key names in sync.**
 
 ## Private contacts: the provider gate and the visible copies
 
