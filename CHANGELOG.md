@@ -7,6 +7,27 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+129] — 2026-11-19
+
+Since `1.6.0+127`, still on **Fossify Contacts 1.6.0** and Commons **6.1.6-sk14**.
+
+### Callback through 白い熊 臨電話
+- **A long-press on a 臨N badge whose account can set up a callback** (an Odorik line; needs 臨電話
+  `+026` or later) opens a pill menu: *Callback*, *Call* and *Set 臨電話 account ›*. Callback has the
+  provider ring 臨電話 first and, once answered, ring the contact and join the two.
+- While the order is sent the screen says so, then confirms which line will ring, or shows 臨電話's own
+  reason when the order is refused; an older 臨電話 without callback is named as such.
+- A 臨N badge whose account cannot do callback keeps the long-press that opens the account picker directly.
+
+### Call history on the contact screen
+- **An old call keeps the SIM badge of the card it was made with.** The Phone fork (from `1.11.1+120`)
+  keeps a stamp per call — the badge as it looked when the call was made — and each row's badge is now
+  drawn from it: digit, fill, digit colour and weight. Swapping the SIM cards or recolouring a badge no
+  longer repaints earlier calls.
+- A stamped call shows its badge even while only one SIM is active.
+- A call without a stamp, or an older Phone fork that serves none, keeps the badge worked out from the
+  call log's slot and today's colours, as before.
+
 ## [1.6.0+127] — 2026-11-17
 
 Since `1.6.0+122`, still on **Fossify Contacts 1.6.0**; Commons is now **6.1.6-sk14**.
