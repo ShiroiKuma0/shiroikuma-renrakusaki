@@ -103,6 +103,7 @@ class DuplicatesActivity : SimpleActivity() {
                     message = getString(R.string.dup_exact_confirm, scan.exactCopies, backupPath()),
                     positive = org.fossify.commons.R.string.yes,
                     negative = org.fossify.commons.R.string.no,
+                    destructive = true,
                 ) {
                     run {
                         val removed = DuplicateCleaner.removeExactCopies(applicationContext, scan)
@@ -172,12 +173,13 @@ class DuplicatesActivity : SimpleActivity() {
                 run { DuplicateCleaner.markNotDuplicates(applicationContext, group) }
             },
             // A contact not wanted at all: every entry goes (after a backup), once confirmed.
-            pill(getString(R.string.dup_delete_all)) {
+            pill(getString(R.string.dup_delete_all), destructive = true) {
                 ConfirmationDialog(
                     this,
                     message = getString(R.string.dup_delete_all_confirm, group.name, group.clusters.sumOf { it.copies.size + 1 }),
                     positive = org.fossify.commons.R.string.yes,
                     negative = org.fossify.commons.R.string.no,
+                    destructive = true,
                 ) {
                     run { DuplicateCleaner.deleteAll(applicationContext, group) }
                 }

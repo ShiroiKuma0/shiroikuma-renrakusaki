@@ -117,7 +117,7 @@ colors") whenever the installed app id is not `org.fossify.*` — always the cas
 
 - **Source:** the `shiroikuma-commons` fork (`~/git/shiroikuma-commons`, branch `custom`), which strips
   Commons' anti-tamper "fake version" / sideloading checks out entirely.
-- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk14"` in
+- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk17"` in
   `gradle/libs.versions.toml` (`mavenLocal()` is already a repository in `settings.gradle.kts`).
 - Because Commons itself no longer nags, this app carries **no** in-app workaround — no `getPackageName`
   spoof, no `SIDELOADING_FALSE`, no `res/raw/keep.xml`.
@@ -182,13 +182,23 @@ contact is its own account (`Config.getRinAccount`, per number like the per-numb
 on the 臨 badge or selection menu → *Set 臨電話 account*), else `Config.rinDefaultAccount` (UI settings →
 Call routes; -1 = as selected in 臨電話).
 
+- **A contact's default route** (from `+131`; `contactDefaultRoute` / `setContactDefaultRoute` in
+  helpers/Rindenwa.kt) is what it is called by when nothing names a route — a tap on its Favorites tile,
+  the call button, a tap on one of its numbers: `sim1`, `sim2`, `rin` (through the default account),
+  `rin:N`, or `off`. The SIM is the per-number slot denwa reads through `/sim_slot`; 臨 is a per-number flag
+  beside it (`Config.getRinIsDefault`) plus the contact's own 臨 account, because denwa cannot place that
+  call — **denwa itself does not know a 臨 default** and picks the SIM its own way. Picked from the
+  selection menu's SIM icon (`dialogs/DefaultRouteDialog.kt`, `pickDefaultRoute`); the photo badge in the
+  lists shows it: SIM 1 bottom-start, SIM 2 bottom-end, 臨N bottom-centre in its account's colours.
 - **Contact screen:** each number carries badges 1 (red), 2 (blue) and 臨N (yellow ground, blue text) —
   `ViewContactActivity.setupRouteBadges`; a tap dials by that route. Switch and colours: UI settings →
   *Call routes* (`Config.routeBadges`, `ThemeSlot.ROUTE_*`).
 
 ## Swipe to call — shared with denwa through commons
 
-Contacts and Favorites rows swipe to call the contact's default number (`numberToCall()`). **Each side
+Contacts and Favorites rows — and, from `+131`, tiles: the cells of the Favorites grid and of a
+multi-column Contacts list (`Config.swipeTiles`, default on; commons **sk17** swipes a tile inside its own
+cell) — swipe to call the contact's default number (`numberToCall()`). **Each side
 dials by its own route** (`Config.swipeLeftRoute` / `swipeRightRoute`, default SIM 1 / SIM 2): UI settings →
 *Swipe to call*. The swipe itself is **commons**, shared with denwa: `org.fossify.commons.helpers.SwipeToCallCallback`
 and `RecyclerView.setupSwipeToCall` / `removeSwipeToCall` (tag `org.fossify.commons.R.id.swipe_to_call_tag`).
@@ -198,6 +208,23 @@ Our side passes the look (`ContactsAdapter.SwipeSide`: `ThemeSlot.SWIPE_SIM1/2/T
 `SWIPE_RIN_TEXT`) and places the call: `callByRoute` (extensions/SwipeToCall.kt) — a SIM route calls through
 denwa's DialerActivity with the SIM as `EXTRA_PHONE_ACCOUNT_HANDLE` (needs `READ_PHONE_STATE`), a 臨 route
 goes through Rindenwa's call door. Master switch: `Config.swipeToCall`, default on.
+
+## The UI page — folding sections, a chip index, an icon on every row (from `+131`)
+
+`ThemeActivity.buildRows` registers each top-level section as a `UiSection(key, title, chip, fill)`. **The
+keys are stored — never rename one.** `Config.uiSectionOrder` (keys, comma-joined) and
+`Config.uiSectionsOpen` live in the main preferences, so they travel in the settings export. Every section
+is folded unless its key is in the open set, and its rows are built only when it is first opened: the row
+builders add to `body`, which points at a section's body only while that section's `fill` runs — **a row
+added later (from a callback) must be given its parent explicitly.** The chip index (`addSectionIndex`)
+jumps on a tap and reorders by a long-press drag; *Reset section order* is in Maintenance. A row's icon is
+a `RowIcon` (drawable + menu icon role), set as the label's start drawable; each builder has a default by
+row type, and a call site names another where the row's meaning is clearer.
+
+Switches and the + button are drawn by commons (sk17) under `pillDialogButtons`: the outlined switch
+(off colour = `ThemeSlot.SWITCH_OFF`, mirrored into `BaseConfig.switchOffColor`) and the outlined floating
+button. `ThemeSlot.MENU_WARNING` is mirrored into `BaseConfig.dialogWarningColor`; a confirmation that
+deletes passes `destructive = true`.
 
 ## Menus — pills with coloured icons
 

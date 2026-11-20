@@ -32,7 +32,6 @@ object MenuPills {
     const val PILL_MARGIN_DP = 3 // above and below a pill
     const val SIDE_MARGIN_DP = 8 // from the pill to the edge of the menu
     private const val DIVIDER_BLEND = 0.7f // 70 % of the way from the background to the accent
-    private const val SWITCH_OFF_BLEND = 0.55f
 
     /** What a row does; decides its icon colour. */
     enum class Role(val slot: ThemeSlot) {
@@ -138,5 +137,5 @@ object MenuPills {
     fun divider(context: Context) = ColorUtils.blendARGB(context.getProperBackgroundColor(), accent(context), DIVIDER_BLEND)
 
     /** A switch that is off: an opaque darker accent, never a faded one. */
-    fun switchOff(context: Context) = ColorUtils.blendARGB(context.getProperBackgroundColor(), accent(context), SWITCH_OFF_BLEND)
+    fun switchOff(context: Context) = context.themeColor(ThemeSlot.SWITCH_OFF)
 }

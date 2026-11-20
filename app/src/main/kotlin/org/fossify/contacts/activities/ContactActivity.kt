@@ -122,7 +122,7 @@ abstract class ContactActivity : SimpleActivity() {
     }
 
     fun deleteContact() {
-        ConfirmationDialog(this) {
+        ConfirmationDialog(this, destructive = true) {
             if (contact != null) {
                 ContactsHelper(this).deleteContact(contact!!, false) {
                     finish()

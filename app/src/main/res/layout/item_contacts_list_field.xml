@@ -10,6 +10,13 @@
     android:paddingStart="@dimen/activity_margin"
     android:paddingEnd="@dimen/tiny_margin">
 
+    <!-- What the field is: a person for the name fields, a phone for the number, a label for the rest. -->
+    <ImageView
+        android:id="@+id/field_icon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:importantForAccessibility="no" />
+
     <org.fossify.commons.views.MyAppCompatCheckbox
         android:id="@+id/field_checkbox"
         android:layout_width="0dp"

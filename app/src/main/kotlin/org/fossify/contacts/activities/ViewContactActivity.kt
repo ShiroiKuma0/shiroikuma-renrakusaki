@@ -289,7 +289,7 @@ class ViewContactActivity : ContactActivity() {
         }
 
         binding.contactSendSms.setOnClickListener { trySendSMS() }
-        binding.contactStartCall.setOnClickListener { tryInitiateCall(contact!!) { startCallIntent(it) } }
+        binding.contactStartCall.setOnClickListener { tryInitiateCall(contact!!) { startDefaultRouteCall(contact!!, it) } }
         binding.contactSendEmail.setOnClickListener { trySendEmail() }
 
         binding.contactSendSms.setOnLongClickListener { toast(org.fossify.commons.R.string.send_sms); true; }
@@ -617,10 +617,10 @@ class ViewContactActivity : ContactActivity() {
                     root.setOnClickListener {
                         if (config.showCallConfirmation) {
                             CallConfirmationDialog(this@ViewContactActivity, phoneNumber.value) {
-                                startCallIntent(phoneNumber.value)
+                                startDefaultRouteCall(contact!!, phoneNumber.value)
                             }
                         } else {
-                            startCallIntent(phoneNumber.value)
+                            startDefaultRouteCall(contact!!, phoneNumber.value)
                         }
                     }
 
@@ -1381,7 +1381,7 @@ class ViewContactActivity : ContactActivity() {
         }
 
         val message = "${getString(org.fossify.commons.R.string.proceed_with_deletion)}$addition"
-        ConfirmationDialog(this, message) {
+        ConfirmationDialog(this, message, destructive = true) {
             if (contact != null) {
                 ContactsHelper(this).deleteContact(contact!!, mergeDuplicate) {
                     finish()

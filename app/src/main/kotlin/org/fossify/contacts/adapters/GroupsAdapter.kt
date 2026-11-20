@@ -123,7 +123,7 @@ class GroupsAdapter(
         val baseString = org.fossify.commons.R.string.deletion_confirmation
         val question = String.format(resources.getString(baseString), items)
 
-        ConfirmationDialog(activity, question) {
+        ConfirmationDialog(activity, question, destructive = true) {
             ensureBackgroundThread {
                 deleteGroups()
             }

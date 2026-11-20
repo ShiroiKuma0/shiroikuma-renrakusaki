@@ -49,6 +49,9 @@ import org.fossify.contacts.helpers.RECENTS_FILTER_NAME_EXTRA
 import org.fossify.contacts.helpers.RECENTS_FILTER_NUMBERS_EXTRA
 import org.fossify.contacts.helpers.dialerAppPackages
 import org.fossify.contacts.helpers.VcfExporter
+import org.fossify.contacts.helpers.callNumberViaRindenwa
+import org.fossify.contacts.helpers.contactCallsViaRin
+import org.fossify.contacts.helpers.effectiveRinAccount
 
 fun SimpleActivity.startCallIntent(recipient: String) {
     handlePermission(PERMISSION_CALL_PHONE) {
@@ -57,6 +60,19 @@ fun SimpleActivity.startCallIntent(recipient: String) {
             data = Uri.fromParts("tel", recipient, null)
             launchActivityIntent(this)
         }
+    }
+}
+
+/**
+ * Calls [number] of [contact] by the contact's default route: through 臨電話 when that is its default
+ * (helpers/Rindenwa.contactDefaultRoute), else the stock call intent, where denwa applies the contact's SIM.
+ * The caller has asked for confirmation already when that is on.
+ */
+fun SimpleActivity.startDefaultRouteCall(contact: Contact, number: String) {
+    if (contactCallsViaRin(contact)) {
+        callNumberViaRindenwa(number, contact.getNameToDisplay(), effectiveRinAccount(contact), confirm = false)
+    } else {
+        startCallIntent(number)
     }
 }
 
@@ -122,7 +138,7 @@ fun SimpleActivity.handleGenericContactClick(contact: Contact) {
 fun SimpleActivity.callContact(contact: Contact) {
     hideKeyboard()
     if (contact.phoneNumbers.isNotEmpty()) {
-        tryInitiateCall(contact) { startCallIntent(it) }
+        tryInitiateCall(contact) { startDefaultRouteCall(contact, it) }
     } else {
         toast(org.fossify.commons.R.string.no_phone_number_found)
     }

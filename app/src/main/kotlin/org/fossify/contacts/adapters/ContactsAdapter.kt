@@ -7,6 +7,7 @@ import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
 import android.telephony.PhoneNumberUtils
@@ -15,6 +16,7 @@ import android.text.SpannableString
 import android.text.TextUtils
 import android.text.style.ForegroundColorSpan
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.HapticFeedbackConstants
@@ -55,7 +57,7 @@ import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.activities.ViewContactActivity
 import org.fossify.contacts.dialogs.ChangeVisibilityDialog
 import org.fossify.contacts.dialogs.CreateNewGroupDialog
-import org.fossify.contacts.dialogs.SetDefaultSimDialog
+import org.fossify.contacts.dialogs.pickDefaultRoute
 import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.applyThemeFont
 import org.fossify.contacts.extensions.callNumberViaDialerApp
@@ -68,7 +70,14 @@ import org.fossify.contacts.helpers.ROUTE_RIN_PREFIX
 import org.fossify.contacts.helpers.ROUTE_SIM1
 import org.fossify.contacts.helpers.ROUTE_SIM2
 import org.fossify.contacts.helpers.Rindenwa
+import org.fossify.contacts.helpers.callNumberViaRindenwa
+import org.fossify.contacts.helpers.contactCallsViaRin
+import org.fossify.contacts.helpers.contactDefaultRoute
 import org.fossify.contacts.helpers.contactRinAccount
+import org.fossify.contacts.helpers.effectiveRinAccount
+import org.fossify.contacts.helpers.rinBadgeColors
+import org.fossify.contacts.helpers.rinBadgeFor
+import org.fossify.contacts.helpers.setContactDefaultRoute
 import org.fossify.contacts.helpers.rinBadge
 import org.fossify.contacts.helpers.setContactRinAccount
 import org.fossify.contacts.extensions.config
@@ -88,6 +97,12 @@ import java.util.Locale
 
 // How long the tile stays visibly held after a tap that placed a call.
 private const val DIAL_FEEDBACK_MS = 150L
+
+// The 臨N badge on a contact photo: the default route, beside the SIM badges' 36 dp card.
+private const val RIN_PHOTO_BADGE_SP = 15f
+private const val RIN_PHOTO_BADGE_HEIGHT_DP = 26
+private const val RIN_PHOTO_BADGE_PAD_DP = 6
+private const val RIN_PHOTO_BADGE_RADIUS_DP = 6f
 
 // The visibility badge's diameter, as a fraction of the contact photo's.
 private const val VISIBILITY_BADGE_FRACTION = 0.4f
@@ -157,7 +172,8 @@ class ContactsAdapter(
     // Swipe a row to call its default number. Each side dials by the route set for it in UI settings —
     // SIM 1, SIM 2, the 臨 default, a specific 臨N, or nothing (left = SIM 1 and right = SIM 2 unless changed,
     // as in denwa's call history). SwipeToCallCallback is shared with denwa through commons. Contacts and Favorites
-    // only, single-column list rows only (a grid cell has no line to slide along), never while
+    // only: list rows, and — unless switched off (Config.swipeTiles) — tiles too, the cells of the Favorites
+    // grid and of a multi-column Contacts list, which commons sk17 swipes inside their own cell. Never while
     // selecting, and never on a letter-section header or a contact without a number.
     private fun setupSwipeToCall() {
         val onTab = location == LOCATION_CONTACTS_TAB || location == LOCATION_FAVORITES_TAB
@@ -233,8 +249,9 @@ class ContactsAdapter(
     }
 
     private fun swipeableContactAt(position: Int): Contact? {
-        if (viewType != VIEW_TYPE_LIST || actModeCallback.isSelectable) return null
-        if ((recyclerView.layoutManager as? GridLayoutManager)?.let { it.spanCount > 1 } == true) return null
+        if (actModeCallback.isSelectable) return null
+        val tile = viewType != VIEW_TYPE_LIST || (recyclerView.layoutManager as? GridLayoutManager)?.let { it.spanCount > 1 } == true
+        if (tile && !config.swipeTiles) return null
         val contact = displayItems.getOrNull(position) as? Contact ?: return null
         return if (contact.numberToCall() != null) contact else null
     }
@@ -341,6 +358,7 @@ class ContactsAdapter(
             is Contact -> {
                 // a recycled holder must never keep a swiped row's offset (denwa's stuck-band safeguard)
                 holder.itemView.translationX = 0f
+                holder.itemView.clipBounds = null
                 val allowLongClick = location != LOCATION_INSERT_OR_EDIT
                 val view = holder.bindView(item, true, allowLongClick) { itemView, layoutPosition ->
                     setupView(itemView, item, holder)
@@ -559,7 +577,7 @@ class ContactsAdapter(
         val baseString = org.fossify.commons.R.string.deletion_confirmation
         val question = String.format(resources.getString(baseString), items)
 
-        ConfirmationDialog(activity, question) {
+        ConfirmationDialog(activity, question, destructive = true) {
             deleteContacts()
         }
     }
@@ -668,7 +686,13 @@ class ContactsAdapter(
         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         view.isPressed = true
         view.postDelayed({ view.isPressed = false }, DIAL_FEEDBACK_MS)
-        activity.callNumberViaDialerApp(number.value)
+        // The contact's default route: 臨電話 places its own call (never a confirmation here — this is the
+        // tap made while driving); a SIM, or none, goes to denwa, which applies the contact's SIM.
+        if (activity.contactCallsViaRin(contact)) {
+            activity.callNumberViaRindenwa(number.value, contact.getNameToDisplay(), activity.effectiveRinAccount(contact), confirm = false)
+        } else {
+            activity.callNumberViaDialerApp(number.value)
+        }
     }
 
     /** Start multi-select from the toolbar — what long-press does when tap-to-dial is not active. */
@@ -794,22 +818,9 @@ class ContactsAdapter(
 
     private fun getSelectedItems() = contactItems.filter { selectedKeys.contains(it.id) } as ArrayList<Contact>
 
-    // The contact's stored default SIM slot (1 or 2), found across any of its numbers; 0 = none.
-    private fun contactSimSlot(contact: Contact): Int {
-        contact.phoneNumbers.forEach { phoneNumber ->
-            val key = phoneNumber.normalizedNumber.ifEmpty { phoneNumber.value }
-            if (key.isNotEmpty()) {
-                val slot = config.getSimSlot(key)
-                if (slot == 1 || slot == 2) {
-                    return slot
-                }
-            }
-        }
-        return 0
-    }
-
-    // Long-press ➜ CAB ➜ "Set default SIM for contact": pick SIM 1 / SIM 2 / None for every number the
-    // contact has. The Phone fork reads this (via the content provider) to choose the SIM, incl. Android Auto.
+    // Long-press ➜ CAB ➜ the SIM icon, "Default call route for contact": SIM 1 / SIM 2 / 臨 / 臨N / None for
+    // every number the contact has. The Phone fork reads the SIM (via the content provider) to choose it,
+    // incl. Android Auto; a 臨 default is ours alone (helpers/Rindenwa.contactDefaultRoute).
     // The contact's own 臨電話 account, beside its SIM: what the 臨 default dials through for it.
     private fun setRinAccount() {
         val contact = getSelectedItems().firstOrNull() ?: return
@@ -821,13 +832,8 @@ class ContactsAdapter(
 
     private fun setDefaultSim() {
         val contact = getSelectedItems().firstOrNull() ?: return
-        SetDefaultSimDialog(activity, contactSimSlot(contact)) { slot ->
-            contact.phoneNumbers.forEach { phoneNumber ->
-                val key = phoneNumber.normalizedNumber.ifEmpty { phoneNumber.value }
-                if (key.isNotEmpty()) {
-                    config.setSimSlot(key, slot)
-                }
-            }
+        activity.pickDefaultRoute(activity.contactDefaultRoute(contact)) { route ->
+            activity.setContactDefaultRoute(contact, route)
             finishActMode()
             notifyDataSetChanged()
         }
@@ -850,8 +856,9 @@ class ContactsAdapter(
         }
     }
 
-    // Overlay a small SIM badge on the contact photo: SIM 1 red (bottom-start), SIM 2 blue (bottom-end),
-    // number in yellow. Rebuilt each bind so recycled rows never show a stale badge.
+    // Overlay the contact's default route on its photo: SIM 1 red (bottom-start), SIM 2 blue (bottom-end),
+    // number in yellow; 臨N in its account's own colours (bottom-centre). Rebuilt each bind so recycled rows
+    // never show a stale badge.
     private fun setupSimBadge(view: View, contact: Contact) {
         val frame = view.findViewById<ConstraintLayout>(org.fossify.commons.R.id.item_contact_frame) ?: return
         frame.findViewById<View>(R.id.sim_badge)?.let { frame.removeView(it) }
@@ -859,9 +866,15 @@ class ContactsAdapter(
         if (!showContactThumbnails) {
             return
         }
-        val slot = contactSimSlot(contact)
-        if (slot != 1 && slot != 2) {
+        val route = activity.contactDefaultRoute(contact)
+        if (route.startsWith(ROUTE_RIN)) {
+            frame.addView(rinPhotoBadge(contact))
             return
+        }
+        val slot = when (route) {
+            ROUTE_SIM1 -> 1
+            ROUTE_SIM2 -> 2
+            else -> return
         }
 
         val badge = LayoutInflater.from(activity).inflate(R.layout.sim_badge, frame, false)
@@ -879,6 +892,34 @@ class ContactsAdapter(
             }
         }
         frame.addView(badge)
+    }
+
+    private fun rinPhotoBadge(contact: Contact): View {
+        val density = activity.resources.displayMetrics.density
+        val account = activity.effectiveRinAccount(contact)
+        val (ground, mark) = activity.rinBadgeColors(account)
+        return TextView(activity).apply {
+            id = R.id.sim_badge
+            text = activity.rinBadgeFor(account)
+            setTextColor(mark)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, RIN_PHOTO_BADGE_SP)
+            setTypeface(typeface, Typeface.BOLD)
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            val pad = (RIN_PHOTO_BADGE_PAD_DP * density).toInt()
+            setPadding(pad, 0, pad, 0)
+            background = GradientDrawable().apply {
+                cornerRadius = RIN_PHOTO_BADGE_RADIUS_DP * density
+                setColor(ground)
+            }
+            layoutParams = ConstraintLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, (RIN_PHOTO_BADGE_HEIGHT_DP * density).toInt()
+            ).apply {
+                bottomToBottom = org.fossify.commons.R.id.item_contact_image
+                startToStart = org.fossify.commons.R.id.item_contact_image
+                endToEnd = org.fossify.commons.R.id.item_contact_image
+            }
+        }
     }
 
     // Who can see this contact, on the photo's top-end corner: crossed-out lock = system contact (every app),

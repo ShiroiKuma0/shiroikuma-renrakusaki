@@ -6,18 +6,23 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import org.fossify.commons.activities.BaseSimpleActivity
+import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.commons.extensions.toast
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.contacts.R
+import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.extensions.themeColor
 import org.fossify.contacts.helpers.RIN_ACCOUNT_SELECTED
 import org.fossify.contacts.helpers.Rindenwa
 import org.fossify.contacts.helpers.rinBadge
@@ -31,6 +36,8 @@ private const val BADGE_SP = 16f
 private const val BADGE_HEIGHT_DP = 30
 private const val BADGE_PAD_DP = 7
 private const val BADGE_RADIUS_DP = 7f
+private const val MARK_COLUMN_DP = 48
+private const val ICON_DP = 24
 
 /**
  * Picks a 臨電話 account by its 臨 number. The first line is [noAccountLabel] — "as selected in 臨電話" for
@@ -103,27 +110,40 @@ private class RinAccountDialog(
         // radio_button.xml is width=match_parent; force wrap so the badge and label have room beside it
         row.addView(radio, wrap(0))
 
-        if (badge != null) {
+        // One column for every mark — the account's 臨N badge, or a cog on the line that names no account —
+        // so the labels share one left edge.
+        val mark: View = if (badge != null) {
             val (ground, text) = activity.rinBadgeColors(account)
-            row.addView(
-                TextView(activity).apply {
-                    this.text = badge
-                    setTextColor(text)
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, BADGE_SP)
-                    setTypeface(typeface, Typeface.BOLD)
-                    gravity = Gravity.CENTER
-                    includeFontPadding = false
-                    val h = (BADGE_PAD_DP * density).toInt()
-                    setPadding(h, 0, h, 0)
-                    background = GradientDrawable().apply {
-                        cornerRadius = BADGE_RADIUS_DP * density
-                        setColor(ground)
-                    }
-                },
-                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, (BADGE_HEIGHT_DP * density).toInt())
-                    .apply { marginStart = gap }
-            )
+            TextView(activity).apply {
+                this.text = badge
+                setTextColor(text)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, BADGE_SP)
+                setTypeface(typeface, Typeface.BOLD)
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                val h = (BADGE_PAD_DP * density).toInt()
+                setPadding(h, 0, h, 0)
+                minHeight = (BADGE_HEIGHT_DP * density).toInt()
+                background = GradientDrawable().apply {
+                    cornerRadius = BADGE_RADIUS_DP * density
+                    setColor(ground)
+                }
+            }
+        } else {
+            ImageView(activity).apply {
+                setImageResource(org.fossify.commons.R.drawable.ic_settings_cog_vector)
+                applyColorFilter(activity.themeColor(ThemeSlot.MENU_ICON_VIEW))
+                layoutParams = ViewGroup.LayoutParams((ICON_DP * density).toInt(), (ICON_DP * density).toInt())
+            }
         }
+        val markColumn = FrameLayout(activity)
+        markColumn.addView(
+            mark, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+        )
+        row.addView(
+            markColumn,
+            LinearLayout.LayoutParams((MARK_COLUMN_DP * density).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = gap }
+        )
 
         row.addView(
             TextView(activity).apply {

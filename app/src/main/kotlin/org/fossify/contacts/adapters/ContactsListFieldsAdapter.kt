@@ -12,7 +12,11 @@ import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.contacts.activities.SimpleActivity
 import org.fossify.contacts.databinding.ItemContactsListFieldBinding
+import org.fossify.contacts.extensions.ThemeSlot
+import org.fossify.contacts.extensions.themeColor
+import org.fossify.contacts.helpers.RowField
 import org.fossify.contacts.helpers.RowFieldEntry
+import org.fossify.commons.R as CR
 import java.util.Collections
 
 // The "order box": tick which contact fields show in the list, drag to reorder, and use the chevrons to
@@ -31,6 +35,7 @@ class ContactsListFieldsAdapter(
 
     private companion object {
         const val DISABLED_ALPHA = 0.3f
+        val NAME_KEY_PARTS = listOf("name", "prefix", "suffix")
     }
 
     fun attachTo(recyclerView: RecyclerView) {
@@ -57,6 +62,16 @@ class ContactsListFieldsAdapter(
             fieldCheckbox.text = activity.getString(entry.field.labelRes)
             fieldCheckbox.setColors(textColor, accentColor, backgroundColor)
             fieldCheckbox.setOnCheckedChangeListener(null)
+            // the row's icon, coloured by what the field is about (the menu icon roles)
+            val (icon, role) = when {
+                entry.field == RowField.PHONE -> CR.drawable.ic_phone_vector to ThemeSlot.MENU_ICON_CALL
+                entry.field == RowField.EMAIL -> CR.drawable.ic_mail_vector to ThemeSlot.MENU_ICON_MESSAGE
+                entry.field == RowField.IM -> CR.drawable.ic_sms_vector to ThemeSlot.MENU_ICON_MESSAGE
+                NAME_KEY_PARTS.any { it in entry.field.key } -> CR.drawable.ic_person_vector to ThemeSlot.MENU_ICON_CONTACT
+                else -> CR.drawable.ic_label_vector to ThemeSlot.MENU_ICON_VIEW
+            }
+            fieldIcon.setImageResource(icon)
+            fieldIcon.applyColorFilter(activity.themeColor(role))
             fieldCheckbox.isChecked = entry.checked
             fieldCheckbox.setOnCheckedChangeListener { _, isChecked ->
                 entry.checked = isChecked

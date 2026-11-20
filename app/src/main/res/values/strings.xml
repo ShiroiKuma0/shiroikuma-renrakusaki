@@ -48,7 +48,7 @@
     <string name="all_files_access_granted">Granted</string>
     <string name="all_files_access_needed">Not granted — tap to allow</string>
     <!-- Per-contact default SIM (used by the Phone fork, incl. Android Auto) -->
-    <string name="set_default_sim">Set default SIM for contact</string>
+    <string name="set_default_sim">Default call route for contact</string>
     <string name="sim_slot_1">SIM 1</string>
     <string name="sim_slot_2">SIM 2</string>
     <string name="address">Address</string>
@@ -227,7 +227,7 @@
     <string name="ui_settings_title">白い熊 連絡先 UI</string>
     <string name="swipe_to_call">Swipe to call</string>
     <string name="swipe_to_call_enable">Swipe a contact to call</string>
-    <string name="swipe_to_call_desc">In Contacts and Favorites, swipe a row to call its default number. Each side dials by the route set below — SIM 1 to the left and SIM 2 to the right unless changed, the same swipe as in the 白い熊 電話 call history</string>
+    <string name="swipe_to_call_desc">In Contacts and Favorites, swipe a row or a tile to call its default number. Each side dials by the route set below — SIM 1 to the left and SIM 2 to the right unless changed, the same swipe as in the 白い熊 電話 call history</string>
     <string name="swipe_sim1_color">SIM 1 band</string>
     <string name="swipe_sim2_color">SIM 2 band</string>
     <string name="swipe_text_color">SIM mark and “Dialing…”</string>
@@ -486,6 +486,13 @@
     <string name="route_rin_text_color">Text of badge 臨 (when 臨電話 names no colour)</string>
     <string name="route_rin_default">臨 (default account)</string>
     <string name="route_off">Off</string>
+    <string name="route_rin_default_short">Default account</string>
+    <string name="swipe_tiles_enable">Swipe tiles too</string>
+    <string name="swipe_tiles_desc">The same swipe on a tile — a cell of the Favorites grid or of a Contacts list in several columns — with the same two routes. The tile slides inside its own cell. Off: only full-width rows swipe, and a sideways drag over a tile changes the tab</string>
+    <string name="ui_reset_section_order">Reset section order</string>
+    <string name="ui_reset_section_order_desc">Puts the sections of this page back in their original order. A long-press on a chip at the top of the page drags a section elsewhere</string>
+    <string name="theme_switch_off">Switch that is off</string>
+    <string name="contact_call_history_section">Call history</string>
     <string name="swipe_left_route">Swipe left calls with</string>
     <string name="swipe_right_route">Swipe right calls with</string>
     <string name="swipe_rin_color">臨 band (when 臨電話 names no colour)</string>

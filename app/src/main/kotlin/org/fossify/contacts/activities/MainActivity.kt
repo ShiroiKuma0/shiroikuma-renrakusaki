@@ -4,11 +4,13 @@ import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.ShortcutInfo
+import android.content.res.ColorStateList
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -70,6 +72,8 @@ import java.util.Arrays
 private const val SEARCH_BAR_CORNER_RADIUS_DP = 16f
 private const val INACTIVE_COLUMN_BUTTON_ALPHA = 0.35f
 private const val SEARCH_BAR_STROKE_DP = 2
+private const val DIALPAD_RING_DP = 3
+private const val DIALPAD_RIPPLE_ALPHA = 0.3f
 
 // The labels of the two hand-over tabs are the apps' own names, the same in every language.
 private const val DENWA_TAB_LABEL = "電話"
@@ -257,11 +261,17 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             }
         }
 
-        val dialpadIcon =
-            resources.getColoredDrawableWithColor(org.fossify.commons.R.drawable.ic_dialpad_vector, properPrimaryColor.getContrastColor())
+        // Never a filled slab (black-yellow theme): the background shows through, the accent draws the icon
+        // and a thick ring, as on the + button beside it (commons draws that one).
+        val dialpadIcon = resources.getColoredDrawableWithColor(org.fossify.commons.R.drawable.ic_dialpad_vector, properPrimaryColor)
         binding.mainDialpadButton.apply {
             setImageDrawable(dialpadIcon)
-            background.applyColorFilter(properPrimaryColor)
+            val ring = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(getProperBackgroundColor())
+                setStroke((DIALPAD_RING_DP * resources.displayMetrics.density).toInt(), properPrimaryColor)
+            }
+            background = RippleDrawable(ColorStateList.valueOf(properPrimaryColor.adjustAlpha(DIALPAD_RIPPLE_ALPHA)), ring, null)
             beVisibleIf(config.showDialpadButton)
         }
 

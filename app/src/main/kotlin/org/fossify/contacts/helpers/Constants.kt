@@ -262,6 +262,9 @@ const val RINDENWA_OPEN_HISTORY_EXTRA = "shiroikuma_open_history"
 const val RIN_DEFAULT_ACCOUNT = "rin_default_account"
 const val RIN_ACCOUNT_PREFIX = "rin_account_"
 const val RIN_ACCOUNT_SELECTED = -1
+// Per number, like the SIM slot: this contact's DEFAULT route is 臨電話 (through its own 臨 account, else the
+// default account) rather than a SIM. Set from the selection menu's route picker; a SIM slot clears it.
+const val RIN_DEFAULT_ROUTE_PREFIX = "rin_default_route_"
 // The last account list Rindenwa gave us (JSON), so badges and pickers have it before Rindenwa answers.
 const val RIN_ACCOUNTS_CACHE = "rin_accounts_cache"
 
@@ -287,6 +290,11 @@ const val SHOW_VISIBILITY_BADGES = "show_visibility_badges"
 
 // Swipe a contact row to call its default number: left with SIM 1, right with SIM 2 (denwa's swipe).
 const val SWIPE_TO_CALL = "swipe_to_call"
+// …and the same swipe on a tile: a Favorites grid cell, a cell of a multi-column Contacts list.
+const val SWIPE_TILES = "swipe_tiles"
+// The UI settings page: the order of its sections (keys, comma-joined) and which of them are unfolded.
+const val UI_SECTION_ORDER = "ui_section_order"
+const val UI_SECTIONS_OPEN = "ui_sections_open"
 const val CONTACT_CALL_HISTORY = "contact_call_history"
 const val CONTACT_CALL_HISTORY_COUNT = "contact_call_history_count"
 const val LONG_PRESS_PHOTO_VISIBILITY = "long_press_photo_visibility"

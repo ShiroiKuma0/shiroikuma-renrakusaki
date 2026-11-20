@@ -19,9 +19,10 @@ import org.fossify.commons.extensions.pillDrawable
  * Commons draws dialog buttons the same way (BaseConfig.pillDialogButtons), so a dialog's Yes and this
  * page's main action match.
  */
-fun Context.pill(text: String, main: Boolean = false, onClick: () -> Unit): TextView {
+fun Context.pill(text: String, main: Boolean = false, destructive: Boolean = false, onClick: () -> Unit): TextView {
     val density = resources.displayMetrics.density
-    val primary = getProperPrimaryColor()
+    // an action that deletes lends the warning colour to its frame and label — still unfilled
+    val primary = if (destructive) themeColor(ThemeSlot.MENU_WARNING) else getProperPrimaryColor()
     return TextView(this).apply {
         this.text = text
         setTextColor(primary)

@@ -9,10 +9,16 @@ import android.graphics.Typeface
 import android.os.Environment
 import android.provider.Settings
 import android.text.format.DateUtils
+import android.util.TypedValue
+import android.view.DragEvent
+import android.view.Gravity
+import android.view.HapticFeedbackConstants
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.documentfile.provider.DocumentFile
@@ -21,10 +27,13 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.chip.ChipGroup
+import org.fossify.commons.R as CR
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.beVisibleIf
+import org.fossify.commons.extensions.getColoredDrawableWithColor
 import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.pillDrawable
 import org.fossify.commons.extensions.getAlertDialogBuilder
@@ -49,7 +58,6 @@ import org.fossify.contacts.databinding.DialogPatternInputBinding
 import org.fossify.contacts.databinding.ItemThemeActionBinding
 import org.fossify.contacts.databinding.ItemThemeColorBinding
 import org.fossify.contacts.databinding.ItemThemeFieldsOrderBinding
-import org.fossify.contacts.databinding.ItemThemeSectionBinding
 import org.fossify.contacts.databinding.ItemThemeSliderBinding
 import org.fossify.contacts.databinding.ItemThemeSubgroupBinding
 import org.fossify.contacts.databinding.ItemThemeSwitchBinding
@@ -66,6 +74,7 @@ import org.fossify.contacts.helpers.ROUTE_RIN
 import org.fossify.contacts.helpers.ROUTE_RIN_PREFIX
 import org.fossify.contacts.helpers.ROUTE_SIM1
 import org.fossify.contacts.helpers.ROUTE_SIM2
+import org.fossify.contacts.helpers.MenuPills
 import org.fossify.contacts.helpers.Rindenwa
 import org.fossify.contacts.helpers.pickerLabel
 import org.fossify.contacts.helpers.rinBadge
@@ -123,7 +132,22 @@ private const val DIALOG_INDENT_STEP_DP = 24
 // Vertical padding for every row, replacing the commons style's 20dp — every row is only as tall as its
 // content (black-yellow theme, "Row padding — minimal, every row").
 private const val ROW_PADDING_VERTICAL_DP = 2
-private const val SECTION_GAP_DP = 20
+private const val SECTION_GAP_DP = 10
+private const val SECTION_HEADER_PAD_DP = 8
+private const val SECTION_UNDERLINE_DP = 2
+private const val SECTION_UNDERLINE_GAP_DP = 2
+private const val SECTION_CHEVRON_SP = 22f
+
+// The chip index under the app-settings pill.
+private const val INDEX_GAP_DP = 6
+private const val INDEX_TEXT_SP = 13f
+private const val INDEX_PAD_H_DP = 10
+private const val INDEX_PAD_V_DP = 5
+private const val INDEX_DRAGGED_ALPHA = 0.3f
+
+// A row's icon, before its label.
+private const val ROW_ICON_DP = 20
+private const val ROW_ICON_GAP_DP = 10
 private val CONTACT_CALL_HISTORY_COUNTS = listOf(3, 5, 10, 20, 50)
 
 // How many hex characters of the automation token stay visible at each end.
@@ -140,6 +164,38 @@ private val APP_LANGUAGE_TAGS = listOf(
     "tr", "uk", "ur", "vi", "zgh", "zh-CN", "zh-HK", "zh-TW",
 )
 
+/** A top-level section of the page: its stored [key], its heading, its (shorter) chip label, and what builds its rows. */
+private class UiSection(val key: String, val title: String, val chip: String = title, val fill: () -> Unit)
+
+/**
+ * The icon a row of the page carries, coloured by what the row does (black-yellow theme: “Every row has an
+ * icon”). The colours are the menu icon roles, so a row and a menu line that do the same wear the same colour.
+ */
+private enum class RowIcon(val res: Int, val role: ThemeSlot) {
+    SETTINGS(CR.drawable.ic_settings_cog_vector, ThemeSlot.MENU_ICON_VIEW),
+    TOGGLE(CR.drawable.ic_check_circle_vector, ThemeSlot.MENU_ICON_VIEW),
+    VALUE(CR.drawable.ic_edit_vector, ThemeSlot.MENU_ICON_VIEW),
+    COLOR(R.drawable.ic_palette_vector, ThemeSlot.MENU_ICON_VIEW),
+    TEXT(R.drawable.ic_text_fields_vector, ThemeSlot.MENU_ICON_VIEW),
+    WEIGHT(R.drawable.ic_format_bold_vector, ThemeSlot.MENU_ICON_VIEW),
+    SIZE(R.drawable.ic_tune_vector, ThemeSlot.MENU_ICON_VIEW),
+    TIME(CR.drawable.ic_clock_vector, ThemeSlot.MENU_ICON_VIEW),
+    CHECK(CR.drawable.ic_search_vector, ThemeSlot.MENU_ICON_VIEW),
+    RESET(CR.drawable.ic_reset_vector, ThemeSlot.MENU_ICON_VIEW),
+    SECRET(CR.drawable.ic_lock_vector, ThemeSlot.MENU_ICON_BLOCK),
+    SHARE(CR.drawable.ic_share_vector, ThemeSlot.MENU_ICON_SHARE),
+    DIRECTORY(CR.drawable.ic_folder_vector, ThemeSlot.MENU_ICON_SHARE),
+    AUTOMATION(CR.drawable.ic_code_vector, ThemeSlot.MENU_ICON_SHARE),
+    CALL(CR.drawable.ic_phone_vector, ThemeSlot.MENU_ICON_CALL),
+    CALL_LOG(CR.drawable.ic_clock_vector, ThemeSlot.MENU_ICON_CALL),
+    CONTACT(CR.drawable.ic_person_vector, ThemeSlot.MENU_ICON_CONTACT),
+    CONTACTS(CR.drawable.ic_people_vector, ThemeSlot.MENU_ICON_CONTACT),
+    APPS(CR.drawable.ic_apps_vector, ThemeSlot.MENU_ICON_CONTACT),
+    MOVE(CR.drawable.ic_move_vector, ThemeSlot.MENU_ICON_CONTACT),
+    SHOWN(CR.drawable.ic_unhide_vector, ThemeSlot.MENU_ICON_VIEW),
+    PRIVATE(CR.drawable.ic_hide_vector, ThemeSlot.MENU_ICON_BLOCK),
+}
+
 @Suppress("TooManyFunctions")
 class ThemeActivity : SimpleActivity() {
     private val binding by viewBinding(ActivityThemeBinding::inflate)
@@ -150,6 +206,16 @@ class ThemeActivity : SimpleActivity() {
 
     // Holds the per-field styling controls for the "Contacts' list" section; rebuilt when the field set changes.
     private var rowStylingContainer: LinearLayout? = null
+
+    // Where the row builders add their rows: the page itself, or the body of the section being filled.
+    private lateinit var body: ViewGroup
+
+    // The page's sections in their shown order, and each one's views by its key.
+    private var sections: List<UiSection> = emptyList()
+    private val sectionWrappers = HashMap<String, View>()
+    private val sectionBodies = HashMap<String, LinearLayout>()
+    private val sectionChevrons = HashMap<String, TextView>()
+    private val sectionsFilled = HashSet<String>()
 
     // Export / Import (top section): category selection survives buildRows() rebuilds; the export
     // folder (a persisted SAF tree grant) lives in a device-local prefs file that is itself never exported.
@@ -203,38 +269,222 @@ class ThemeActivity : SimpleActivity() {
         buildRows()
     }
 
-    // Render the slot enum as a section > subgroup > controls cascade.
+    // The page: the way to the app's own settings, the chip index, then the sections — each a folding block,
+    // folded unless 白い熊 opened it, in the order 白い熊 dragged the chips into (black-yellow theme, "Every UI
+    // page — a folding accordion with a draggable chip index"). A folded section's rows are not built until
+    // it is first opened: the page has several hundred of them.
     private fun buildRows() {
         binding.themeHolder.removeAllViews()
         previews.clear()
+        sectionWrappers.clear()
+        sectionBodies.clear()
+        sectionChevrons.clear()
+        sectionsFilled.clear()
+        rowStylingContainer = null
+        body = binding.themeHolder
 
         val primaryColor = getProperPrimaryColor()
         val stepPx = (INDENT_STEP_DP * resources.displayMetrics.density).toInt()
 
-        // The way to the app's own settings first, as the page's one thick pill; then your data (backup,
-        // who sees private contacts, housekeeping), then the language, then the look section by section.
-        addActionRow(getString(R.string.app_settings_link), getString(R.string.app_settings_link_desc), 0, main = true) {
+        // The way to the app's own settings first, as the page's one thick pill; it is not a section.
+        addActionRow(
+            getString(R.string.app_settings_link), getString(R.string.app_settings_link_desc), 0, main = true, icon = RowIcon.SETTINGS,
+        ) {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
-        addExportImportSection(primaryColor, stepPx)
-        addPrivateContactsSection(primaryColor, stepPx)
-        addMaintenanceSection(primaryColor, stepPx)
-        addLanguageSection(primaryColor, stepPx)
-        addButtonsSection(primaryColor, stepPx)
-        ThemeGroup.entries.forEach { addGroup(it, primaryColor, stepPx) }
+
+        // Your data first (backup, who sees private contacts, housekeeping), then the language, then the
+        // look section by section. The keys are stored: never rename one.
+        val built = ArrayList<UiSection>()
+        built.add(UiSection("exim", getString(R.string.eim_title)) { addExportImportSection(primaryColor, stepPx) })
+        built.add(UiSection("private", getString(R.string.private_contacts_section)) { addPrivateContactsSection(primaryColor, stepPx) })
+        built.add(UiSection("maintenance", getString(R.string.maintenance_section)) { addMaintenanceSection(primaryColor, stepPx) })
+        built.add(UiSection("language", getString(R.string.theme_app_language)) { addLanguageSection(primaryColor, stepPx) })
+        built.add(UiSection("buttons", getString(R.string.buttons_section)) { addButtonsSection(primaryColor, stepPx) })
+        ThemeGroup.entries.forEach { group ->
+            built.add(UiSection("theme_" + group.name.lowercase(Locale.ROOT), getString(group.labelRes)) { addGroup(group, primaryColor, stepPx) })
+            if (group == ThemeGroup.SWIPE_CALL) {
+                built.add(
+                    UiSection(
+                        "call_history", getString(R.string.contact_call_history_settings), getString(R.string.contact_call_history_section),
+                    ) { addContactCallHistorySection(primaryColor, stepPx) }
+                )
+            }
+        }
+        sections = orderedSections(built)
+
+        addSectionIndex(primaryColor)
+        sections.forEachIndexed { index, section -> addSection(section, index == 0, primaryColor) }
+    }
+
+    /** The stored order applied to [built]: stored keys first, then sections a later build added, at their built place. */
+    private fun orderedSections(built: List<UiSection>): List<UiSection> {
+        val byKey = built.associateBy { it.key }
+        val stored = config.uiSectionOrder.split(',').mapNotNull { byKey[it] }.distinct()
+        return stored + built.filter { it !in stored }
+    }
+
+    // The jump index: a wrapping grid of small outlined chips, one per section. A tap unfolds the section
+    // and scrolls to it; a long-press lifts the chip, the chips reorder live under the finger, and the
+    // sections follow on drop.
+    private fun addSectionIndex(accent: Int) {
+        val density = resources.displayMetrics.density
+        val margin = resources.getDimensionPixelSize(org.fossify.commons.R.dimen.activity_margin)
+        val group = ChipGroup(this).apply {
+            chipSpacingHorizontal = (INDEX_GAP_DP * density).toInt()
+            chipSpacingVertical = (INDEX_GAP_DP * density).toInt()
+            setPaddingRelative(margin, (INDEX_GAP_DP * density).toInt(), margin, (INDEX_GAP_DP * density).toInt())
+        }
+        val background = getProperBackgroundColor()
+        sections.forEach { section ->
+            group.addView(TextView(this).apply {
+                text = section.chip
+                tag = section.key
+                setTextColor(accent)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, INDEX_TEXT_SP)
+                val h = (INDEX_PAD_H_DP * density).toInt()
+                val v = (INDEX_PAD_V_DP * density).toInt()
+                setPadding(h, v, h, v)
+                this.background = pillDrawable(accent, background, main = false)
+                setOnClickListener { jumpToSection(section.key) }
+                setOnLongClickListener { chip ->
+                    chip.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    chip.startDragAndDrop(null, View.DragShadowBuilder(chip), chip, 0)
+                    chip.alpha = INDEX_DRAGGED_ALPHA
+                    true
+                }
+            })
+        }
+
+        val orderBefore = sections.map { it.key }
+        // The chip last moved past: the same chip is not swapped again until the finger has been over the
+        // dragged one, or two chips of unequal width would swap back and forth under a still finger.
+        var lastTarget: View? = null
+        group.setOnDragListener { _, event ->
+            val dragged = event.localState as? View
+            if (dragged == null || dragged.parent !== group) return@setOnDragListener false
+            when (event.action) {
+                DragEvent.ACTION_DRAG_LOCATION -> {
+                    val target = (0 until group.childCount).map { group.getChildAt(it) }
+                        .firstOrNull { event.x >= it.left && event.x < it.right && event.y >= it.top && event.y < it.bottom }
+                    if (target === dragged) {
+                        lastTarget = null
+                    } else if (target != null && target !== lastTarget) {
+                        val to = group.indexOfChild(target)
+                        group.removeView(dragged)
+                        group.addView(dragged, to)
+                        lastTarget = target
+                    }
+                }
+
+                DragEvent.ACTION_DRAG_ENDED -> {
+                    dragged.alpha = 1f
+                    val order = (0 until group.childCount).map { group.getChildAt(it).tag as String }
+                    if (order != orderBefore) {
+                        config.uiSectionOrder = order.joinToString(",")
+                        // not from inside the drag dispatch: the rebuild removes the view being dispatched to
+                        group.post { buildRows() }
+                    }
+                }
+            }
+            true
+        }
+        binding.themeHolder.addView(group)
+    }
+
+    // A folding section: the 1 px darker-accent line above it (every section but the first; it stays whether
+    // the section is folded or open), its bold heading underlined as wide as its text with › folded / ⌄ open
+    // at the right, and its rows in a body that folds away.
+    private fun addSection(section: UiSection, first: Boolean, accent: Int) {
+        val density = resources.displayMetrics.density
+        val margin = resources.getDimensionPixelSize(org.fossify.commons.R.dimen.activity_margin)
+        val wrapper = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        if (!first) {
+            wrapper.addView(
+                View(this).apply { setBackgroundColor(MenuPills.divider(this@ThemeActivity)) },
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1).apply { topMargin = (SECTION_GAP_DP * density).toInt() },
+            )
+        }
+
+        val label = TextView(this).apply {
+            text = section.title
+            setTextColor(accent)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, resources.getDimension(org.fossify.commons.R.dimen.bigger_text_size))
+            setTypeface(typeface, Typeface.BOLD)
+        }
+        val labelColumn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(label, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            // as wide as the column, which is as wide as the label's text
+            addView(
+                View(this@ThemeActivity).apply { setBackgroundColor(accent) },
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (SECTION_UNDERLINE_DP * density).toInt())
+                    .apply { topMargin = (SECTION_UNDERLINE_GAP_DP * density).toInt() },
+            )
+        }
+        val chevron = TextView(this).apply {
+            setTextColor(accent)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, SECTION_CHEVRON_SP)
+            includeFontPadding = false
+        }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            val v = (SECTION_HEADER_PAD_DP * density).toInt()
+            setPaddingRelative(margin, v, margin, v)
+            setBackgroundResource(org.fossify.commons.R.drawable.ripple_background)
+            addView(labelColumn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            addView(View(this@ThemeActivity), LinearLayout.LayoutParams(0, 0, 1f))
+            addView(chevron)
+            setOnClickListener { setSectionOpen(section.key, section.key !in config.uiSectionsOpen) }
+        }
+        wrapper.addView(header)
+
+        val inner = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        wrapper.addView(inner)
+        binding.themeHolder.addView(wrapper)
+
+        sectionWrappers[section.key] = wrapper
+        sectionBodies[section.key] = inner
+        sectionChevrons[section.key] = chevron
+        showSectionState(section.key, section.key in config.uiSectionsOpen)
+    }
+
+    private fun setSectionOpen(key: String, open: Boolean) {
+        val stored = config.uiSectionsOpen
+        config.uiSectionsOpen = if (open) stored + key else stored - key
+        showSectionState(key, open)
+    }
+
+    private fun showSectionState(key: String, open: Boolean) {
+        val inner = sectionBodies[key] ?: return
+        if (open && sectionsFilled.add(key)) {
+            // rows are added to `body`; it points here only while this section's own rows are built
+            body = inner
+            sections.firstOrNull { it.key == key }?.fill?.invoke()
+            body = binding.themeHolder
+        }
+        inner.beVisibleIf(open)
+        sectionChevrons[key]?.text = if (open) "⌄" else "›"
+    }
+
+    /** A tap on an index chip: unfold the section and scroll to it. */
+    private fun jumpToSection(key: String) {
+        val wrapper = sectionWrappers[key] ?: return
+        setSectionOpen(key, true)
+        binding.themeHolder.post { binding.themeNestedScrollview.smoothScrollTo(0, wrapper.top) }
     }
 
     // ---- Export / Import (kojiki-style: persisted folder, last-export line, category checklist) ----
 
     private fun addExportImportSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.eim_title), primaryColor)
 
         // Two rows only, as in the sister apps: where exports go, and the panel that does the work.
         // Everything selectable — categories, their sub-options, the VCF one-shots — lives in the panel.
-        addValueRow(getString(R.string.eim_dir), eximDir()?.name ?: getString(R.string.eim_dir_unset), stepPx) {
+        addValueRow(getString(R.string.eim_dir), eximDir()?.name ?: getString(R.string.eim_dir_unset), stepPx, icon = RowIcon.DIRECTORY) {
             eximDirPicker.launch(eximDirUri())
         }
-        addActionRow(getString(R.string.eim_open), lastExportSummary(), stepPx, main = true) { showExportImportDialog() }
+        addActionRow(getString(R.string.eim_open), lastExportSummary(), stepPx, main = true, icon = RowIcon.SHARE) { showExportImportDialog() }
 
         // Automation sits directly below the export rows it drives — the placement every sister app
         // shares, so 白い熊 finds it where backup lives.
@@ -294,11 +544,11 @@ class ThemeActivity : SimpleActivity() {
 
         var dialog: AlertDialog? = null
         addSubgroupHeader(getString(R.string.eim_vcf_group), primaryColor, 0, holder)
-        addActionRow(getString(R.string.export_contacts_to_vcf), null, stepPx, parent = holder) {
+        addActionRow(getString(R.string.export_contacts_to_vcf), null, stepPx, parent = holder, icon = RowIcon.SHARE) {
             dialog?.dismiss()
             startVcfExport()
         }
-        addActionRow(getString(R.string.import_contacts_from_vcf), null, stepPx, parent = holder) {
+        addActionRow(getString(R.string.import_contacts_from_vcf), null, stepPx, parent = holder, icon = RowIcon.SHARE) {
             dialog?.dismiss()
             startVcfImport()
         }
@@ -470,6 +720,7 @@ class ThemeActivity : SimpleActivity() {
         // off switch invites 白い熊 to paste it somewhere it will do nothing.
         addSwitchRow(
             title = getString(R.string.enable_automation),
+            icon = RowIcon.AUTOMATION,
             checked = config.automationEnabled,
             indent = stepPx * 2,
             description = getString(R.string.enable_automation_desc),
@@ -479,6 +730,7 @@ class ThemeActivity : SimpleActivity() {
 
         addSwitchRow(
             title = getString(R.string.automation_require_token),
+            icon = RowIcon.SECRET,
             checked = config.automationRequireToken,
             indent = stepPx * 2,
             description = getString(R.string.automation_require_token_desc),
@@ -519,7 +771,7 @@ class ThemeActivity : SimpleActivity() {
         if (isRPlus()) {
             val granted = Environment.isExternalStorageManager()
             val state = getString(if (granted) R.string.all_files_access_granted else R.string.all_files_access_needed)
-            addValueRow(getString(R.string.all_files_access), state, stepPx * 2) {
+            addValueRow(getString(R.string.all_files_access), state, stepPx * 2, icon = RowIcon.DIRECTORY) {
                 try {
                     startActivity(
                         Intent(
@@ -542,7 +794,6 @@ class ThemeActivity : SimpleActivity() {
     // locales API: Android 13+ persists it in the system; below, the manifest's
     // AppLocalesMetadataHolderService (autoStoreLocales) restores it on launch.
     private fun addLanguageSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.theme_app_language), primaryColor)
         val current = AppCompatDelegate.getApplicationLocales()
         val currentName = current[0]?.let { it.getDisplayName(it).replaceFirstChar { c -> c.uppercase() } }
             ?: getString(R.string.language_system_default)
@@ -578,7 +829,6 @@ class ThemeActivity : SimpleActivity() {
     // ---- Buttons: dialog buttons as pills (commons sk12) ----
 
     private fun addButtonsSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.buttons_section), primaryColor)
         addSwitchRow(
             title = getString(R.string.pill_dialog_buttons),
             checked = config.pillDialogButtons,
@@ -592,8 +842,7 @@ class ThemeActivity : SimpleActivity() {
     // ---- Maintenance: housekeeping tools ----
 
     private fun addMaintenanceSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.maintenance_section), primaryColor)
-        addActionRow(getString(R.string.dup_title), getString(R.string.dup_row_desc), stepPx, main = true) {
+        addActionRow(getString(R.string.dup_title), getString(R.string.dup_row_desc), stepPx, main = true, icon = RowIcon.CONTACTS) {
             startActivity(Intent(this, DuplicatesActivity::class.java))
         }
 
@@ -609,26 +858,37 @@ class ThemeActivity : SimpleActivity() {
                 runOnUiThread { setActionDescription(check, text) }
             }
         }
-        check = addActionRow(getString(R.string.system_storage_check), null, stepPx * 2, opens = false) { refreshStatus() }
+        check = addActionRow(getString(R.string.system_storage_check), null, stepPx * 2, opens = false, icon = RowIcon.CHECK) { refreshStatus() }
         refreshStatus()
 
         // Acts in place after its confirmation, so no ›.
-        addActionRow(getString(R.string.all_private), getString(R.string.all_private_desc), stepPx * 2, opens = false) {
+        addActionRow(getString(R.string.all_private), getString(R.string.all_private_desc), stepPx * 2, opens = false, icon = RowIcon.MOVE) {
             confirmMoveAllToPrivate()
         }
 
         addSwitchRow(
             title = getString(R.string.new_contacts_private),
+            icon = RowIcon.PRIVATE,
             checked = config.newContactsPrivate,
             indent = stepPx * 2,
             description = getString(R.string.new_contacts_private_desc),
         ) { config.newContactsPrivate = it }
         addSwitchRow(
             title = getString(R.string.auto_keep_clean),
+            icon = RowIcon.PRIVATE,
             checked = config.autoKeepClean,
             indent = stepPx * 2,
             description = getString(R.string.auto_keep_clean_desc),
         ) { config.autoKeepClean = it }
+
+        // Acts in place: the page is rebuilt in its original order. No ›.
+        addActionRow(
+            getString(R.string.ui_reset_section_order), getString(R.string.ui_reset_section_order_desc), stepPx,
+            opens = false, icon = RowIcon.RESET,
+        ) {
+            config.uiSectionOrder = ""
+            buildRows()
+        }
     }
 
     private fun systemStorageText(st: SystemStorage.Status): String {
@@ -679,17 +939,17 @@ class ThemeActivity : SimpleActivity() {
     // ---- Private contacts: which apps may read them through our provider ----
 
     private fun addPrivateContactsSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.private_contacts_section), primaryColor)
         val allowed = config.privateDataApps
         val summary = if (allowed.isEmpty()) {
             getString(R.string.private_data_apps_none)
         } else {
             allowed.map { appLabel(it) ?: it }.sortedBy { it.lowercase(Locale.getDefault()) }.joinToString(", ")
         }
-        addValueRow(getString(R.string.private_data_apps), summary, stepPx) { openPrivateDataAppsPicker() }
+        addValueRow(getString(R.string.private_data_apps), summary, stepPx, icon = RowIcon.APPS) { openPrivateDataAppsPicker() }
 
         addSwitchRow(
             title = getString(R.string.show_visibility_badges),
+            icon = RowIcon.SHOWN,
             checked = config.showVisibilityBadges,
             indent = stepPx,
             description = getString(R.string.show_visibility_badges_desc),
@@ -698,6 +958,7 @@ class ThemeActivity : SimpleActivity() {
         }
         addSwitchRow(
             title = getString(R.string.long_press_photo_visibility),
+            icon = RowIcon.SHOWN,
             checked = config.longPressPhotoVisibility,
             indent = stepPx,
             description = getString(R.string.long_press_photo_visibility_desc),
@@ -706,6 +967,7 @@ class ThemeActivity : SimpleActivity() {
         }
         addSwitchRow(
             title = getString(R.string.show_visibility_row),
+            icon = RowIcon.SHOWN,
             checked = config.showVisibilityRow,
             indent = stepPx,
             description = getString(R.string.show_visibility_row_desc),
@@ -715,7 +977,7 @@ class ThemeActivity : SimpleActivity() {
 
         // "Visible to other apps" copies (helpers/SystemMirror): where they go, and what they carry.
         addSubgroupHeader(getString(R.string.visible_copies), primaryColor, stepPx)
-        val accountRow = addValueRow(getString(R.string.visible_copies_account), "…", stepPx * 2) { openMirrorAccountPicker() }
+        val accountRow = addValueRow(getString(R.string.visible_copies_account), "…", stepPx * 2, icon = RowIcon.CONTACT) { openMirrorAccountPicker() }
         ensureBackgroundThread {
             val (name, type) = SystemMirror.targetAccount(this)
             val label = accountLabel(name, type)
@@ -723,6 +985,7 @@ class ThemeActivity : SimpleActivity() {
         }
         addSwitchRow(
             title = getString(R.string.visible_copies_photo),
+            icon = RowIcon.SHOWN,
             checked = config.mirrorPhoto,
             indent = stepPx * 2,
             description = getString(R.string.visible_copies_photo_desc),
@@ -821,7 +1084,6 @@ class ThemeActivity : SimpleActivity() {
             return
         }
 
-        addSectionHeader(getString(group.labelRes), primaryColor)
 
         var sawAny = false
         var lastSubgroup: Int? = null
@@ -841,6 +1103,7 @@ class ThemeActivity : SimpleActivity() {
         if (group == ThemeGroup.TABS) {
             addSwitchRow(
                 title = getString(R.string.show_groups_page),
+            icon = RowIcon.CONTACTS,
                 checked = config.showGroupsPage,
                 indent = stepPx,
                 description = getString(R.string.show_groups_page_desc),
@@ -852,9 +1115,9 @@ class ThemeActivity : SimpleActivity() {
 
     // "Call routes": the 1 / 2 / 臨N badges on the contact screen and the 臨電話 account calls go out through.
     private fun addRoutesSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.call_routes), primaryColor)
         addSwitchRow(
             title = getString(R.string.route_badges_enable),
+            icon = RowIcon.CALL,
             checked = config.routeBadges,
             indent = stepPx,
             description = getString(R.string.route_badges_desc),
@@ -862,7 +1125,7 @@ class ThemeActivity : SimpleActivity() {
             config.routeBadges = it
         }
         var row: ItemThemeValueBinding? = null
-        row = addValueRow(getString(R.string.rin_default_account), rinDefaultAccountLabel(), stepPx) {
+        row = addValueRow(getString(R.string.rin_default_account), rinDefaultAccountLabel(), stepPx, icon = RowIcon.CALL) {
             pickRinAccount(config.rinDefaultAccount, getString(R.string.rin_account_as_selected)) { account ->
                 config.rinDefaultAccount = account
                 row?.themeValueValue?.text = rinDefaultAccountLabel()
@@ -890,7 +1153,7 @@ class ThemeActivity : SimpleActivity() {
 
     private fun addSwipeRouteRow(titleRes: Int, stepPx: Int, get: () -> String, set: (String) -> Unit) {
         var row: ItemThemeValueBinding? = null
-        row = addValueRow(getString(titleRes), routeLabel(get()), stepPx) {
+        row = addValueRow(getString(titleRes), routeLabel(get()), stepPx, icon = RowIcon.CALL) {
             val appContext = applicationContext
             ensureBackgroundThread {
                 if (Rindenwa.isInstalled(appContext)) Rindenwa.refreshAccounts(appContext)
@@ -916,25 +1179,9 @@ class ThemeActivity : SimpleActivity() {
         }
     }
 
-    private fun addSectionHeader(title: String, primaryColor: Int) {
-        val section = ItemThemeSectionBinding.inflate(layoutInflater, binding.themeHolder, false)
-        // Air above every section but the first, so the page reads as blocks rather than one long list.
-        if (binding.themeHolder.childCount > 0) {
-            section.root.setPadding(
-                section.root.paddingLeft, section.root.paddingTop + (SECTION_GAP_DP * resources.displayMetrics.density).toInt(),
-                section.root.paddingRight, section.root.paddingBottom,
-            )
-        }
-        section.themeSectionLabel.text = title
-        section.themeSectionLabel.setTextColor(primaryColor)
-        section.themeSectionRule.setBackgroundColor(primaryColor)
-        binding.themeHolder.addView(section.root)
-    }
-
     // The "Contacts' list" section: the field order-box (tick / drag / column buttons) then a styling
     // control (font / weight / size / color) for each currently-shown field.
     private fun addRowsSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.theme_group_rows), primaryColor)
 
         addSubgroupHeader(getString(R.string.theme_rows_layout), primaryColor, stepPx)
         addSlider(
@@ -977,7 +1224,7 @@ class ThemeActivity : SimpleActivity() {
         addTextSlot(ThemeSlot.COLUMN_SPACER, stepPx * 2, stepPx)
 
         addSubgroupHeader(getString(R.string.theme_detail_group), primaryColor, stepPx)
-        addValueRow(getString(R.string.detail_time_format), getString(detailTimeFormatLabel()), stepPx * 2) {
+        addValueRow(getString(R.string.detail_time_format), getString(detailTimeFormatLabel()), stepPx * 2, icon = RowIcon.TIME) {
             openDetailTimeFormatPicker()
         }
         // The 24-/12-hour modes expose their datetime patterns for editing, one per age bracket.
@@ -992,7 +1239,7 @@ class ThemeActivity : SimpleActivity() {
         addSubgroupHeader(getString(R.string.theme_rows_order), primaryColor, stepPx)
 
         val entries = ContactsListConfig.parse(config.contactsListFields).toMutableList()
-        val orderList = ItemThemeFieldsOrderBinding.inflate(layoutInflater, binding.themeHolder, false).root
+        val orderList = ItemThemeFieldsOrderBinding.inflate(layoutInflater, body, false).root
         orderList.layoutManager = LinearLayoutManager(this)
         val adapter = ContactsListFieldsAdapter(this, entries) {
             config.contactsListFields = ContactsListConfig.serialize(entries)
@@ -1001,7 +1248,7 @@ class ThemeActivity : SimpleActivity() {
         }
         orderList.adapter = adapter
         adapter.attachTo(orderList)
-        binding.themeHolder.addView(orderList)
+        body.addView(orderList)
 
         rowStylingContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -1009,14 +1256,13 @@ class ThemeActivity : SimpleActivity() {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
             )
         }
-        binding.themeHolder.addView(rowStylingContainer)
+        body.addView(rowStylingContainer)
         rebuildRowStyling(entries, stepPx)
     }
 
     // The "Letter sections" top-level section: the grouped-view toggle, the header letter's text styling,
     // and the underline / framing-divider lines (thickness slider + color each).
     private fun addSectionsSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.theme_sections_group), primaryColor)
         addSwitchRow(getString(R.string.theme_sections_enabled), config.contactsListGrouped, stepPx) {
             config.contactsListGrouped = it
             config.contactsListRevision += 1
@@ -1056,7 +1302,6 @@ class ThemeActivity : SimpleActivity() {
     // The "Icons over the photo" section: what the contact screens' top-bar and action icons are painted
     // in, plus the halo drawn behind them so they never merge into the photo underneath.
     private fun addPhotoIconsSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.theme_group_photo_icons), primaryColor)
         addColorRow(ThemeSlot.PHOTO_TOOLBAR_ICON, stepPx)
         addColorRow(ThemeSlot.PHOTO_ACTION_ICON, stepPx)
         addSlider(
@@ -1072,15 +1317,25 @@ class ThemeActivity : SimpleActivity() {
 
     // "Swipe to call": the switch, then the colours of the band a swiped row reveals and of its marking.
     private fun addSwipeCallSection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.swipe_to_call), primaryColor)
         addSwitchRow(
             title = getString(R.string.swipe_to_call_enable),
+            icon = RowIcon.CALL,
             checked = config.swipeToCall,
             indent = stepPx,
             description = getString(R.string.swipe_to_call_desc),
         ) {
             config.swipeToCall = it
             config.contactsListRevision += 1 // the lists rebuild their adapters, attaching or dropping the swipe
+        }
+        addSwitchRow(
+            title = getString(R.string.swipe_tiles_enable),
+            checked = config.swipeTiles,
+            indent = stepPx,
+            description = getString(R.string.swipe_tiles_desc),
+            icon = RowIcon.CALL,
+        ) {
+            config.swipeTiles = it
+            config.contactsListRevision += 1
         }
         addSwipeRouteRow(R.string.swipe_left_route, stepPx, { config.swipeLeftRoute }) { config.swipeLeftRoute = it }
         addSwipeRouteRow(R.string.swipe_right_route, stepPx, { config.swipeRightRoute }) { config.swipeRightRoute = it }
@@ -1089,20 +1344,19 @@ class ThemeActivity : SimpleActivity() {
         addColorRow(ThemeSlot.SWIPE_TEXT, stepPx)
         addColorRow(ThemeSlot.SWIPE_RIN, stepPx)
         addColorRow(ThemeSlot.SWIPE_RIN_TEXT, stepPx)
-        addContactCallHistorySection(primaryColor, stepPx)
     }
 
     // 発着信履歴 on the contact screen. Its look is denwa's own (served by denwa), so only these two here.
     private fun addContactCallHistorySection(primaryColor: Int, stepPx: Int) {
-        addSectionHeader(getString(R.string.contact_call_history_settings), primaryColor)
         addSwitchRow(
             title = getString(R.string.contact_call_history_enable),
+            icon = RowIcon.CALL_LOG,
             checked = config.contactCallHistory,
             indent = stepPx,
             description = getString(R.string.contact_call_history_desc),
         ) { config.contactCallHistory = it }
         lateinit var countRow: ItemThemeValueBinding
-        countRow = addValueRow(getString(R.string.contact_call_history_count), config.contactCallHistoryCount.toString(), stepPx) {
+        countRow = addValueRow(getString(R.string.contact_call_history_count), config.contactCallHistoryCount.toString(), stepPx, icon = RowIcon.CALL_LOG) {
             val choices = CONTACT_CALL_HISTORY_COUNTS
             val items = ArrayList(choices.mapIndexed { index, count -> RadioItem(index, count.toString(), count) })
             val checked = choices.indexOf(config.contactCallHistoryCount).coerceAtLeast(0)
@@ -1127,9 +1381,10 @@ class ThemeActivity : SimpleActivity() {
     @Suppress("EmptyFunctionBlock") // SeekBar's start/stop-tracking callbacks are intentionally no-ops
     private fun addSlider(title: String, value: Int, max: Int, indent: Int, onChange: (Int) -> Unit) {
         val textColor = getProperTextColor()
-        val b = ItemThemeSliderBinding.inflate(layoutInflater, binding.themeHolder, false)
+        val b = ItemThemeSliderBinding.inflate(layoutInflater, body, false)
         b.themeSliderTitle.text = title
         b.themeSliderTitle.setTextColor(textColor)
+        b.themeSliderTitle.setRowIcon(RowIcon.SIZE)
         b.themeSliderValue.setTextColor(textColor)
         b.themeSliderValue.text = dpLabel(value)
         b.themeSliderSeekbar.max = max
@@ -1144,7 +1399,7 @@ class ThemeActivity : SimpleActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar) {}
         })
         indentRow(b.root, indent)
-        binding.themeHolder.addView(b.root)
+        body.addView(b.root)
     }
 
     private fun dpLabel(dp: Int) = "$dp dp"
@@ -1153,9 +1408,10 @@ class ThemeActivity : SimpleActivity() {
     @Suppress("EmptyFunctionBlock") // SeekBar's start/stop-tracking callbacks are intentionally no-ops
     private fun addThumbnailSlider(indent: Int) {
         val textColor = getProperTextColor()
-        val b = ItemThemeThumbnailBinding.inflate(layoutInflater, binding.themeHolder, false)
+        val b = ItemThemeThumbnailBinding.inflate(layoutInflater, body, false)
         b.themeThumbnailTitle.text = getString(R.string.theme_rows_thumbnail_size)
         b.themeThumbnailTitle.setTextColor(textColor)
+        b.themeThumbnailTitle.setRowIcon(RowIcon.SIZE)
         b.themeThumbnailValue.setTextColor(textColor)
         b.themeThumbnailSeekbar.max = MAX_CONTACTS_LIST_THUMBNAIL_DP
         b.themeThumbnailSeekbar.min = MIN_CONTACTS_LIST_THUMBNAIL_DP
@@ -1174,7 +1430,7 @@ class ThemeActivity : SimpleActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar) {}
         })
         indentRow(b.root, indent)
-        binding.themeHolder.addView(b.root)
+        body.addView(b.root)
     }
 
     private fun updateThumbnailPreview(preview: ImageView, dp: Int) {
@@ -1195,7 +1451,8 @@ class ThemeActivity : SimpleActivity() {
         indent: Int,
         description: String? = null,
         explained: Boolean = description != null,
-        parent: ViewGroup = binding.themeHolder,
+        parent: ViewGroup = body,
+        icon: RowIcon = RowIcon.TOGGLE,
         onChange: (Boolean) -> Unit,
     ): ItemThemeSwitchBinding {
         val b = ItemThemeSwitchBinding.inflate(layoutInflater, parent, false)
@@ -1203,6 +1460,8 @@ class ThemeActivity : SimpleActivity() {
         b.themeSwitchLabel.text = title
         b.themeSwitchLabel.setTextColor(if (explained) getProperPrimaryColor() else getProperTextColor())
         if (explained) b.themeSwitchLabel.setTypeface(b.themeSwitchLabel.typeface, Typeface.BOLD)
+        b.themeSwitchLabel.setRowIcon(icon)
+        b.themeSwitchDesc.setPaddingRelative(rowIconInset(), b.themeSwitchDesc.paddingTop, 0, 0)
         b.themeSwitchDesc.text = description.orEmpty()
         b.themeSwitchDesc.setTextColor(note)
         b.themeSwitchDesc.beVisibleIf(description != null)
@@ -1230,9 +1489,10 @@ class ThemeActivity : SimpleActivity() {
         onCopy: () -> Unit,
         onRegenerate: (ItemThemeTokenBinding) -> Unit,
     ) {
-        val b = ItemThemeTokenBinding.inflate(layoutInflater, binding.themeHolder, false)
+        val b = ItemThemeTokenBinding.inflate(layoutInflater, body, false)
         b.themeTokenLabel.text = getString(R.string.automation_token)
         b.themeTokenLabel.setTextColor(getProperTextColor())
+        b.themeTokenLabel.setRowIcon(RowIcon.SECRET)
         b.themeTokenValue.text = abbreviateToken(token)
         b.themeTokenValue.setTextColor(getProperTextColor())
         b.themeTokenRegenerate.text = getString(R.string.automation_token_regenerate)
@@ -1242,7 +1502,7 @@ class ThemeActivity : SimpleActivity() {
         b.root.setOnClickListener { onCopy() }
         b.themeTokenRegenerate.setOnClickListener { onRegenerate(b) }
         indentRow(b.root, indent)
-        binding.themeHolder.addView(b.root)
+        body.addView(b.root)
     }
 
     // Shown abbreviated so the secret is not left on screen; the tap still copies it in full.
@@ -1253,17 +1513,24 @@ class ThemeActivity : SimpleActivity() {
             token.take(TOKEN_ABBREVIATION_EDGE) + "…" + token.takeLast(TOKEN_ABBREVIATION_EDGE)
         }
 
-    private fun addValueRow(title: String, value: String, indent: Int, onClick: () -> Unit): ItemThemeValueBinding {
+    private fun addValueRow(
+        title: String,
+        value: String,
+        indent: Int,
+        icon: RowIcon = RowIcon.VALUE,
+        onClick: () -> Unit,
+    ): ItemThemeValueBinding {
         val textColor = getProperTextColor()
-        val b = ItemThemeValueBinding.inflate(layoutInflater, binding.themeHolder, false)
+        val b = ItemThemeValueBinding.inflate(layoutInflater, body, false)
         b.themeValueLabel.text = title
         b.themeValueLabel.setTextColor(textColor)
+        b.themeValueLabel.setRowIcon(icon)
         b.themeValueValue.text = value
         // The current value in the accent colour: it is what a tap changes.
         b.themeValueValue.setTextColor(getProperPrimaryColor())
         b.root.setOnClickListener { onClick() }
         indentRow(b.root, indent)
-        binding.themeHolder.addView(b.root)
+        body.addView(b.root)
         return b
     }
 
@@ -1279,7 +1546,8 @@ class ThemeActivity : SimpleActivity() {
         indent: Int,
         main: Boolean = false,
         opens: Boolean = true,
-        parent: ViewGroup = binding.themeHolder,
+        parent: ViewGroup = body,
+        icon: RowIcon = RowIcon.SETTINGS,
         onClick: () -> Unit,
     ): ItemThemeActionBinding {
         val b = ItemThemeActionBinding.inflate(layoutInflater, parent, false)
@@ -1287,6 +1555,10 @@ class ThemeActivity : SimpleActivity() {
         b.themeActionTitle.text = title
         b.themeActionTitle.setTextColor(accent)
         b.themeActionTitle.setTypeface(null, if (main) Typeface.BOLD else Typeface.NORMAL)
+        b.themeActionTitle.setRowIcon(icon)
+        b.themeActionDesc.setPaddingRelative(
+            b.themeActionDesc.paddingStart + rowIconInset(), b.themeActionDesc.paddingTop, 0, 0,
+        )
         b.themeActionChevron.setTextColor(accent)
         b.themeActionChevron.beVisibleIf(opens)
         b.themeActionPill.background = pillDrawable(accent, getProperBackgroundColor(), main)
@@ -1321,7 +1593,7 @@ class ThemeActivity : SimpleActivity() {
     private fun addPatternRow(titleRes: Int, kindPrefix: String, indent: Int) {
         val pattern = config.getDetailPattern(kindPrefix, config.detailTimeFormat)
         val value = "$pattern（${formatPatternSample(kindPrefix, pattern)}）"
-        addValueRow(getString(titleRes), value, indent) {
+        addValueRow(getString(titleRes), value, indent, icon = RowIcon.TIME) {
             editDetailPattern(titleRes, kindPrefix)
         }
     }
@@ -1382,7 +1654,7 @@ class ThemeActivity : SimpleActivity() {
         title: String,
         primaryColor: Int,
         indent: Int,
-        parent: ViewGroup = binding.themeHolder,
+        parent: ViewGroup = body,
     ) {
         val subgroup = ItemThemeSubgroupBinding.inflate(layoutInflater, parent, false)
         subgroup.themeSubgroupLabel.text = title
@@ -1393,18 +1665,19 @@ class ThemeActivity : SimpleActivity() {
     }
 
     private fun addColorRow(slot: ThemeSlot, indent: Int) {
-        val row = ItemThemeColorBinding.inflate(layoutInflater, binding.themeHolder, false)
+        val row = ItemThemeColorBinding.inflate(layoutInflater, body, false)
         row.themeColorLabel.text = getString(slot.labelRes)
         row.themeColorLabel.setTextColor(getProperTextColor())
+        row.themeColorLabel.setRowIcon(RowIcon.COLOR)
         row.themeColorPreview.background.setTint(themeColor(slot))
         row.root.setOnClickListener { openColorPicker(slot) }
         indentRow(row.root, indent)
         previews[slot] = row.themeColorPreview
-        binding.themeHolder.addView(row.root)
+        body.addView(row.root)
     }
 
     @Suppress("EmptyFunctionBlock") // SeekBar's start/stop-tracking callbacks are intentionally no-ops
-    private fun addTextSlot(slot: ThemeSlot, indent: Int, stepPx: Int, parent: ViewGroup = binding.themeHolder) {
+    private fun addTextSlot(slot: ThemeSlot, indent: Int, stepPx: Int, parent: ViewGroup = body) {
         val textColor = getProperTextColor()
         val b = ItemThemeTextBinding.inflate(layoutInflater, parent, false)
         b.themeTextLabel.text = getString(slot.labelRes)
@@ -1413,6 +1686,11 @@ class ThemeActivity : SimpleActivity() {
             b.themeTextWeightTitle, b.themeTextWeightValue, b.themeTextSizeTitle, b.themeTextSizeValue
         ).forEach { it.setTextColor(textColor) }
 
+        // the element's own line sets its colour; the lines beneath set its font, weight and size
+        b.themeTextLabel.setRowIcon(RowIcon.COLOR)
+        b.themeTextFontTitle.setRowIcon(RowIcon.TEXT)
+        b.themeTextWeightTitle.setRowIcon(RowIcon.WEIGHT)
+        b.themeTextSizeTitle.setRowIcon(RowIcon.SIZE)
         b.themeTextColorPreview.background.setTint(themeColor(slot))
         b.themeTextFontValue.text = fontDisplayName(config.getFontFamily(slot.key))
         b.themeTextWeightValue.text = getString(FontWeightOption.fromValue(config.getFontWeight(slot.key)).labelRes)
@@ -1451,6 +1729,19 @@ class ThemeActivity : SimpleActivity() {
      * text — 40dp per row, which on a page this long is screens of whitespace — so the vertical padding
      * is replaced with [ROW_PADDING_VERTICAL_DP] while the horizontal padding and the indent are kept.
      */
+    // The row's icon, before its label and in the colour of what the row does.
+    private fun TextView.setRowIcon(icon: RowIcon) {
+        val density = resources.displayMetrics.density
+        val size = (ROW_ICON_DP * density).toInt()
+        val drawable = resources.getColoredDrawableWithColor(icon.res, themeColor(icon.role))
+        drawable.setBounds(0, 0, size, size)
+        setCompoundDrawablesRelative(drawable, null, null, null)
+        compoundDrawablePadding = (ROW_ICON_GAP_DP * density).toInt()
+    }
+
+    // How far a line beneath a label is moved in, so that it starts under the label's text and not under its icon.
+    private fun rowIconInset() = ((ROW_ICON_DP + ROW_ICON_GAP_DP) * resources.displayMetrics.density).toInt()
+
     private fun indentRow(view: android.view.View, indent: Int) {
         val vertical = (ROW_PADDING_VERTICAL_DP * resources.displayMetrics.density).toInt()
         // No platform minimum: a row is as tall as its content.

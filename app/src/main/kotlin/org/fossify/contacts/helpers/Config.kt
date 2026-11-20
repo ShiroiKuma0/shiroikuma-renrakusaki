@@ -261,6 +261,15 @@ class Config(context: Context) : BaseConfig(context) {
         editor.apply()
     }
 
+    // Per number: the contact's default route is 臨電話 instead of a SIM (see contactDefaultRoute).
+    fun getRinIsDefault(number: String): Boolean = prefs.getBoolean(RIN_DEFAULT_ROUTE_PREFIX + number, false)
+
+    fun setRinIsDefault(number: String, on: Boolean) {
+        val editor = prefs.edit()
+        if (on) editor.putBoolean(RIN_DEFAULT_ROUTE_PREFIX + number, true) else editor.remove(RIN_DEFAULT_ROUTE_PREFIX + number)
+        editor.apply()
+    }
+
     var rinAccountsCache: String
         get() = prefs.getString(RIN_ACCOUNTS_CACHE, "") ?: ""
         set(value) = prefs.edit().putString(RIN_ACCOUNTS_CACHE, value).apply()
@@ -293,6 +302,19 @@ class Config(context: Context) : BaseConfig(context) {
     var swipeToCall: Boolean
         get() = prefs.getBoolean(SWIPE_TO_CALL, true)
         set(value) = prefs.edit().putBoolean(SWIPE_TO_CALL, value).apply()
+
+    var swipeTiles: Boolean
+        get() = prefs.getBoolean(SWIPE_TILES, true)
+        set(value) = prefs.edit().putBoolean(SWIPE_TILES, value).apply()
+
+    // The UI settings page's arrangement. In this file on purpose: it travels in the settings export.
+    var uiSectionOrder: String
+        get() = prefs.getString(UI_SECTION_ORDER, "") ?: ""
+        set(value) = prefs.edit().putString(UI_SECTION_ORDER, value).apply()
+
+    var uiSectionsOpen: Set<String>
+        get() = prefs.getStringSet(UI_SECTIONS_OPEN, null)?.toSet() ?: emptySet()
+        set(value) = prefs.edit().remove(UI_SECTIONS_OPEN).putStringSet(UI_SECTIONS_OPEN, value).apply()
 
     // 発着信履歴 on the contact screen: on/off, and how many of the latest calls it lists.
     var contactCallHistory: Boolean

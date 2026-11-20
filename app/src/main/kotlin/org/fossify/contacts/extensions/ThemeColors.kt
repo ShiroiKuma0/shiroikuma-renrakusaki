@@ -2,6 +2,7 @@ package org.fossify.contacts.extensions
 
 import android.content.Context
 import androidx.annotation.StringRes
+import androidx.core.graphics.ColorUtils
 import org.fossify.commons.extensions.adjustAlpha
 import org.fossify.commons.extensions.getContrastColor
 import org.fossify.commons.extensions.getProperBackgroundColor
@@ -54,6 +55,9 @@ enum class ThemeSlot(
     TEXT_SECONDARY("theme_text_secondary", ThemeGroup.FOUNDATION, R.string.theme_text_secondary),
     // The explanations on the UI settings page and the thin rule down their left edge (black-yellow theme).
     SETTINGS_NOTE("theme_settings_note", ThemeGroup.FOUNDATION, R.string.theme_settings_note),
+    // A switch that is off: its outline and dot, a darker opaque yellow (on is the accent). Commons draws the
+    // switches (sk17), so the override is mirrored into BaseConfig.switchOffColor.
+    SWITCH_OFF("theme_switch_off", ThemeGroup.FOUNDATION, R.string.theme_switch_off),
 
     // Search bar
     SEARCH_FILL("theme_search_fill", ThemeGroup.SEARCH, R.string.theme_search_fill),
@@ -210,6 +214,9 @@ enum class ThemeSlot(
 // Alpha factors for the muted (inherited) defaults.
 private const val ALPHA_SECONDARY_TEXT = 0.6f
 
+// A switch that is off: 55 % of the way from the background to the accent (#8C8C00 on black and yellow).
+private const val SWITCH_OFF_BLEND = 0.55f
+
 // The house dim gold for settings explanations — a colour of its own, never a greyed-out text colour.
 private const val SETTINGS_NOTE_DIM_GOLD = 0xFFC8C800.toInt()
 
@@ -244,6 +251,7 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.TEXT -> getProperTextColor()
     ThemeSlot.TEXT_SECONDARY -> themeColor(ThemeSlot.TEXT).adjustAlpha(ALPHA_SECONDARY_TEXT)
     ThemeSlot.SETTINGS_NOTE -> SETTINGS_NOTE_DIM_GOLD
+    ThemeSlot.SWITCH_OFF -> ColorUtils.blendARGB(themeColor(ThemeSlot.BACKGROUND), themeColor(ThemeSlot.PRIMARY), SWITCH_OFF_BLEND)
     // denwa's defaults, so a swipe looks the same in both apps: SIM 1 red, SIM 2 blue, yellow marking
     ThemeSlot.SWIPE_SIM1 -> SWIPE_SIM1_DEFAULT
     ThemeSlot.SWIPE_SIM2 -> SWIPE_SIM2_DEFAULT
@@ -344,8 +352,16 @@ fun Context.setThemeColor(slot: ThemeSlot, color: Int) {
             config.textColor = color
         }
 
+        // commons draws the switches and reads its own copy
+        ThemeSlot.SWITCH_OFF -> {
+            config.setThemeOverride(slot.key, color)
+            config.switchOffColor = color
+        }
+
         else -> config.setThemeOverride(slot.key, color)
     }
+    // commons draws a destructive dialog button in its own copy of the warning colour (sk15)
+    if (slot == ThemeSlot.MENU_WARNING) config.dialogWarningColor = color
 }
 
 /** Revert a slot to its default (palette for the editable foundation colors, inherited otherwise). */
@@ -353,8 +369,14 @@ fun Context.resetThemeColor(slot: ThemeSlot) {
     when (slot) {
         ThemeSlot.BACKGROUND -> setThemeColor(slot, PALETTE_BLACK)
         ThemeSlot.PRIMARY, ThemeSlot.TEXT -> setThemeColor(slot, PALETTE_YELLOW)
+        ThemeSlot.SWITCH_OFF -> {
+            config.clearThemeOverride(slot.key)
+            config.switchOffColor = 0 // commons derives it again
+        }
+
         else -> config.clearThemeOverride(slot.key)
     }
+    if (slot == ThemeSlot.MENU_WARNING) config.dialogWarningColor = themeColor(slot)
 }
 
 /** One-time seed of the default black/yellow look across the whole app (via the stock colors). */
@@ -380,6 +402,9 @@ private const val DIALOG_FRAME_WIDTH_DP = 3
 fun Context.seedDialogFrame() {
     config.dialogBorderColor = PALETTE_YELLOW
     config.dialogBorderWidth = DIALOG_FRAME_WIDTH_DP
+    // The roles commons draws with its own copies of: a destructive dialog button, a switch that is off.
+    config.dialogWarningColor = themeColor(ThemeSlot.MENU_WARNING)
+    config.switchOffColor = config.getThemeOverride(ThemeSlot.SWITCH_OFF.key).takeIf { it != THEME_UNSET } ?: 0
     // Dialog buttons as pills (commons sk12), switched on once; the switch in UI settings → Buttons wins after.
     if (!config.pillButtonsSeeded) {
         config.pillDialogButtons = true

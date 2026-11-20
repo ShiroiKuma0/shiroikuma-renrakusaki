@@ -198,7 +198,7 @@
     <string name="ui_settings_title">白い熊 連絡先 UI</string>
     <string name="swipe_to_call">スワイプで発信</string>
     <string name="swipe_to_call_enable">連絡先をスワイプして発信</string>
-    <string name="swipe_to_call_desc">連絡先とお気に入りで、行をスワイプすると既定の番号に発信します。左右それぞれ下で設定した経路で発信します — 変更しなければ左がSIM 1、右がSIM 2で、白い熊 電話の通話履歴と同じスワイプです</string>
+    <string name="swipe_to_call_desc">連絡先とお気に入りで、行やタイルをスワイプすると既定の番号に発信します。左右それぞれ下で設定した経路で発信します — 変更しなければ左がSIM 1、右がSIM 2で、白い熊 電話の通話履歴と同じスワイプです</string>
     <string name="swipe_sim1_color">SIM 1 の帯</string>
     <string name="swipe_sim2_color">SIM 2 の帯</string>
     <string name="swipe_text_color">SIM の印と「発信中…」</string>

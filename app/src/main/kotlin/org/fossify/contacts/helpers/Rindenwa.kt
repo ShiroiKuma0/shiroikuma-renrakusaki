@@ -164,6 +164,44 @@ fun Context.effectiveRinAccount(contact: Contact?): Int {
     return if (own >= 0) own else config.rinDefaultAccount
 }
 
+/**
+ * The route [contact] is called by when nothing names one — a tap on its Favorites tile, the call button,
+ * a tap on one of its numbers: sim1, sim2, rin (臨, through the default account), rin:N (臨N, its own
+ * account) or off (nothing set: denwa decides). Set from the selection menu's route picker. The SIM is
+ * the per-number slot denwa reads through our provider; 臨 is a flag beside it, since denwa cannot place
+ * that call. Without Rindenwa installed a 臨 default counts as not set.
+ */
+fun Context.contactDefaultRoute(contact: Contact): String {
+    val keys = contact.routeKeys()
+    if (keys.any { config.getRinIsDefault(it) } && Rindenwa.isInstalled(this)) {
+        val own = contactRinAccount(contact)
+        return if (own >= 0) ROUTE_RIN_PREFIX + own else ROUTE_RIN
+    }
+    return when (keys.map { config.getSimSlot(it) }.firstOrNull { it == 1 || it == 2 }) {
+        1 -> ROUTE_SIM1
+        2 -> ROUTE_SIM2
+        else -> ROUTE_OFF
+    }
+}
+
+/** Stores [route] (see [contactDefaultRoute]) for every number of [contact]. Choosing a SIM or nothing keeps its own 臨 account. */
+fun Context.setContactDefaultRoute(contact: Contact, route: String) {
+    val isRin = route == ROUTE_RIN || route.startsWith(ROUTE_RIN_PREFIX)
+    val slot = when (route) {
+        ROUTE_SIM1 -> 1
+        ROUTE_SIM2 -> 2
+        else -> 0
+    }
+    contact.routeKeys().forEach { key ->
+        config.setSimSlot(key, slot)
+        config.setRinIsDefault(key, isRin)
+        if (isRin) config.setRinAccount(key, route.removePrefix(ROUTE_RIN_PREFIX).toIntOrNull() ?: RIN_ACCOUNT_SELECTED)
+    }
+}
+
+/** Whether [contact]'s default route is 臨電話. */
+fun Context.contactCallsViaRin(contact: Contact): Boolean = contactDefaultRoute(contact).startsWith(ROUTE_RIN)
+
 /** The badge for [account]; "as selected in 臨電話" shows the number of the account Rindenwa has selected. */
 fun Context.rinBadgeFor(account: Int): String {
     if (account >= 0) return rinBadge(account)
@@ -192,8 +230,11 @@ fun RinAccount.pickerLabel(): String {
 
 // ---- Placing the call, and opening Rindenwa ----
 
-/** Calls [number] through 臨 account [account] (negative = the one selected in Rindenwa), after the confirmation when on. */
-fun BaseSimpleActivity.callNumberViaRindenwa(number: String, name: String, account: Int) {
+/**
+ * Calls [number] through 臨 account [account] (negative = the one selected in Rindenwa), after the confirmation
+ * when on. [confirm] = false where the caller has asked already, or must never ask (tap-to-dial while driving).
+ */
+fun BaseSimpleActivity.callNumberViaRindenwa(number: String, name: String, account: Int, confirm: Boolean = true) {
     val call = {
         val appContext = applicationContext
         ensureBackgroundThread {
@@ -201,7 +242,7 @@ fun BaseSimpleActivity.callNumberViaRindenwa(number: String, name: String, accou
             if (error != null) runOnUiThread { toast(rinErrorText(error, account), android.widget.Toast.LENGTH_LONG) }
         }
     }
-    if (config.showCallConfirmation) CallConfirmationDialog(this, name) { call() } else call()
+    if (confirm && config.showCallConfirmation) CallConfirmationDialog(this, name) { call() } else call()
 }
 
 /**
