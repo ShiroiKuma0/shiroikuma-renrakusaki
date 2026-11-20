@@ -7,6 +7,56 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+132] — 2026-11-20
+
+Since `1.6.0+130`, still on **Fossify Contacts 1.6.0**; Commons moves from **6.1.6-sk14** to **6.1.6-sk17**.
+
+### A default call route per contact
+- **The SIM icon of the selection menu now picks a route, not only a SIM**: SIM 1, SIM 2, 白い熊 臨電話
+  through its default account, one particular 臨N account, or none. The dialog is “Default call route
+  for contact”; each line carries its own badge, and the SIMs, the 臨 accounts and “None” are divided.
+- **A 臨 default is used** by a tap on a Favorites tile (tap-to-dial, never with a confirmation), by the
+  call button, by “call” as the tap action in the lists, and by a tap on a number on the contact screen.
+- **The photo badge in the lists shows it**: 臨N at the bottom centre, in the colours that account has in
+  臨電話, beside the red 1 (bottom start) and the blue 2 (bottom end).
+- Choosing a 臨N also makes it the contact's own 臨 account; choosing a SIM or none keeps that account.
+- The Phone fork still reads only the SIM through the provider: a contact whose default is 臨 has no SIM
+  there, and a call started from the Phone fork is routed the Phone fork's own way.
+
+### Swipe to call on tiles
+- **Tiles swipe too** — the cells of the Favorites grid and of a Contacts list laid out in several
+  columns — with the same left and right routes as rows.
+- A tile slides inside its own cell: it commits after 40 % of its width or a flick, is clipped to the
+  cell while it moves, and “Dialing…” shrinks to fit it.
+- New switch: UI settings → Swipe to call → *Swipe tiles too* (on by default). Off, only full-width rows
+  swipe and a sideways drag over a tile changes the tab again.
+
+### The UI settings page
+- **A folding accordion**: every section folds under its heading (› folded, ⌄ open), all folded on a
+  fresh install, and a folded section's rows are not built until it is opened, so the page opens faster.
+- **A chip index under the settings link**: one small chip per section. A tap unfolds that section and
+  scrolls to it; a long-press drags the chip, the chips reorder under the finger and the sections follow.
+- *Reset section order* in Maintenance. Order and fold state are part of the settings export.
+- “Call history on the contact screen” is a section of its own, no longer the tail of Swipe to call.
+- **An icon on every row**, coloured by what the row does, in the menu icon colours: calls green,
+  contacts cyan, export and automation orange, privacy magenta, plain settings in the accent. The field
+  order list has one per field too.
+- A thin darker line separates the sections; headings are underlined as wide as their text.
+
+### Look
+- **Switches are outlined everywhere** — a round outline with a solid dot, right and in the accent when
+  on, left and darker when off — on the UI page, in the app's settings and in dialogs.
+- New colour: Foundation → *Switch that is off*.
+- **The + button and the dialpad button are no longer filled**: the background shows through, the icon
+  and a thick ring are in the accent.
+- **A confirmation that deletes has a red main button**: deleting contacts, groups and duplicates. The
+  “delete all” pill in Clean up duplicates is red as well.
+- The 臨 account picker has one column for its badges, and a cog on the line that names no account.
+
+### Under the hood
+- Commons `sk17`: tile-aware swipe, the outlined switch and floating button; `sk15`–`sk16` come along
+  (red destructive dialog buttons, the family's look on Commons' own screens and on Customize colors).
+
 ## [1.6.0+130] — 2026-11-20
 
 Since `1.6.0+129`, still on **Fossify Contacts 1.6.0** and Commons **6.1.6-sk14**.

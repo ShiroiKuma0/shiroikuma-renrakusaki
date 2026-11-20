@@ -6,11 +6,11 @@
 
 **A black-and-yellow, deeply customizable contacts app — your list, your layout, your colors.**
 
-A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: private contacts that stay private yet can be made visible to other apps one by one, every Android contact field shown, editable and backed up, a duplicate cleaner, Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, one bottom bar shared with the Phone and SIP-phone forks, calling through a SIP account from badges on every number, swipe a contact to call it by the route you gave that side, pill menus, tap-to-dial on the Favorites grid while the car is connected, per-contact default SIM, category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
+A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: private contacts that stay private yet can be made visible to other apps one by one, every Android contact field shown, editable and backed up, a duplicate cleaner, Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, one bottom bar shared with the Phone and SIP-phone forks, calling through a SIP account from badges on every number, swipe a contact — a row or a tile — to call it by the route you gave that side, a settings page that folds and reorders, pill menus, tap-to-dial on the Favorites grid while the car is connected, a default call route per contact (a SIM or a SIP account), category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+130`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+132`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -38,7 +38,7 @@ A double import leaves every contact twice; a SIM card adds a third. **UI settin
 ---
 
 ## 🎨 Granular black & yellow theming
-A full Theme & Colors system that defaults to pure black `#000000` + pure yellow `#FFFF00` (not material yellow). Every accent is yours to set: the top bar, the search action icon, the overflow menu, and the contact phone-number color each get their own control. The color pickers gain an **alpha slider**, a **recently-used colors** row, and **per-element font** selection. Even the icons drawn **on top of a contact's photo** — the back arrow, edit, share and delete up top, the favorite/call/SMS row below — are painted in the accent over a **halo in the icon's own shape**, so they never vanish into a solid-yellow placeholder; the halo's color and thickness are yours too. A matching launcher icon — a yellow-traced figure on black — completes the look. Actions are **pills**: a main action has a thick frame and bold text, the rest a thin one — dialog buttons included.
+A full Theme & Colors system that defaults to pure black `#000000` + pure yellow `#FFFF00` (not material yellow). Every accent is yours to set: the top bar, the search action icon, the overflow menu, and the contact phone-number color each get their own control. The color pickers gain an **alpha slider**, a **recently-used colors** row, and **per-element font** selection. Even the icons drawn **on top of a contact's photo** — the back arrow, edit, share and delete up top, the favorite/call/SMS row below — are painted in the accent over a **halo in the icon's own shape**, so they never vanish into a solid-yellow placeholder; the halo's color and thickness are yours too. A matching launcher icon — a yellow-traced figure on black — completes the look. Actions are **pills**: a main action has a thick frame and bold text, the rest a thin one — dialog buttons included, and red when they delete. Nothing is a filled slab: **switches** are a round outline with a dot, and the floating buttons an outlined ring. The settings page itself is a **folding accordion**: every section folded until you open it, a row of small chips on top that jump to a section — long-press one and drag it, and the sections reorder to match — and an icon on every row, coloured by what the row does.
 
 ---
 
@@ -79,7 +79,7 @@ Broadcasts let the companion task runner (白い熊 自由作業盤) back this a
 ---
 
 ## 👉 Swipe to call, by the route you gave each side
-In Contacts and Favorites, **swipe a row to call its default number** — the same gesture, with the same look, as the companion Phone fork's call history. **Each side has its own route**: SIM 1, SIM 2, the default SIP account of 白い熊 臨電話, one particular 臨N account, or nothing at all. A quarter of the row or a quick flick is enough; the row slides on into a band in the route's colour — a 臨 side wears its account's own colours and mark — then stays there reading **“Dialing…”** until the call is up. Routes, on/off and the band colours live on the UI page.
+In Contacts and Favorites, **swipe a row — or a tile of the Favorites grid — to call its default number** — the same gesture, with the same look, as the companion Phone fork's call history. **Each side has its own route**: SIM 1, SIM 2, the default SIP account of 白い熊 臨電話, one particular 臨N account, or nothing at all. A quarter of the row or a quick flick is enough; the row slides on into a band in the route's colour (a tile slides inside its own cell) — a 臨 side wears its account's own colours and mark — then stays there reading **“Dialing…”** until the call is up. Routes, on/off and the band colours live on the UI page.
 
 ---
 
@@ -93,8 +93,8 @@ Open a contact and its latest calls are listed under its fields — drawn like t
 
 ---
 
-## 📱 Per-contact default SIM
-On a dual-SIM phone, pin a preferred SIM to any contact: a **SIM badge** shows it right in the list, a **picker** (from the long-press menu) sets it, and a **content provider** exposes the choice so the companion dialer auto-selects the right SIM when you call.
+## 📱 A default call route per contact
+Pin the way a contact is called: **SIM 1, SIM 2, the default SIP account of 白い熊 臨電話, or one particular 臨N account**. A **badge on the photo** shows it right in the list — the red 1, the blue 2, or 臨N in that account's own colours — and a **picker** (the SIM icon of the long-press menu) sets it. A tap on a favourite, the call button and a tap on a number then go out that way. A SIM choice is also exposed through a **content provider**, so the companion dialer auto-selects the right SIM when you call from there.
 
 ---
 
