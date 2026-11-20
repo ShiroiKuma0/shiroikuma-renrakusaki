@@ -7,6 +7,19 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+130] — 2026-11-20
+
+Since `1.6.0+129`, still on **Fossify Contacts 1.6.0** and Commons **6.1.6-sk14**.
+
+### New contact from another app
+- **A name row in an “insert contact” request now fills the name fields.** An app that opens the
+  new-contact editor with a `StructuredName` row among the intent's data rows gets its parts placed
+  where it put them: prefix, first name, middle name, surname and suffix. Until now such a row was
+  dropped and the editor opened with the name empty.
+- This is what lets 白い熊 臨電話 (from `+047`) hand over the name it found for an unknown caller as the
+  **Surname** — “add to contacts” in its call history opens the editor with number and name filled.
+- An empty part never overwrites a value, so a name row and the classic `name` extra can be combined.
+
 ## [1.6.0+129] — 2026-11-19
 
 Since `1.6.0+127`, still on **Fossify Contacts 1.6.0** and Commons **6.1.6-sk14**.
