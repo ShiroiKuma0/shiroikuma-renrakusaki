@@ -1969,6 +1969,7 @@ class EditContactActivity : ContactActivity() {
     private fun parseIntentData(data: ArrayList<ContentValues>) {
         data.forEach {
             when (it.get(StructuredName.MIMETYPE)) {
+                StructuredName.CONTENT_ITEM_TYPE -> parseStructuredName(it)
                 CommonDataKinds.Email.CONTENT_ITEM_TYPE -> parseEmail(it)
                 StructuredPostal.CONTENT_ITEM_TYPE -> parseAddress(it)
                 CommonDataKinds.Organization.CONTENT_ITEM_TYPE -> parseOrganization(it)
@@ -1977,6 +1978,17 @@ class EditContactActivity : ContactActivity() {
                 Note.CONTENT_ITEM_TYPE -> parseNote(it)
             }
         }
+    }
+
+    // A name row lets the sender choose the field: 臨電話 puts a looked-up caller name into FAMILY_NAME,
+    // because Insert.NAME always lands in the first name. An empty part never overwrites a value.
+    private fun parseStructuredName(contentValues: ContentValues) {
+        fun part(key: String) = contentValues.getAsString(key)?.trim()?.takeIf { it.isNotEmpty() }
+        part(StructuredName.PREFIX)?.let { contact!!.prefix = it }
+        part(StructuredName.GIVEN_NAME)?.let { contact!!.firstName = it }
+        part(StructuredName.MIDDLE_NAME)?.let { contact!!.middleName = it }
+        part(StructuredName.FAMILY_NAME)?.let { contact!!.surname = it }
+        part(StructuredName.SUFFIX)?.let { contact!!.suffix = it }
     }
 
     private fun parseEmail(contentValues: ContentValues) {
