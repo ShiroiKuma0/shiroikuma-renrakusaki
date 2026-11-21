@@ -7,6 +7,22 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+135] — 2026-11-21
+
+Since `1.6.0+134`, still on **Fossify Contacts 1.6.0**; Commons moves from **6.1.6-sk18** to **6.1.6-sk19**.
+
+### Commons 6.1.6-sk19
+- The app is built on the Commons revision the sister apps 予定表 and メッセージ use, so all of them share
+  one role table.
+- **Three more colours on the UI page**, in *Dialogs*: the time picker's digits, its separator and its
+  AM / PM pill. They are the roles of the Commons' own time picker (`FamilyTimePicker`), which 連絡先
+  itself does not show — the rows are there so the role list is the same in every app and travels in
+  the settings export.
+- The date picker gains a settable first day of the week and month-only / year-only forms in Commons;
+  the birthday and event picker here is unchanged.
+
+Nothing else changes in the app.
+
 ## [1.6.0+134] — 2026-11-21
 
 Since `1.6.0+132`, still on **Fossify Contacts 1.6.0**; Commons moves from **6.1.6-sk17** to **6.1.6-sk18**.
