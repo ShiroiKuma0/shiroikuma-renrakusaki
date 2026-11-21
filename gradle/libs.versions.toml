@@ -21,7 +21,7 @@ indicatorfastscroll = "4524cd0b61"
 #Room
 room = "2.8.4"
 #Fossify
-commons = "6.1.6-sk18"  # shiroikuma: patched Commons (anti-tamper removed + fork fixes + styled toasts + stale-source import fallback + Contact.extra + pill dialog buttons + swipe to call and call-log formats shared with denwa + a route per swipe side + red destructive buttons and the family look on commons' own screens + tile swipes, the outlined switch and the outlined floating button + every colour a role, none in XML), from mavenLocal
+commons = "6.1.6-sk19"  # shiroikuma: patched Commons (anti-tamper removed + fork fixes + styled toasts + stale-source import fallback + Contact.extra + pill dialog buttons + swipe to call and call-log formats shared with denwa + a route per swipe side + red destructive buttons and the family look on commons' own screens + tile swipes, the outlined switch and the outlined floating button + every colour a role, none in XML + a time picker of our own and a settable week start on the date picker), from mavenLocal
 #Gradle
 gradlePlugins-agp = "9.3.1"
 #build
