@@ -7,6 +7,81 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+134] — 2026-11-21
+
+Since `1.6.0+132`, still on **Fossify Contacts 1.6.0**; Commons moves from **6.1.6-sk17** to **6.1.6-sk18**.
+
+### Every colour is a settable role — none is written in XML
+- **`#FFFF00` and `#000000` are defaults only.** They are written once, in the Commons role table, and
+  every other default is derived from the background, accent and text roles — so changing one of those
+  three still repaints everything that was not set by itself.
+- **No layout, drawable, style or theme names a colour any more**, in the app or in Commons. Shapes
+  (row grounds, ripples, swatches, dividers, the menu panel, badges, the shades over a contact photo)
+  are built in code from their roles.
+- **Every item has a role of its own, in the section it belongs to** on the UI page. New sections:
+  *Text*, *Text fields and pickers*, *Dialogs*, *Switches*, *Check boxes and radio buttons*, *Bars* and
+  *Toasts*; the button, menu and list roles sit in *Buttons*, *Menus* and *Contact lists*.
+  - Buttons: text, frame, ground, the destructive colour; the floating button's icon, frame and ground.
+  - Dialogs: ground, frame, title, text, and the button's text, frame and ground.
+  - Switches: outline and dot, on and off, and the label.
+  - Text fields: text, hint, the line focused and idle, label, cursor and selection; pickers and sliders.
+  - Check boxes and radio buttons: on, off and label, each.
+  - Menus: the panel's ground and frame, the row's label and frame, the divider.
+  - Lists: divider, selected row, pressed row, the fast scroller, its bubble and the bubble's text.
+  - Bars: the top bar's ground, title and icons; the selection bar's ground, text and icons; the status
+    and navigation bars (a strip of the colour is drawn once one is set; until then the screen shows
+    through); the bottom bar and its tabs; the search bar.
+  - Toasts: ground, frame and text.
+- **New roles of the app itself**: the SIM badge on a list photo (SIM 1, SIM 2, the digit, its halo),
+  the arrow of an incoming, outgoing and missed call on the 詳 lines, the shade behind the icons over a
+  contact photo and the ground behind the enlarged photo.
+- **Reset**: the colour picker's *default* button puts one role back; Maintenance → *Reset all colours*
+  puts back all of them, after a red confirmation. Every role travels in the settings export.
+- Colours set before this release are kept: the ones stored on items Commons now draws are moved to
+  their new keys once, at the first start.
+- **Icons** keep a neutral placeholder fill in their files and are tinted in code — from the text role
+  by default, from their own role where a screen has one. Brand marks, flags and the launcher icons keep
+  their own colours.
+- **Stock widgets are painted as they are created**, through one hook in the theme, so a text, button,
+  field, check box, radio button, slider, picker or progress bar nobody styled by hand no longer shows
+  the Material theme's own colours.
+- What stays in XML: the black window background the system draws before any code runs (the app
+  repaints it from the background role at once), and the grounds of the launcher icon variants.
+
+### What looks different
+- **Top bars are black with a yellow title on every screen**, also when the list beneath is scrolled.
+  The UI page and *Clean up duplicates* no longer open with a yellow bar. Ground, title and icons are
+  settable (*Bars*, *Top bar*).
+- **Muted text is an opaque darker yellow** instead of the text colour at 60 %.
+- **“Customize colors” is gone from Settings**, together with the stock system / white / black-and-white
+  themes and the choice of a launcher icon colour: the UI page is the one place colours are set. The
+  launcher icon itself is unchanged.
+
+### A date picker of our own
+- **The birthday / anniversary dialog has a new picker.** The platform's draws its day grid from theme
+  colours no code can set, so it is replaced by a month grid drawn by the app.
+- The chosen day carries an outlined ring and a bold digit — never a filled disc; today has a short
+  line under it.
+- Arrow pills step the month, and the year by one and by ten, so a birth year decades back is a few
+  taps away. Week start and names follow the phone's language. *Hide year* works as before.
+- Seven roles under *Dialogs*: days, chosen day, today's mark, weekday names, month and year, arrows,
+  arrow frames.
+
+### One call route everywhere — a door for the sister apps
+- **The private-contacts provider answers `get_route` and `set_route`** (`ContentResolver.call`): the
+  route of a number as `sim1`, `sim2`, `rin`, `rin:N` or `off`, read and written by the apps on the
+  *Apps allowed to read them* list. 白い熊 メッセージ uses it, so a route picked there is the contact's
+  route here and the other way round.
+- Numbers are matched as phone numbers; a write refreshes the badges in the lists.
+- An older build answers nothing for these methods, which is how a caller tells “no route set” (`off`)
+  from “no door”.
+
+### Under the hood
+- Commons **6.1.6-sk18**: the role table (`UiRole`), role-reading views, the inflater hook, shapes in
+  code, the date picker; `colors.xml`, the `md_` palette, 200 stock theme styles, 34 coloured shape
+  drawables and the *Customize colors* screen are removed.
+- The launcher icon variants carry their ground colour in the icon file itself.
+
 ## [1.6.0+132] — 2026-11-20
 
 Since `1.6.0+130`, still on **Fossify Contacts 1.6.0**; Commons moves from **6.1.6-sk14** to **6.1.6-sk17**.
