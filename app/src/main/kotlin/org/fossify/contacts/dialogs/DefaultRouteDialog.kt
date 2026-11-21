@@ -1,5 +1,7 @@
 package org.fossify.contacts.dialogs
 
+import org.fossify.commons.extensions.rippleDrawable
+import org.fossify.contacts.extensions.styleSimBadge
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
@@ -32,8 +34,6 @@ import org.fossify.contacts.helpers.ROUTE_RIN_PREFIX
 import org.fossify.contacts.helpers.ROUTE_SIM1
 import org.fossify.contacts.helpers.ROUTE_SIM2
 import org.fossify.contacts.helpers.Rindenwa
-import org.fossify.contacts.helpers.SIM1_BADGE_COLOR
-import org.fossify.contacts.helpers.SIM2_BADGE_COLOR
 import org.fossify.contacts.helpers.rinBadge
 import org.fossify.contacts.helpers.rinBadgeColors
 import org.fossify.contacts.helpers.rinBadgeFor
@@ -142,7 +142,7 @@ private class DefaultRouteDialog(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(ROW_PAD_DP), 0, dp(ROW_PAD_DP))
-            setBackgroundResource(org.fossify.commons.R.drawable.ripple_background)
+            background = activity.rippleDrawable()
             isClickable = true
             setOnClickListener {
                 callback(line.route)
@@ -187,8 +187,7 @@ private class DefaultRouteDialog(
         route == ROUTE_SIM1 || route == ROUTE_SIM2 -> {
             val first = route == ROUTE_SIM1
             activity.layoutInflater.inflate(R.layout.sim_badge, parent, false).apply {
-                findViewById<ImageView>(R.id.sim_badge_icon).applyColorFilter(if (first) SIM1_BADGE_COLOR else SIM2_BADGE_COLOR)
-                findViewById<TextView>(R.id.sim_badge_number).text = if (first) "1" else "2"
+                styleSimBadge(if (first) 1 else 2)
             }
         }
 

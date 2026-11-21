@@ -3,23 +3,27 @@ package org.fossify.contacts.extensions
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.core.graphics.ColorUtils
-import org.fossify.commons.extensions.adjustAlpha
-import org.fossify.commons.extensions.getContrastColor
-import org.fossify.commons.extensions.getProperBackgroundColor
-import org.fossify.commons.extensions.getProperPrimaryColor
-import org.fossify.commons.extensions.getProperTextColor
+import org.fossify.commons.helpers.FAMILY_YELLOW
+import org.fossify.commons.helpers.UiRole
+import org.fossify.commons.helpers.isUiColorSet
+import org.fossify.commons.helpers.resetAllUiColors
+import org.fossify.commons.helpers.resetUiColor
+import org.fossify.commons.helpers.setUiColor
+import org.fossify.commons.helpers.uiColor
 import org.fossify.contacts.R
-import org.fossify.contacts.helpers.PALETTE_BLACK
-import org.fossify.contacts.helpers.PALETTE_YELLOW
 import org.fossify.contacts.helpers.THEME_UNSET
 
 // Granular, per-element theming for 白い熊 連絡先.
 //
-// Each [ThemeSlot] is one customizable color. Foundation slots reuse the stock commons colors
-// (background / primary / text); every other slot inherits from a foundation slot by default
-// (two-tier), so the whole app stays coherent and a single foundation change cascades. A slot
-// only diverges once the user gives it an explicit override (stored as an Int; THEME_UNSET means
-// "follow the default"). The default look is seeded to black background + yellow text/accents.
+// Each [ThemeSlot] is one colour role of this app's own surfaces, settable on the UI page in the section
+// of its item. The roles of everything the commons draws (buttons, dialogs, switches, fields, bars…) are
+// commons' [UiRole]s; a slot with a [ThemeSlot.role] IS that commons role, shown here under this app's
+// label and section, and is stored in the role's key. Every other slot inherits from a role by default,
+// so a single foundation change cascades, and only diverges once it is given an explicit override
+// (stored as an Int; THEME_UNSET means "follow the default").
+//
+// No colour is written in this app's XML, and the two primaries (#FFFF00 / #000000) are written once, in
+// commons' role table (helpers/UiRoles.kt). The only literals below are colours that carry meaning.
 
 // A top-level section in the Theme screen (large accent header + full-width rule). Declaration order
 // is the page order: chrome first (foundation, search, tabs, top bar), then the Contacts-tab letter
@@ -47,36 +51,38 @@ enum class ThemeSlot(
     val isFoundation: Boolean = false,
     // hasFont = true for concrete text views (family / weight / size are configurable per element)
     val hasFont: Boolean = false,
+    // The commons role this slot is (see the head of the file); null = a role of this app alone.
+    val role: UiRole? = null,
 ) {
     // Foundation — reuse the stock commons colors (editing these repaints the whole app)
-    BACKGROUND("theme_background", ThemeGroup.FOUNDATION, R.string.theme_background, isFoundation = true),
-    PRIMARY("theme_primary", ThemeGroup.FOUNDATION, R.string.theme_primary, isFoundation = true),
-    TEXT("theme_text", ThemeGroup.FOUNDATION, R.string.theme_text, isFoundation = true),
+    BACKGROUND("theme_background", ThemeGroup.FOUNDATION, R.string.theme_background, isFoundation = true, role = UiRole.BACKGROUND),
+    PRIMARY("theme_primary", ThemeGroup.FOUNDATION, R.string.theme_primary, isFoundation = true, role = UiRole.ACCENT),
+    TEXT("theme_text", ThemeGroup.FOUNDATION, R.string.theme_text, isFoundation = true, role = UiRole.TEXT),
     TEXT_SECONDARY("theme_text_secondary", ThemeGroup.FOUNDATION, R.string.theme_text_secondary),
     // The explanations on the UI settings page and the thin rule down their left edge (black-yellow theme).
     SETTINGS_NOTE("theme_settings_note", ThemeGroup.FOUNDATION, R.string.theme_settings_note),
     // A switch that is off: its outline and dot, a darker opaque yellow (on is the accent). Commons draws the
     // switches (sk17), so the override is mirrored into BaseConfig.switchOffColor.
-    SWITCH_OFF("theme_switch_off", ThemeGroup.FOUNDATION, R.string.theme_switch_off),
+    SWITCH_OFF("theme_switch_off", ThemeGroup.FOUNDATION, R.string.theme_switch_off, role = UiRole.SWITCH_OFF_OUTLINE),
 
     // Search bar
-    SEARCH_FILL("theme_search_fill", ThemeGroup.SEARCH, R.string.theme_search_fill),
-    SEARCH_TEXT("theme_search_text", ThemeGroup.SEARCH, R.string.theme_search_text, hasFont = true),
-    SEARCH_HINT("theme_search_hint", ThemeGroup.SEARCH, R.string.theme_search_hint),
-    SEARCH_ICON("theme_search_icon", ThemeGroup.SEARCH, R.string.theme_search_icon),
+    SEARCH_FILL("theme_search_fill", ThemeGroup.SEARCH, R.string.theme_search_fill, role = UiRole.SEARCH_GROUND),
+    SEARCH_TEXT("theme_search_text", ThemeGroup.SEARCH, R.string.theme_search_text, hasFont = true, role = UiRole.SEARCH_TEXT),
+    SEARCH_HINT("theme_search_hint", ThemeGroup.SEARCH, R.string.theme_search_hint, role = UiRole.SEARCH_HINT),
+    SEARCH_ICON("theme_search_icon", ThemeGroup.SEARCH, R.string.theme_search_icon, role = UiRole.SEARCH_ICON),
     SEARCH_ACTION_ICON("theme_search_action_icon", ThemeGroup.SEARCH, R.string.theme_search_action_icon),
-    SEARCH_MENU_TEXT("theme_search_menu_text", ThemeGroup.SEARCH, R.string.theme_search_menu_text),
-    SEARCH_BORDER("theme_search_border", ThemeGroup.SEARCH, R.string.theme_search_border),
+    SEARCH_MENU_TEXT("theme_search_menu_text", ThemeGroup.SEARCH, R.string.theme_search_menu_text, role = UiRole.MENU_LABEL),
+    SEARCH_BORDER("theme_search_border", ThemeGroup.SEARCH, R.string.theme_search_border, role = UiRole.SEARCH_FRAME),
     COLUMN_BUTTONS("theme_column_buttons", ThemeGroup.SEARCH, R.string.theme_slot_column_buttons, hasFont = true),
 
     // Tabs
-    TAB_BACKGROUND("theme_tab_background", ThemeGroup.TABS, R.string.theme_tab_background),
-    TAB_SELECTED("theme_tab_selected", ThemeGroup.TABS, R.string.theme_tab_selected),
-    TAB_UNSELECTED("theme_tab_unselected", ThemeGroup.TABS, R.string.theme_tab_unselected),
+    TAB_BACKGROUND("theme_tab_background", ThemeGroup.TABS, R.string.theme_tab_background, role = UiRole.BOTTOM_BAR_GROUND),
+    TAB_SELECTED("theme_tab_selected", ThemeGroup.TABS, R.string.theme_tab_selected, role = UiRole.BOTTOM_TAB_ACTIVE),
+    TAB_UNSELECTED("theme_tab_unselected", ThemeGroup.TABS, R.string.theme_tab_unselected, role = UiRole.BOTTOM_TAB_IDLE),
 
     // Top bar (secondary screens: Settings, this page, group contacts…)
-    TOPBAR_TITLE("theme_topbar_title", ThemeGroup.TOPBAR, R.string.theme_topbar_title),
-    TOPBAR_NAV("theme_topbar_nav", ThemeGroup.TOPBAR, R.string.theme_topbar_nav),
+    TOPBAR_TITLE("theme_topbar_title", ThemeGroup.TOPBAR, R.string.theme_topbar_title, role = UiRole.TOOLBAR_TITLE),
+    TOPBAR_NAV("theme_topbar_nav", ThemeGroup.TOPBAR, R.string.theme_topbar_nav, role = UiRole.TOOLBAR_ICON),
 
     // Icons drawn over a contact's photo, on the view and edit contact screens: the top bar's icons
     // (back arrow, edit, share, delete, ⋮) and the actions on the photo's bottom edge (favorite, call,
@@ -84,6 +90,10 @@ enum class ThemeSlot(
     PHOTO_TOOLBAR_ICON("theme_photo_toolbar_icon", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_toolbar_icon),
     PHOTO_ACTION_ICON("theme_photo_action_icon", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_action_icon),
     PHOTO_ICON_OUTLINE("theme_photo_icon_outline", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_icon_outline),
+    // The shade behind those icons (it fades out toward the photo's middle) and the ground behind the
+    // enlarged photo. Both keep their alpha: the photo must show through.
+    PHOTO_SHADE("theme_photo_shade", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_shade),
+    PHOTO_SCRIM("theme_photo_scrim", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_scrim),
 
     // Swipe to call: the band revealed behind a swiped row, per SIM, and the 1/2 glyph + "Dialing…" on it
     SWIPE_SIM1("theme_swipe_sim1", ThemeGroup.SWIPE_CALL, R.string.swipe_sim1_color),
@@ -99,6 +109,11 @@ enum class ThemeSlot(
     ROUTE_SIM_TEXT("theme_route_sim_text", ThemeGroup.ROUTES, R.string.route_sim_text_color),
     ROUTE_RIN("theme_route_rin", ThemeGroup.ROUTES, R.string.route_rin_color),
     ROUTE_RIN_TEXT("theme_route_rin_text", ThemeGroup.ROUTES, R.string.route_rin_text_color),
+    // The default-SIM badge on a list photo: the card per SIM, its digit and the halo around the digit.
+    PHOTO_BADGE_SIM1("theme_photo_badge_sim1", ThemeGroup.ROUTES, R.string.photo_badge_sim1_color),
+    PHOTO_BADGE_SIM2("theme_photo_badge_sim2", ThemeGroup.ROUTES, R.string.photo_badge_sim2_color),
+    PHOTO_BADGE_TEXT("theme_photo_badge_text", ThemeGroup.ROUTES, R.string.photo_badge_text_color),
+    PHOTO_BADGE_HALO("theme_photo_badge_halo", ThemeGroup.ROUTES, R.string.photo_badge_halo_color),
 
     // Menus: an icon is coloured by what its row does; a destructive row is the warning colour throughout.
     // (Frame and label of the other rows: Search bar → the ⋮ menu text.)
@@ -209,22 +224,24 @@ enum class ThemeSlot(
     // The 詳 detail-mode info lines (last call / last message) appended under a contact's fields.
     DETAIL_CALL("detail_call_line", ThemeGroup.ROWS, R.string.theme_detail_call, hasFont = true),
     DETAIL_SMS("detail_sms_line", ThemeGroup.ROWS, R.string.theme_detail_sms, hasFont = true),
+    // …and the arrow of a call on such a line, by its direction.
+    DETAIL_INCOMING("detail_incoming", ThemeGroup.ROWS, R.string.theme_detail_incoming),
+    DETAIL_OUTGOING("detail_outgoing", ThemeGroup.ROWS, R.string.theme_detail_outgoing),
+    DETAIL_MISSED("detail_missed", ThemeGroup.ROWS, R.string.theme_detail_missed),
 }
 
-// Alpha factors for the muted (inherited) defaults.
-private const val ALPHA_SECONDARY_TEXT = 0.6f
+// How far from the background toward the text a muted (secondary) text sits — opaque, never faded.
+private const val SECONDARY_TEXT_BLEND = 0.6f
 
-// A switch that is off: 55 % of the way from the background to the accent (#8C8C00 on black and yellow).
-private const val SWITCH_OFF_BLEND = 0.55f
-
+// Colours that carry meaning keep their settled defaults; each is the default of a role, nothing more.
 // The house dim gold for settings explanations — a colour of its own, never a greyed-out text colour.
 private const val SETTINGS_NOTE_DIM_GOLD = 0xFFC8C800.toInt()
 
-// denwa's own SIM fills (its PALETTE_RED / PALETTE_BLUE), so a swiped row is the same colour in both apps.
-private const val SWIPE_SIM1_DEFAULT = 0xFFFF0000.toInt()
-private const val SWIPE_SIM2_DEFAULT = 0xFF0000FF.toInt()
-// The 臨 mark: yellow ground, blue text — the reverse of nothing else on screen, so it reads as its own route.
-private const val ROUTE_BLUE = 0xFF0000FF.toInt()
+// denwa's own SIM fills, so a swiped row and a route badge are the same colour in both apps.
+private const val SIM1_RED = 0xFFFF0000.toInt()
+private const val SIM2_BLUE = 0xFF0000FF.toInt()
+// The SIM 2 card on a list photo: a lighter blue, since the card is a small glyph on a photo.
+private const val SIM2_CARD_BLUE = 0xFF2962FF.toInt()
 // Menu icon roles (白い熊, 2026-11-17). The message blue is lighter than the SIM blue: a thin icon in pure
 // blue on black cannot be made out.
 private const val MENU_GREEN = 0xFF00FF00.toInt()
@@ -233,11 +250,16 @@ private const val MENU_CYAN = 0xFF00FFFF.toInt()
 private const val MENU_ORANGE = 0xFFFF8800.toInt()
 private const val MENU_MAGENTA = 0xFFFF00FF.toInt()
 private const val MENU_RED = 0xFFFF0000.toInt()
-private const val ALPHA_SEARCH_HINT = 0.5f
-private const val ALPHA_UNSELECTED_TAB = 0.6f
+// A call's direction on a detail line: incoming blue, outgoing green, missed red (soft, they sit in text).
+private const val CALL_INCOMING_BLUE = 0xFF64B5F6.toInt()
+private const val CALL_OUTGOING_GREEN = 0xFF81C784.toInt()
+private const val CALL_MISSED_RED = 0xFFE57373.toInt()
+private const val PHOTO_SHADE_ALPHA = 0xCC
+private const val PHOTO_SCRIM_ALPHA = 0xBB
 
 /** The effective color for a slot: the user's override if set, otherwise its inherited default. */
 fun Context.themeColor(slot: ThemeSlot): Int {
+    slot.role?.let { return uiColor(it) }
     val override = config.getThemeOverride(slot.key)
     return if (override != THEME_UNSET) override else themeDefault(slot)
 }
@@ -245,24 +267,35 @@ fun Context.themeColor(slot: ThemeSlot): Int {
 // One arm per slot — high cyclomatic count is inherent to an exhaustive enum map, not real complexity.
 @Suppress("CyclomaticComplexMethod")
 private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
-    // Foundation reads the stock commons colors (seeded to black/yellow on first run)
-    ThemeSlot.BACKGROUND -> getProperBackgroundColor()
-    ThemeSlot.PRIMARY -> getProperPrimaryColor()
-    ThemeSlot.TEXT -> getProperTextColor()
-    ThemeSlot.TEXT_SECONDARY -> themeColor(ThemeSlot.TEXT).adjustAlpha(ALPHA_SECONDARY_TEXT)
+    // A slot that is a commons role never gets here (themeColor returns the role); the arms keep the map total.
+    ThemeSlot.BACKGROUND, ThemeSlot.PRIMARY, ThemeSlot.TEXT, ThemeSlot.SWITCH_OFF,
+    ThemeSlot.SEARCH_FILL, ThemeSlot.SEARCH_TEXT, ThemeSlot.SEARCH_HINT, ThemeSlot.SEARCH_ICON,
+    ThemeSlot.SEARCH_MENU_TEXT, ThemeSlot.SEARCH_BORDER,
+    ThemeSlot.TAB_BACKGROUND, ThemeSlot.TAB_SELECTED, ThemeSlot.TAB_UNSELECTED,
+    ThemeSlot.TOPBAR_TITLE, ThemeSlot.TOPBAR_NAV -> uiColor(slot.role!!)
+
+    ThemeSlot.TEXT_SECONDARY ->
+        ColorUtils.blendARGB(themeColor(ThemeSlot.BACKGROUND), themeColor(ThemeSlot.TEXT), SECONDARY_TEXT_BLEND)
     ThemeSlot.SETTINGS_NOTE -> SETTINGS_NOTE_DIM_GOLD
-    ThemeSlot.SWITCH_OFF -> ColorUtils.blendARGB(themeColor(ThemeSlot.BACKGROUND), themeColor(ThemeSlot.PRIMARY), SWITCH_OFF_BLEND)
-    // denwa's defaults, so a swipe looks the same in both apps: SIM 1 red, SIM 2 blue, yellow marking
-    ThemeSlot.SWIPE_SIM1 -> SWIPE_SIM1_DEFAULT
-    ThemeSlot.SWIPE_SIM2 -> SWIPE_SIM2_DEFAULT
-    ThemeSlot.SWIPE_TEXT -> PALETTE_YELLOW
+    // denwa's defaults, so a swipe looks the same in both apps: SIM 1 red, SIM 2 blue, accent marking
+    ThemeSlot.SWIPE_SIM1 -> SIM1_RED
+    ThemeSlot.SWIPE_SIM2 -> SIM2_BLUE
+    ThemeSlot.SWIPE_TEXT -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.SWIPE_RIN -> themeColor(ThemeSlot.ROUTE_RIN)
     ThemeSlot.SWIPE_RIN_TEXT -> themeColor(ThemeSlot.ROUTE_RIN_TEXT)
-    ThemeSlot.ROUTE_SIM1 -> SWIPE_SIM1_DEFAULT
-    ThemeSlot.ROUTE_SIM2 -> SWIPE_SIM2_DEFAULT
-    ThemeSlot.ROUTE_SIM_TEXT -> PALETTE_YELLOW
-    ThemeSlot.ROUTE_RIN -> PALETTE_YELLOW
-    ThemeSlot.ROUTE_RIN_TEXT -> ROUTE_BLUE
+    ThemeSlot.ROUTE_SIM1 -> SIM1_RED
+    ThemeSlot.ROUTE_SIM2 -> SIM2_BLUE
+    ThemeSlot.ROUTE_SIM_TEXT -> themeColor(ThemeSlot.PRIMARY)
+    // The 臨 mark: accent ground, blue text — the reverse of nothing else on screen, so it reads as its own route.
+    ThemeSlot.ROUTE_RIN -> themeColor(ThemeSlot.PRIMARY)
+    ThemeSlot.ROUTE_RIN_TEXT -> SIM2_BLUE
+    ThemeSlot.PHOTO_BADGE_SIM1 -> SIM1_RED
+    ThemeSlot.PHOTO_BADGE_SIM2 -> SIM2_CARD_BLUE
+    ThemeSlot.PHOTO_BADGE_TEXT -> themeColor(ThemeSlot.PRIMARY)
+    ThemeSlot.PHOTO_BADGE_HALO -> themeColor(ThemeSlot.BACKGROUND)
+    ThemeSlot.DETAIL_INCOMING -> CALL_INCOMING_BLUE
+    ThemeSlot.DETAIL_OUTGOING -> CALL_OUTGOING_GREEN
+    ThemeSlot.DETAIL_MISSED -> CALL_MISSED_RED
     ThemeSlot.MENU_ICON_CALL -> MENU_GREEN
     ThemeSlot.MENU_ICON_MESSAGE -> MENU_BLUE
     ThemeSlot.MENU_ICON_CONTACT -> MENU_CYAN
@@ -271,30 +304,15 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.MENU_ICON_BLOCK -> MENU_MAGENTA
     ThemeSlot.MENU_WARNING -> MENU_RED
 
-    // Search bar: black fill, yellow text/icon/border by inheriting foundation
-    ThemeSlot.SEARCH_FILL -> themeColor(ThemeSlot.BACKGROUND)
-    ThemeSlot.SEARCH_TEXT -> themeColor(ThemeSlot.PRIMARY)
-    ThemeSlot.SEARCH_HINT -> themeColor(ThemeSlot.PRIMARY).adjustAlpha(ALPHA_SEARCH_HINT)
-    ThemeSlot.SEARCH_ICON -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.SEARCH_ACTION_ICON -> themeColor(ThemeSlot.PRIMARY)
-    // overflow ("⋮") popup item text — its background keeps following the foundation background
-    ThemeSlot.SEARCH_MENU_TEXT -> themeColor(ThemeSlot.TEXT)
-    ThemeSlot.SEARCH_BORDER -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.COLUMN_BUTTONS -> themeColor(ThemeSlot.PRIMARY)
-
-    // Tabs
-    ThemeSlot.TAB_BACKGROUND -> themeColor(ThemeSlot.BACKGROUND)
-    ThemeSlot.TAB_SELECTED -> themeColor(ThemeSlot.PRIMARY)
-    ThemeSlot.TAB_UNSELECTED -> themeColor(ThemeSlot.TEXT).adjustAlpha(ALPHA_UNSELECTED_TAB)
-
-    // Top bar: title + back arrow contrast the primary-coloured toolbar by default
-    ThemeSlot.TOPBAR_TITLE -> themeColor(ThemeSlot.PRIMARY).getContrastColor()
-    ThemeSlot.TOPBAR_NAV -> themeColor(ThemeSlot.PRIMARY).getContrastColor()
 
     // Icons over the contact photo: the accent, haloed in the background color so they stay legible
     // over a photo painted in that same accent (the default placeholder).
     ThemeSlot.PHOTO_TOOLBAR_ICON, ThemeSlot.PHOTO_ACTION_ICON -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.PHOTO_ICON_OUTLINE -> themeColor(ThemeSlot.BACKGROUND)
+    ThemeSlot.PHOTO_SHADE -> ColorUtils.setAlphaComponent(themeColor(ThemeSlot.BACKGROUND), PHOTO_SHADE_ALPHA)
+    ThemeSlot.PHOTO_SCRIM -> ColorUtils.setAlphaComponent(themeColor(ThemeSlot.BACKGROUND), PHOTO_SCRIM_ALPHA)
 
     // Per-tab list colors all inherit from the foundation text / primary by default.
     // Numbers inherit the muted secondary text (the rows render at full opacity, so the slot
@@ -334,82 +352,80 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
         themeColor(ThemeSlot.PRIMARY)
 }
 
-/** Set an explicit override for a slot. Foundation slots write through to the stock commons colors. */
+/** Set an explicit override for a slot. A slot that is a commons role is stored as that role. */
 fun Context.setThemeColor(slot: ThemeSlot, color: Int) {
-    when (slot) {
-        ThemeSlot.PRIMARY -> {
-            config.isSystemThemeEnabled = false
-            config.primaryColor = color
-        }
-
-        ThemeSlot.BACKGROUND -> {
-            config.isSystemThemeEnabled = false
-            config.backgroundColor = color
-        }
-
-        ThemeSlot.TEXT -> {
-            config.isSystemThemeEnabled = false
-            config.textColor = color
-        }
-
-        // commons draws the switches and reads its own copy
-        ThemeSlot.SWITCH_OFF -> {
-            config.setThemeOverride(slot.key, color)
-            config.switchOffColor = color
-        }
-
-        else -> config.setThemeOverride(slot.key, color)
+    val role = slot.role
+    if (role == null) {
+        config.setThemeOverride(slot.key, color)
+        return
     }
-    // commons draws a destructive dialog button in its own copy of the warning colour (sk15)
-    if (slot == ThemeSlot.MENU_WARNING) config.dialogWarningColor = color
+    if (role.isFoundation) config.isSystemThemeEnabled = false
+    setUiColor(role, color)
 }
 
-/** Revert a slot to its default (palette for the editable foundation colors, inherited otherwise). */
+/** Put a slot back on its default. */
 fun Context.resetThemeColor(slot: ThemeSlot) {
-    when (slot) {
-        ThemeSlot.BACKGROUND -> setThemeColor(slot, PALETTE_BLACK)
-        ThemeSlot.PRIMARY, ThemeSlot.TEXT -> setThemeColor(slot, PALETTE_YELLOW)
-        ThemeSlot.SWITCH_OFF -> {
-            config.clearThemeOverride(slot.key)
-            config.switchOffColor = 0 // commons derives it again
-        }
-
-        else -> config.clearThemeOverride(slot.key)
-    }
-    if (slot == ThemeSlot.MENU_WARNING) config.dialogWarningColor = themeColor(slot)
+    slot.role?.let { resetUiColor(it) } ?: config.clearThemeOverride(slot.key)
 }
 
-/** One-time seed of the default black/yellow look across the whole app (via the stock colors). */
+/** True when the slot has a colour of its own rather than its default. */
+fun Context.isThemeColorSet(slot: ThemeSlot): Boolean =
+    slot.role?.let { isUiColorSet(it) } ?: (config.getThemeOverride(slot.key) != THEME_UNSET)
+
+/** Every colour role back on its default: this app's slots and the commons roles alike. */
+fun Context.resetAllThemeColors() {
+    ThemeSlot.entries.forEach { config.clearThemeOverride(it.key) }
+    resetAllUiColors()
+}
+
+/** One-time switch away from the stock (system / dynamic) theme; the colours themselves are role defaults. */
 fun Context.seedBlackYellowThemeIfNeeded() {
     if (config.themeV1Seeded) {
         return
     }
 
     config.isSystemThemeEnabled = false
-    config.backgroundColor = PALETTE_BLACK
-    config.textColor = PALETTE_YELLOW
-    config.primaryColor = PALETTE_YELLOW
-    config.accentColor = PALETTE_YELLOW
     config.themeV1Seeded = true
 }
 
 // Fork: dialog accent frame width, in dp.
 private const val DIALOG_FRAME_WIDTH_DP = 3
 
-// Fork: dialogs are black-on-black and invisible without a frame. Opt into commons' (sk3) dialog
-// accent border — pure yellow. Set on every launch (not gated) so existing installs pick it up too,
-// since the one-time theme seed above won't re-run after an in-place update.
+// Fork: dialogs are black-on-black and invisible without a frame, so commons' dialog frame is switched on
+// (its colour is the role UiRole.DIALOG_FRAME). Set on every launch so existing installs pick it up too.
 fun Context.seedDialogFrame() {
-    config.dialogBorderColor = PALETTE_YELLOW
     config.dialogBorderWidth = DIALOG_FRAME_WIDTH_DP
-    // The roles commons draws with its own copies of: a destructive dialog button, a switch that is off.
-    config.dialogWarningColor = themeColor(ThemeSlot.MENU_WARNING)
-    config.switchOffColor = config.getThemeOverride(ThemeSlot.SWITCH_OFF.key).takeIf { it != THEME_UNSET } ?: 0
     // Dialog buttons as pills (commons sk12), switched on once; the switch in UI settings → Buttons wins after.
     if (!config.pillButtonsSeeded) {
         config.pillDialogButtons = true
         config.pillButtonsSeeded = true
     }
+}
+
+/**
+ * One-time move (+133, commons sk18) of the overrides of slots that became commons roles into the roles'
+ * own keys, so a colour set before the rebuild is kept. The warning colour used to be mirrored into
+ * commons' destructive dialog button; that is a role of its own now and starts from the same value.
+ */
+fun Context.migrateSlotsToRolesIfNeeded() {
+    if (config.slotsMovedToRoles) {
+        return
+    }
+
+    ThemeSlot.entries.forEach { slot ->
+        val role = slot.role ?: return@forEach
+        if (role.isFoundation) return@forEach
+        val override = config.getThemeOverride(slot.key)
+        if (override != THEME_UNSET) {
+            setUiColor(role, override)
+            config.clearThemeOverride(slot.key)
+        }
+    }
+    val warning = config.getThemeOverride(ThemeSlot.MENU_WARNING.key)
+    if (warning != THEME_UNSET && !isUiColorSet(UiRole.BUTTON_DESTRUCTIVE)) {
+        setUiColor(UiRole.BUTTON_DESTRUCTIVE, warning)
+    }
+    config.slotsMovedToRoles = true
 }
 
 // The material yellow the palette used before PALETTE_YELLOW became pure yellow (#FFFF00).
@@ -418,7 +434,7 @@ private const val RGB_MASK = 0xFFFFFF
 
 /** [color] with a material-yellow RGB part rewritten to pure yellow; the alpha byte is preserved. */
 private fun materialToPureYellow(color: Int): Int = if (color and RGB_MASK == OLD_MATERIAL_YELLOW_RGB) {
-    (color and RGB_MASK.inv()) or (PALETTE_YELLOW and RGB_MASK)
+    (color and RGB_MASK.inv()) or (FAMILY_YELLOW and RGB_MASK)
 } else {
     color
 }
@@ -444,4 +460,17 @@ fun Context.migrateToPureYellowIfNeeded() {
     }
 
     config.pureYellowMigrated = true
+}
+
+private const val SIM_BADGE_HALO_RADIUS = 4f
+
+/** The default-SIM badge (layout/sim_badge): the card in its SIM's role, the digit and its halo in theirs. */
+fun android.view.View.styleSimBadge(slot: Int) {
+    val card = context.themeColor(if (slot == 1) ThemeSlot.PHOTO_BADGE_SIM1 else ThemeSlot.PHOTO_BADGE_SIM2)
+    findViewById<android.widget.ImageView>(R.id.sim_badge_icon).setColorFilter(card, android.graphics.PorterDuff.Mode.SRC_IN)
+    findViewById<android.widget.TextView>(R.id.sim_badge_number).apply {
+        text = slot.toString()
+        setTextColor(context.themeColor(ThemeSlot.PHOTO_BADGE_TEXT))
+        setShadowLayer(SIM_BADGE_HALO_RADIUS, 0f, 0f, context.themeColor(ThemeSlot.PHOTO_BADGE_HALO))
+    }
 }

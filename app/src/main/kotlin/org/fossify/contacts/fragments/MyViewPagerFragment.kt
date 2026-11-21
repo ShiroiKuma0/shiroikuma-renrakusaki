@@ -1,5 +1,8 @@
 package org.fossify.contacts.fragments
 
+import org.fossify.commons.helpers.uiColor
+import org.fossify.commons.helpers.UiRole
+import org.fossify.commons.extensions.rippleDrawable
 import android.content.Context
 import android.content.Intent
 import android.util.AttributeSet
@@ -111,11 +114,12 @@ abstract class MyViewPagerFragment<Binding : MyViewPagerFragment.InnerBinding>(c
         context.updateTextColors(innerBinding.fragmentWrapper.parent as ViewGroup)
         innerBinding.fragmentFastscroller?.updateColors(fastscrollerColor)
         innerBinding.fragmentPlaceholder2.setTextColor(adjustedPrimaryColor)
+        innerBinding.fragmentPlaceholder2.background = context.rippleDrawable(PLACEHOLDER_RIPPLE_RADIUS_DP)
 
         innerBinding.letterFastscroller?.textColor = textColor.getColorStateList()
         innerBinding.letterFastscroller?.pressedTextColor = fastscrollerColor
         innerBinding.letterFastscrollerThumb?.fontSize = context.getTextSize()
-        innerBinding.letterFastscrollerThumb?.textColor = fastscrollerColor.getContrastColor()
+        innerBinding.letterFastscrollerThumb?.textColor = context.uiColor(UiRole.SCROLL_BUBBLE_TEXT)
         innerBinding.letterFastscrollerThumb?.thumbColor = fastscrollerColor.getColorStateList()
     }
 
@@ -435,3 +439,5 @@ abstract class MyViewPagerFragment<Binding : MyViewPagerFragment.InnerBinding>(c
         override val fragmentFastscroller: RecyclerViewFastScroller = binding.fragmentFastscroller
     }
 }
+
+private const val PLACEHOLDER_RIPPLE_RADIUS_DP = 16f

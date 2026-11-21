@@ -1,5 +1,8 @@
 package org.fossify.contacts.activities
 
+import org.fossify.commons.helpers.uiColor
+import org.fossify.commons.helpers.UiRole
+import org.fossify.commons.extensions.circleDrawable
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -263,15 +266,17 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
         // Never a filled slab (black-yellow theme): the background shows through, the accent draws the icon
         // and a thick ring, as on the + button beside it (commons draws that one).
-        val dialpadIcon = resources.getColoredDrawableWithColor(org.fossify.commons.R.drawable.ic_dialpad_vector, properPrimaryColor)
+        // Icon, frame and ground are the floating button's own roles, the same three the + button reads.
+        val fabFrame = uiColor(UiRole.FAB_FRAME)
+        val dialpadIcon = resources.getColoredDrawableWithColor(org.fossify.commons.R.drawable.ic_dialpad_vector, uiColor(UiRole.FAB_ICON))
         binding.mainDialpadButton.apply {
             setImageDrawable(dialpadIcon)
             val ring = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(getProperBackgroundColor())
-                setStroke((DIALPAD_RING_DP * resources.displayMetrics.density).toInt(), properPrimaryColor)
+                setColor(uiColor(UiRole.FAB_GROUND))
+                setStroke((DIALPAD_RING_DP * resources.displayMetrics.density).toInt(), fabFrame)
             }
-            background = RippleDrawable(ColorStateList.valueOf(properPrimaryColor.adjustAlpha(DIALPAD_RIPPLE_ALPHA)), ring, null)
+            background = RippleDrawable(ColorStateList.valueOf(fabFrame.adjustAlpha(DIALPAD_RIPPLE_ALPHA)), ring, null)
             beVisibleIf(config.showDialpadButton)
         }
 
@@ -530,7 +535,8 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
     @SuppressLint("NewApi")
     private fun checkShortcuts() {
-        val appIconColor = config.appIconColor
+        // the shortcut's disc is the accent role (the stock launcher-icon colour is gone with Customize colors)
+        val appIconColor = uiColor(UiRole.ACCENT)
         if (isNougatMR1Plus() && config.lastHandledShortcutColor != appIconColor) {
             val createNewContact = getCreateNewContactShortcut(appIconColor)
 
@@ -545,8 +551,12 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
     @SuppressLint("NewApi")
     private fun getCreateNewContactShortcut(appIconColor: Int): ShortcutInfo {
         val newEvent = getString(org.fossify.commons.R.string.create_new_contact)
-        val drawable = resources.getDrawable(org.fossify.commons.R.drawable.shortcut_plus)
-        (drawable as LayerDrawable).findDrawableByLayerId(org.fossify.commons.R.id.shortcut_plus_background).applyColorFilter(appIconColor)
+        // built here: a disc in the accent role under a plus in the background role
+        val plus = resources.getColoredDrawableWithColor(org.fossify.commons.R.drawable.ic_plus_vector, uiColor(UiRole.BACKGROUND))
+        val margin = resources.getDimensionPixelSize(org.fossify.commons.R.dimen.medium_margin)
+        val drawable = LayerDrawable(arrayOf(circleDrawable(appIconColor), plus)).apply {
+            setLayerInset(1, margin, margin, margin, margin)
+        }
         val bmp = drawable.convertToBitmap()
 
         val intent = Intent(this, EditContactActivity::class.java)

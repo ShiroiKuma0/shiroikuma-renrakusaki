@@ -1,5 +1,7 @@
 package org.fossify.contacts.dialogs
 
+import org.fossify.commons.helpers.uiColor
+import org.fossify.commons.helpers.UiRole
 import androidx.appcompat.app.AlertDialog
 import com.reddit.indicatorfastscroll.FastScrollItemIndicator
 import org.fossify.commons.extensions.*
@@ -82,13 +84,13 @@ class SelectContactsDialog(
     }
 
     private fun setupFastscroller(allContacts: ArrayList<Contact>) {
-        val adjustedPrimaryColor = activity.getProperPrimaryColor()
+        // the letters, the pressed letter, the bubble and its text: the dialog's text and the fast-scroller roles
         binding.apply {
-            letterFastscroller.textColor = root.context.getProperTextColor().getColorStateList()
-            letterFastscroller.pressedTextColor = adjustedPrimaryColor
+            letterFastscroller.textColor = activity.uiColor(UiRole.DIALOG_TEXT).getColorStateList()
+            letterFastscroller.pressedTextColor = activity.uiColor(UiRole.SCROLL_THUMB)
             letterFastscrollerThumb.fontSize = root.context.getTextSize()
-            letterFastscrollerThumb.textColor = adjustedPrimaryColor.getContrastColor()
-            letterFastscrollerThumb.thumbColor = adjustedPrimaryColor.getColorStateList()
+            letterFastscrollerThumb.textColor = activity.uiColor(UiRole.SCROLL_BUBBLE_TEXT)
+            letterFastscrollerThumb.thumbColor = activity.uiColor(UiRole.SCROLL_BUBBLE).getColorStateList()
             letterFastscrollerThumb.setupWithFastScroller(letterFastscroller)
         }
 

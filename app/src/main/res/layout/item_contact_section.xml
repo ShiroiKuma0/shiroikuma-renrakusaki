@@ -7,7 +7,6 @@
     android:id="@+id/section_holder"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/selector_clickable"
     android:clickable="true"
     android:focusable="true"
     android:orientation="vertical">

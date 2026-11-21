@@ -1,12 +1,12 @@
 package org.fossify.contacts.helpers
 
+import org.fossify.commons.helpers.uiColor
+import org.fossify.commons.helpers.UiRole
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.MenuItem
 import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.view.menu.MenuItemImpl
-import androidx.core.graphics.ColorUtils
-import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.contacts.R
 import org.fossify.contacts.extensions.ThemeSlot
 import org.fossify.contacts.extensions.themeColor
@@ -31,7 +31,6 @@ object MenuPills {
     const val TOGGLE_HEIGHT_DP = 36 // a toggle row: the switch and little more
     const val PILL_MARGIN_DP = 3 // above and below a pill
     const val SIDE_MARGIN_DP = 8 // from the pill to the edge of the menu
-    private const val DIVIDER_BLEND = 0.7f // 70 % of the way from the background to the accent
 
     /** What a row does; decides its icon colour. */
     enum class Role(val slot: ThemeSlot) {
@@ -96,8 +95,10 @@ object MenuPills {
 
     private fun row(item: MenuItem) = ROWS[item.itemId]
 
-    /** Frame and label of every row; the same slot the popup's text always had. */
-    fun accent(context: Context) = context.themeColor(ThemeSlot.SEARCH_MENU_TEXT)
+    /** The label of every row (the role the popup's text always had) and, a role of its own, its frame. */
+    fun accent(context: Context) = context.uiColor(UiRole.MENU_LABEL)
+
+    fun frame(context: Context) = context.uiColor(UiRole.MENU_ROW_FRAME)
 
     fun warning(context: Context) = context.themeColor(ThemeSlot.MENU_WARNING)
 
@@ -134,8 +135,11 @@ object MenuPills {
     }
 
     /** The line between two groups: clearly there, quieter than a pill frame. Derived, never a constant. */
-    fun divider(context: Context) = ColorUtils.blendARGB(context.getProperBackgroundColor(), accent(context), DIVIDER_BLEND)
+    fun divider(context: Context) = context.uiColor(UiRole.MENU_DIVIDER)
+
+    /** A switch that is on, in a menu as everywhere. */
+    fun switchOn(context: Context) = context.uiColor(UiRole.SWITCH_ON_OUTLINE)
 
     /** A switch that is off: an opaque darker accent, never a faded one. */
-    fun switchOff(context: Context) = context.themeColor(ThemeSlot.SWITCH_OFF)
+    fun switchOff(context: Context) = context.uiColor(UiRole.SWITCH_OFF_OUTLINE)
 }

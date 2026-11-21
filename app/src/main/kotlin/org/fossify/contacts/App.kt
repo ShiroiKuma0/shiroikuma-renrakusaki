@@ -1,6 +1,7 @@
 package org.fossify.contacts
 
 import org.fossify.commons.FossifyApp
+import org.fossify.contacts.extensions.migrateSlotsToRolesIfNeeded
 import org.fossify.contacts.extensions.migrateToPureYellowIfNeeded
 import org.fossify.contacts.extensions.seedBlackYellowThemeIfNeeded
 import org.fossify.contacts.extensions.seedDialogFrame
@@ -13,6 +14,8 @@ class App : FossifyApp() {
         seedBlackYellowThemeIfNeeded()
         // Rewrite any persisted material-yellow color to pure yellow once (palette change).
         migrateToPureYellowIfNeeded()
+        // Colours set on slots that became commons roles (sk18) move into the roles' keys, once.
+        migrateSlotsToRolesIfNeeded()
         // Give dialogs a yellow accent frame so they read against the black background.
         seedDialogFrame()
         // Switch saved list layouts to the "Lastname, Firstname" name field once.

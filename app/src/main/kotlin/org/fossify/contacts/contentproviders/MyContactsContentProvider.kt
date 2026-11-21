@@ -1,5 +1,9 @@
 package org.fossify.contacts.contentproviders
 
+import android.os.Bundle
+import org.fossify.contacts.helpers.isCallRoute
+import org.fossify.contacts.helpers.numberDefaultRoute
+import org.fossify.contacts.helpers.setNumberDefaultRoute
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.database.Cursor
@@ -106,6 +110,38 @@ class MyContactsContentProvider : ContentProvider() {
         }
     }
 
+    /**
+     * The call-route door (from +133), for the sister apps: one contact has one route everywhere.
+     *  - `get_route`, arg or extra `number` → `{result: "OK", route: sim1 | sim2 | rin | rin:N | off}`
+     *  - `set_route`, extras `{number, route}` → `{result: "OK"}`; `off` clears the route
+     * Errors: `ERROR:not allowed | no number | bad route`. Any other method returns null, and so does an
+     * older 連絡先 for these two — that is how a caller tells "no route set" (OK + off) from "no door".
+     * Same gate as the rest of the provider. Never throws: it is called from another process.
+     */
+    override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
+        if (method != METHOD_GET_ROUTE && method != METHOD_SET_ROUTE) return null
+        fun answer(result: String, route: String? = null) = Bundle().apply {
+            putString("result", result)
+            route?.let { putString("route", it) }
+        }
+        val ctx = context ?: return answer("ERROR:not allowed")
+        if (!isCallerAllowed()) return answer("ERROR:not allowed")
+        return try {
+            val number = (extras?.getString("number") ?: arg).orEmpty().trim()
+            if (number.isEmpty()) return answer("ERROR:no number")
+            if (method == METHOD_GET_ROUTE) {
+                answer("OK", ctx.numberDefaultRoute(number))
+            } else {
+                val route = extras?.getString("route").orEmpty()
+                if (!isCallRoute(route)) return answer("ERROR:bad route")
+                ctx.setNumberDefaultRoute(number, route)
+                answer("OK")
+            }
+        } catch (ignored: Exception) {
+            answer("ERROR:failed")
+        }
+    }
+
     // The gate: only apps 白い熊 has allowed (UI settings → Private contacts) read anything here —
     // contacts, photos and SIM slot alike. callingPackage is vouched for by the framework against the
     // binder uid, so it cannot be spoofed by the caller.
@@ -160,3 +196,6 @@ class MyContactsContentProvider : ContentProvider() {
     // loadThumbnail asks for "image/*", which the default openTypedAssetFile grants only when getType matches.
     override fun getType(uri: Uri) = if (isPhotoUri(uri)) "image/jpeg" else ""
 }
+
+private const val METHOD_GET_ROUTE = "get_route"
+private const val METHOD_SET_ROUTE = "set_route"

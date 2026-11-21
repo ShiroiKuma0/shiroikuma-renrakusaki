@@ -136,11 +136,6 @@ const val DETAIL_PATTERN_TODAY_PREFIX = "detail_pattern_today_"
 const val DETAIL_PATTERN_YEAR_PREFIX = "detail_pattern_year_"
 const val DETAIL_PATTERN_OLDER_PREFIX = "detail_pattern_older_"
 
-// Arrow colors on the 詳 lines: incoming blue, outgoing green, missed/rejected red.
-const val DETAIL_INCOMING_COLOR = 0xFF64B5F6.toInt()
-const val DETAIL_OUTGOING_COLOR = 0xFF81C784.toInt()
-const val DETAIL_MISSED_COLOR = 0xFFE57373.toInt()
-
 // Letter sections on the main Contacts list: contacts grouped under big underlined per-letter headers
 // (the denwa call-history look), each section foldable by tapping its header. Folded is the default;
 // the set of expanded section titles persists. The 1–4 column layout applies within each section.
@@ -177,8 +172,6 @@ const val MAX_PHOTO_ICON_OUTLINE_DP = 8
 const val THEME_V1_SEEDED = "theme_v1_seeded"
 const val PURE_YELLOW_MIGRATED = "pure_yellow_migrated" // one-time #FFEB3B → #FFFF00 rewrite done
 const val THEME_UNSET = Int.MIN_VALUE // a slot with this stored value follows its inherited default
-const val PALETTE_BLACK = 0xFF000000.toInt()
-const val PALETTE_YELLOW = 0xFFFFFF00.toInt()
 
 // Per-contact sort-field override: one entry per contact (keyed device-independently by
 // sortFieldKeyFor — "name:", "num:" or the "contact:<contactId>" fallback), value = which field
@@ -197,10 +190,6 @@ const val SORT_FIELD_ORGANIZATION = 3
 const val SIM_SLOT_PREFIX = "sim_slot_"
 const val SIM_SLOT_PROVIDER_PATH = "sim_slot" // ContentProvider path denwa queries (number → slot)
 const val PHOTO_PROVIDER_PATH = "photo" // ContentProvider path serving a private contact's picture: photo/<id>
-
-// Favorites SIM badge colors: SIM 1 red (bottom-start), SIM 2 blue (bottom-end), number in pure yellow.
-const val SIM1_BADGE_COLOR = 0xFFFF0000.toInt()
-const val SIM2_BADGE_COLOR = 0xFF2962FF.toInt()
 
 // Per-element fonts: one entry per text slot, keyed by the slot key.
 const val FONT_FAMILY_PREFIX = "font_family_" // String, "" = system/global default

@@ -3,10 +3,9 @@
     android:id="@+id/dialog_holder"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_gravity="center_horizontal"
-    android:background="@color/theme_dark_background_color">
+    android:layout_gravity="center_horizontal">
 
-    <DatePicker
+    <org.fossify.commons.views.FamilyDatePicker
         android:id="@+id/date_picker"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

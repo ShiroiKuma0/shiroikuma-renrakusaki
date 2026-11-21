@@ -507,4 +507,19 @@
     <string name="menu_icon_view">Icon: view, open, settings</string>
     <string name="menu_icon_block">Icon: block, hide, silence</string>
     <string name="menu_warning">Delete, remove (the whole row)</string>
+    <!-- Colour roles added with the rebuild (+133) -->
+    <string name="theme_photo_shade">Shade behind the icons on the photo</string>
+    <string name="theme_photo_scrim">Ground behind the enlarged photo</string>
+    <string name="photo_badge_sim1_color">SIM 1 badge on a list photo</string>
+    <string name="photo_badge_sim2_color">SIM 2 badge on a list photo</string>
+    <string name="photo_badge_text_color">SIM badge digit</string>
+    <string name="photo_badge_halo_color">SIM badge digit halo</string>
+    <string name="theme_detail_incoming">Arrow of an incoming call</string>
+    <string name="theme_detail_outgoing">Arrow of an outgoing call</string>
+    <string name="theme_detail_missed">Arrow of a missed call</string>
+    <string name="reset_all_colours">Reset all colours</string>
+    <string name="reset_all_colours_desc">Puts every colour on this page back on its default: black ground, yellow text and frames, and the settled colours of the icons and badges.</string>
+    <string name="reset_all_colours_confirm">Put every colour back on its default?</string>
+    <string name="role_reset_hint">Long-press a colour to put it back on its default.</string>
+    <string name="system_bar_role_note">The status and navigation bars show the screen through them until a colour is set here.</string>
 </resources>

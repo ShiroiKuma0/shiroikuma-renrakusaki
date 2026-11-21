@@ -54,7 +54,7 @@ class DuplicatesActivity : SimpleActivity() {
         super.onResume()
         // A solid accent bar at every scroll position: the scroll-tinted bar is black at the top, where the
         // title — coloured to contrast the accent — vanished into it.
-        setupTopAppBar(binding.themeAppbar, NavigationIcon.Arrow, topBarColor = getProperPrimaryColor())
+        setupTopAppBar(binding.themeAppbar, NavigationIcon.Arrow)
         applyTopBarColors(binding.themeAppbar)
         if (scan == null) rescan()
     }

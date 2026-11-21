@@ -1,5 +1,8 @@
 package org.fossify.contacts.activities
 
+import org.fossify.contacts.extensions.themeColor
+import org.fossify.contacts.extensions.ThemeSlot
+import android.graphics.drawable.GradientDrawable
 import android.content.ActivityNotFoundException
 import android.content.ContentUris
 import android.content.Intent
@@ -75,6 +78,16 @@ class ViewContactActivity : ContactActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
+
+        // The shades behind the icons over the photo, built here from their role (no gradient in XML).
+        val shade = themeColor(ThemeSlot.PHOTO_SHADE)
+        val clear = androidx.core.graphics.ColorUtils.setAlphaComponent(shade, 0)
+        binding.contactPhotoTopShadow.background =
+            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(shade, clear))
+        binding.contactPhotoBottomShadow.background =
+            GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(shade, clear))
+        binding.contactAppbar.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        binding.contactPhotoBig.setBackgroundColor(themeColor(ThemeSlot.PHOTO_SCRIM))
 
         setupEdgeToEdge(padBottomSystem = listOf(binding.contactScrollview))
 

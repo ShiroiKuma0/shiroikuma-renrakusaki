@@ -199,6 +199,46 @@ fun Context.setContactDefaultRoute(contact: Contact, route: String) {
     }
 }
 
+/**
+ * The default route stored for one phone number, as the sister apps ask for it through the provider's
+ * `get_route` door: the same answer [contactDefaultRoute] gives for a contact that has this number.
+ */
+fun Context.numberDefaultRoute(number: String): String {
+    val keys = config.storedRouteKeysFor(number)
+    if (keys.any { config.getRinIsDefault(it) } && Rindenwa.isInstalled(this)) {
+        val own = keys.map { config.getRinAccount(it) }.firstOrNull { it >= 0 } ?: RIN_ACCOUNT_SELECTED
+        return if (own >= 0) ROUTE_RIN_PREFIX + own else ROUTE_RIN
+    }
+    return when (keys.map { config.getSimSlot(it) }.firstOrNull { it == 1 || it == 2 }) {
+        1 -> ROUTE_SIM1
+        2 -> ROUTE_SIM2
+        else -> ROUTE_OFF
+    }
+}
+
+/** True for a string [setNumberDefaultRoute] accepts: sim1, sim2, rin, rin:N or off. */
+fun isCallRoute(route: String): Boolean = route == ROUTE_SIM1 || route == ROUTE_SIM2 || route == ROUTE_RIN || route == ROUTE_OFF ||
+    (route.startsWith(ROUTE_RIN_PREFIX) && route.removePrefix(ROUTE_RIN_PREFIX).toIntOrNull()?.let { it >= 0 } == true)
+
+/**
+ * Stores [route] for one phone number (the `set_route` door): under every key already stored for that
+ * number, and under the number as given when there is none. The lists redraw their badges afterwards.
+ */
+fun Context.setNumberDefaultRoute(number: String, route: String) {
+    val isRin = route == ROUTE_RIN || route.startsWith(ROUTE_RIN_PREFIX)
+    val slot = when (route) {
+        ROUTE_SIM1 -> 1
+        ROUTE_SIM2 -> 2
+        else -> 0
+    }
+    config.storedRouteKeysFor(number).ifEmpty { setOf(number) }.forEach { key ->
+        config.setSimSlot(key, slot)
+        config.setRinIsDefault(key, isRin)
+        if (isRin) config.setRinAccount(key, route.removePrefix(ROUTE_RIN_PREFIX).toIntOrNull() ?: RIN_ACCOUNT_SELECTED)
+    }
+    config.contactsListRevision += 1
+}
+
 /** Whether [contact]'s default route is 臨電話. */
 fun Context.contactCallsViaRin(contact: Contact): Boolean = contactDefaultRoute(contact).startsWith(ROUTE_RIN)
 

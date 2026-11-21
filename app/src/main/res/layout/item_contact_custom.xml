@@ -6,7 +6,6 @@
     android:id="@+id/item_contact_frame"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/selector_clickable"
     android:clickable="true"
     android:focusable="true"
     android:paddingHorizontal="@dimen/list_item_padding_horizontal">

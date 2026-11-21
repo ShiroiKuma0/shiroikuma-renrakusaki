@@ -1,5 +1,6 @@
 package org.fossify.contacts.activities
 
+import org.fossify.commons.extensions.rippleDrawable
 import android.app.Activity
 import android.content.Intent
 import android.media.RingtoneManager
@@ -64,6 +65,7 @@ class GroupContactsActivity : SimpleActivity(), RemoveFromGroupListener, Refresh
         binding.groupContactsFastscroller.updateColors(properPrimaryColor)
         binding.groupContactsPlaceholder2.underlineText()
         binding.groupContactsPlaceholder2.setTextColor(properPrimaryColor)
+        binding.groupContactsPlaceholder2.background = rippleDrawable(PLACEHOLDER_RIPPLE_RADIUS_DP)
     }
 
     override fun onResume() {
@@ -213,3 +215,5 @@ class GroupContactsActivity : SimpleActivity(), RemoveFromGroupListener, Refresh
         }
     }
 }
+
+private const val PLACEHOLDER_RIPPLE_RADIUS_DP = 16f

@@ -34,7 +34,6 @@ class SettingsActivity : SimpleActivity() {
         applyTopBarColors(binding.settingsAppbar)
 
         setupThemeAndColors()
-        setupCustomizeColors()
         setupManageShownContactFields()
         setupShowAllFieldsWhenViewing()
         setupShowRevealFieldsPill()
@@ -61,7 +60,6 @@ class SettingsActivity : SimpleActivity() {
         updateTextColors(binding.settingsHolder)
 
         arrayOf(
-            binding.settingsColorCustomizationSectionLabel,
             binding.settingsGeneralSettingsLabel,
             binding.settingsMainScreenLabel,
             binding.settingsListViewLabel,
@@ -74,12 +72,6 @@ class SettingsActivity : SimpleActivity() {
     private fun setupThemeAndColors() {
         binding.settingsThemeAndColorsHolder.setOnClickListener {
             startActivity(Intent(this, ThemeActivity::class.java))
-        }
-    }
-
-    private fun setupCustomizeColors() {
-        binding.settingsColorCustomizationHolder.setOnClickListener {
-            startCustomizationActivity()
         }
     }
 

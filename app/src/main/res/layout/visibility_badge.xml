@@ -5,6 +5,5 @@
     android:id="@+id/visibility_badge"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/visibility_badge_background"
     android:contentDescription="@string/visible_to_other_apps"
     android:padding="2dp" />

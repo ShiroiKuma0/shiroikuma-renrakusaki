@@ -1,5 +1,6 @@
 package org.fossify.contacts.helpers
 
+import org.fossify.commons.helpers.FAMILY_YELLOW
 import android.content.Context
 import android.graphics.Typeface
 import android.net.Uri
@@ -45,7 +46,7 @@ data class DenwaCallLogStyle(
     val divider: Int,
     val dayDivider: Int,
     val dateUnderline: Int,
-    val simText: Int = PALETTE_YELLOW,
+    val simText: Int = FAMILY_YELLOW,
     val sim1: Int = SIM1_DEFAULT,
     val sim2: Int = SIM2_DEFAULT,
     val dividerDp: Int = 1,
@@ -66,7 +67,7 @@ data class DenwaCallLogStyle(
     // then takes what that denwa drew instead: see loadDenwaCallLogStyle.
     /** The number on the number line; [numberLabel] is the contact's label after its “·”. */
     val number: Int = NUMBER_DEFAULT,
-    val numberLabel: Int = PALETTE_YELLOW,
+    val numberLabel: Int = FAMILY_YELLOW,
     val duration: Int,
     val country: Int,
     /** The ✉ and the ☎ at the right end of the number line. */

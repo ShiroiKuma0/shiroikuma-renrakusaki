@@ -1,5 +1,6 @@
 package org.fossify.contacts.dialogs
 
+import org.fossify.commons.extensions.colorPickerRing
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.graphics.Color
@@ -221,6 +222,7 @@ class AlphaColorPickerDialog(
         val x = currentColorHsv[1] * square.measuredWidth
         val y = (1f - currentColorHsv[2]) * square.measuredHeight
         val cursor = binding.colorPickerCursor
+        if (cursor.drawable == null) cursor.setImageDrawable(colorPickerRing(cursor.context))
         cursor.x = square.left + x - cursor.width / 2f
         cursor.y = square.top + y - cursor.height / 2f
     }

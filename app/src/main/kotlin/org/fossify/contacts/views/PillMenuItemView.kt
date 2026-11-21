@@ -1,5 +1,6 @@
 package org.fossify.contacts.views
 
+import org.fossify.commons.extensions.menuPanelDrawable
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
@@ -110,7 +111,20 @@ class PillMenuItemView @JvmOverloads constructor(
         val list = parent as? AbsListView ?: return
         if (ready && list.selector !is ColorDrawable) {
             list.selector = ColorDrawable(Color.TRANSPARENT)
+            paintPanel(list)
         }
+    }
+
+    // The popup's own panel: the outermost ancestor that carries a ground (the theme's popup background)
+    // is given the menu ground inside the menu frame, built from their roles.
+    private fun paintPanel(list: View) {
+        var panel: View? = null
+        var v: View? = list
+        while (v != null) {
+            if (v.background != null) panel = v
+            v = v.parent as? View
+        }
+        panel?.background = context.menuPanelDrawable()
     }
 
     private fun style(item: MenuItemImpl) {
@@ -134,7 +148,9 @@ class PillMenuItemView @JvmOverloads constructor(
             lp.setMargins(h, v, h, v)
             holder.layoutParams = lp
         }
-        holder.background = if (pill) pillBackground(rowColor) else null
+        // a destructive row lends its colour to the frame as well; every other frame has its own role
+        val frameColor = if (destructive) rowColor else dimmed(MenuPills.frame(context))
+        holder.background = if (pill) pillBackground(frameColor) else null
         // The switch of a toggle row ends where the pills end.
         holder.setPaddingRelative(padStart, padTop, if (toggle) 0 else padEnd, padBottom)
 
@@ -166,7 +182,7 @@ class PillMenuItemView @JvmOverloads constructor(
     private fun styleSwitch(box: CheckBox) {
         if (box.tag != null) return
         box.buttonDrawable = OutlinedSwitchDrawable(
-            MenuPills.accent(context), MenuPills.switchOff(context), dp(SWITCH_WIDTH_DP), dp(SWITCH_HEIGHT_DP), dp(2)
+            MenuPills.switchOn(context), MenuPills.switchOff(context), dp(SWITCH_WIDTH_DP), dp(SWITCH_HEIGHT_DP), dp(2)
         )
         box.buttonTintList = null
         box.background = null

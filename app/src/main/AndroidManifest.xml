@@ -280,13 +280,6 @@
             android:label="@string/about"
             android:parentActivityName=".activities.MainActivity" />
 
-        <activity
-            android:name="org.fossify.commons.activities.CustomizationActivity"
-            android:configChanges="orientation"
-            android:exported="false"
-            android:label="@string/customize_colors"
-            android:parentActivityName=".activities.SettingsActivity" />
-
         <receiver
             android:name=".receivers.BootCompletedReceiver"
             android:exported="true">

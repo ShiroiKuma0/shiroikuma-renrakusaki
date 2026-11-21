@@ -32,7 +32,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/top_shadow_height"
                 android:layout_alignBottom="@+id/contact_photo"
-                android:background="@drawable/gradient_background"
                 android:contentDescription="@null" />
 
             <ImageView
@@ -449,7 +448,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:alpha="0"
-        android:background="#BB000000"
         android:clickable="true"
         android:padding="@dimen/activity_margin"
         android:scaleType="fitCenter"
@@ -460,7 +458,6 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/top_shadow_height"
         android:layout_alignParentTop="true"
-        android:background="@drawable/gradient_background_flipped"
         android:contentDescription="@null" />
 
     <org.fossify.commons.views.MyAppBarLayout
@@ -468,7 +465,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
-        android:background="@android:color/transparent"
         android:elevation="0dp"
         app:elevation="0dp">
 

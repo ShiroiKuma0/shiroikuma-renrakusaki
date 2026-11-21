@@ -161,6 +161,11 @@ class Config(context: Context) : BaseConfig(context) {
         set(value) = prefs.edit().putBoolean(THEME_V1_SEEDED, value).apply()
 
     // One-time migration of persisted material-yellow colors to pure yellow (see migrateToPureYellowIfNeeded).
+    // One-time move of slot overrides into the commons roles' keys (see migrateSlotsToRolesIfNeeded).
+    var slotsMovedToRoles: Boolean
+        get() = prefs.getBoolean("slots_moved_to_roles", false)
+        set(value) = prefs.edit().putBoolean("slots_moved_to_roles", value).apply()
+
     var pureYellowMigrated: Boolean
         get() = prefs.getBoolean(PURE_YELLOW_MIGRATED, false)
         set(value) = prefs.edit().putBoolean(PURE_YELLOW_MIGRATED, value).apply()
@@ -198,6 +203,15 @@ class Config(context: Context) : BaseConfig(context) {
             editor.putInt(SORT_FIELD_PREFIX + key, value)
         }
         editor.apply()
+    }
+
+    // Every number a route setting is stored under (SIM slot, 臨 default flag or 臨 account) that is the same
+    // phone number as [number] — the stored key may be normalised differently from what a caller hands in.
+    fun storedRouteKeysFor(number: String): Set<String> {
+        val prefixes = listOf(SIM_SLOT_PREFIX, RIN_DEFAULT_ROUTE_PREFIX, RIN_ACCOUNT_PREFIX)
+        return prefs.all.keys.mapNotNull { key -> prefixes.firstOrNull { key.startsWith(it) }?.let { key.removePrefix(it) } }
+            .filter { android.telephony.PhoneNumberUtils.compare(it, number) }
+            .toSet()
     }
 
     // Per-number default SIM slot (1 or 2; slot 0 clears it). Keyed by the phone number.

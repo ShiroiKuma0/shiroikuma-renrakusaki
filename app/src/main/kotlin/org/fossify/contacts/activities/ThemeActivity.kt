@@ -1,5 +1,13 @@
 package org.fossify.contacts.activities
 
+import org.fossify.contacts.extensions.resetAllThemeColors
+import org.fossify.commons.helpers.resetUiColor
+import org.fossify.commons.helpers.setUiColor
+import org.fossify.commons.helpers.uiColor
+import org.fossify.commons.helpers.UiRoleSection
+import org.fossify.commons.helpers.UiRole
+import org.fossify.commons.extensions.circleDrawable
+import org.fossify.commons.extensions.rippleDrawable
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
@@ -196,6 +204,9 @@ private enum class RowIcon(val res: Int, val role: ThemeSlot) {
     PRIVATE(CR.drawable.ic_hide_vector, ThemeSlot.MENU_ICON_BLOCK),
 }
 
+private const val ROW_PAD_DP = 2f
+private const val NOTE_TEXT_SP = 13f
+
 @Suppress("TooManyFunctions")
 class ThemeActivity : SimpleActivity() {
     private val binding by viewBinding(ActivityThemeBinding::inflate)
@@ -264,7 +275,7 @@ class ThemeActivity : SimpleActivity() {
         super.onResume()
         // A solid accent bar at every scroll position: the scroll-tinted bar turned black at the top, where
         // the title — coloured to contrast the accent — all but vanished.
-        setupTopAppBar(binding.themeAppbar, NavigationIcon.Arrow, topBarColor = getProperPrimaryColor())
+        setupTopAppBar(binding.themeAppbar, NavigationIcon.Arrow)
         applyTopBarColors(binding.themeAppbar)
         buildRows()
     }
@@ -301,6 +312,12 @@ class ThemeActivity : SimpleActivity() {
         built.add(UiSection("maintenance", getString(R.string.maintenance_section)) { addMaintenanceSection(primaryColor, stepPx) })
         built.add(UiSection("language", getString(R.string.theme_app_language)) { addLanguageSection(primaryColor, stepPx) })
         built.add(UiSection("buttons", getString(R.string.buttons_section)) { addButtonsSection(primaryColor, stepPx) })
+        // The roles of what the commons draws, each in the section of its item (the keys are stored too).
+        fun roleSection(section: UiRoleSection) = built.add(
+            UiSection("roles_" + section.name.lowercase(Locale.ROOT), getString(section.labelRes)) { addRoleRows(section, stepPx) }
+        )
+        listOf(UiRoleSection.TEXT, UiRoleSection.FIELDS, UiRoleSection.DIALOGS, UiRoleSection.SWITCHES, UiRoleSection.MARKS)
+            .forEach(::roleSection)
         ThemeGroup.entries.forEach { group ->
             built.add(UiSection("theme_" + group.name.lowercase(Locale.ROOT), getString(group.labelRes)) { addGroup(group, primaryColor, stepPx) })
             if (group == ThemeGroup.SWIPE_CALL) {
@@ -311,6 +328,8 @@ class ThemeActivity : SimpleActivity() {
                 )
             }
         }
+        roleSection(UiRoleSection.BARS)
+        roleSection(UiRoleSection.TOASTS)
         sections = orderedSections(built)
 
         addSectionIndex(primaryColor)
@@ -432,7 +451,7 @@ class ThemeActivity : SimpleActivity() {
             gravity = Gravity.CENTER_VERTICAL
             val v = (SECTION_HEADER_PAD_DP * density).toInt()
             setPaddingRelative(margin, v, margin, v)
-            setBackgroundResource(org.fossify.commons.R.drawable.ripple_background)
+            background = rippleDrawable()
             addView(labelColumn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             addView(View(this@ThemeActivity), LinearLayout.LayoutParams(0, 0, 1f))
             addView(chevron)
@@ -837,6 +856,45 @@ class ThemeActivity : SimpleActivity() {
         ) {
             config.pillDialogButtons = it
         }
+        addRoleRows(UiRoleSection.BUTTONS, stepPx)
+    }
+
+    // ---- Colour roles of what the commons draws ----
+
+    // One swatch row per role of [section] that no slot of this app already shows under its own label.
+    private fun addRoleRows(section: UiRoleSection, stepPx: Int) {
+        val shownAsSlots = ThemeSlot.entries.filter { it != ThemeSlot.SWITCH_OFF }.mapNotNull { it.role }.toSet()
+        if (section == UiRoleSection.BARS) addNote(getString(R.string.system_bar_role_note), stepPx)
+        UiRole.entries.filter { it.section == section && it !in shownAsSlots }.forEach { addRoleRow(it, stepPx) }
+    }
+
+    private fun addNote(text: String, indent: Int) {
+        val note = TextView(this).apply {
+            this.text = text
+            setTextColor(themeColor(ThemeSlot.SETTINGS_NOTE))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, NOTE_TEXT_SP)
+            val pad = (ROW_PAD_DP * resources.displayMetrics.density).toInt()
+            setPaddingRelative(indent + rowIconInset(), pad, indent, pad)
+        }
+        body.addView(note)
+    }
+
+    private fun addRoleRow(role: UiRole, indent: Int) {
+        val row = ItemThemeColorBinding.inflate(layoutInflater, body, false)
+        row.themeColorLabel.text = getString(role.labelRes)
+        row.themeColorLabel.setTextColor(getProperTextColor())
+        row.themeColorLabel.setRowIcon(RowIcon.COLOR)
+        row.themeColorPreview.background = circleDrawable(uiColor(role))
+        row.root.background = rippleDrawable()
+        row.root.setOnClickListener {
+            AlphaColorPickerDialog(this, uiColor(role), addDefaultColorButton = true) { wasPositive, color ->
+                if (wasPositive) setUiColor(role, color) else resetUiColor(role)
+                // a role may be the default of others, and the page itself is drawn with several of them
+                recreate()
+            }
+        }
+        indentRow(row.root, indent)
+        body.addView(row.root)
     }
 
     // ---- Maintenance: housekeeping tools ----
@@ -888,6 +946,24 @@ class ThemeActivity : SimpleActivity() {
         ) {
             config.uiSectionOrder = ""
             buildRows()
+        }
+
+        // Every colour role back on its default, after a red confirmation: it cannot be undone.
+        addActionRow(
+            getString(R.string.reset_all_colours), getString(R.string.reset_all_colours_desc), stepPx,
+            opens = false, icon = RowIcon.RESET,
+        ) {
+            ConfirmationDialog(
+                activity = this,
+                message = getString(R.string.reset_all_colours_confirm),
+                positive = org.fossify.commons.R.string.yes,
+                negative = org.fossify.commons.R.string.no,
+                destructive = true,
+            ) {
+                resetAllThemeColors()
+                config.contactsListRevision += 1
+                recreate()
+            }
         }
     }
 
@@ -1087,7 +1163,8 @@ class ThemeActivity : SimpleActivity() {
 
         var sawAny = false
         var lastSubgroup: Int? = null
-        ThemeSlot.entries.filter { it.group == group }.forEach { slot ->
+        // the switch-off colour sits with the other switch roles, in Switches
+        ThemeSlot.entries.filter { it.group == group && it != ThemeSlot.SWITCH_OFF }.forEach { slot ->
             val subgroup = slot.subgroupLabelRes
             if (!sawAny || subgroup != lastSubgroup) {
                 sawAny = true
@@ -1100,6 +1177,8 @@ class ThemeActivity : SimpleActivity() {
             if (slot.hasFont) addTextSlot(slot, indent, stepPx) else addColorRow(slot, indent)
         }
 
+        if (group == ThemeGroup.MENUS) addRoleRows(UiRoleSection.MENUS, stepPx)
+        if (group == ThemeGroup.LISTS) addRoleRows(UiRoleSection.LISTS, stepPx)
         if (group == ThemeGroup.TABS) {
             addSwitchRow(
                 title = getString(R.string.show_groups_page),
@@ -1235,6 +1314,9 @@ class ThemeActivity : SimpleActivity() {
         }
         addTextSlot(ThemeSlot.DETAIL_CALL, stepPx * 2, stepPx)
         addTextSlot(ThemeSlot.DETAIL_SMS, stepPx * 2, stepPx)
+        addColorRow(ThemeSlot.DETAIL_INCOMING, stepPx * 2)
+        addColorRow(ThemeSlot.DETAIL_OUTGOING, stepPx * 2)
+        addColorRow(ThemeSlot.DETAIL_MISSED, stepPx * 2)
 
         addSubgroupHeader(getString(R.string.theme_rows_order), primaryColor, stepPx)
 
@@ -1313,6 +1395,8 @@ class ThemeActivity : SimpleActivity() {
             config.photoIconOutlineThickness = it
         }
         addColorRow(ThemeSlot.PHOTO_ICON_OUTLINE, stepPx)
+        addColorRow(ThemeSlot.PHOTO_SHADE, stepPx)
+        addColorRow(ThemeSlot.PHOTO_SCRIM, stepPx)
     }
 
     // "Swipe to call": the switch, then the colours of the band a swiped row reveals and of its marking.
@@ -1456,6 +1540,7 @@ class ThemeActivity : SimpleActivity() {
         onChange: (Boolean) -> Unit,
     ): ItemThemeSwitchBinding {
         val b = ItemThemeSwitchBinding.inflate(layoutInflater, parent, false)
+        b.root.background = rippleDrawable()
         val note = themeColor(ThemeSlot.SETTINGS_NOTE)
         b.themeSwitchLabel.text = title
         b.themeSwitchLabel.setTextColor(if (explained) getProperPrimaryColor() else getProperTextColor())
@@ -1669,7 +1754,7 @@ class ThemeActivity : SimpleActivity() {
         row.themeColorLabel.text = getString(slot.labelRes)
         row.themeColorLabel.setTextColor(getProperTextColor())
         row.themeColorLabel.setRowIcon(RowIcon.COLOR)
-        row.themeColorPreview.background.setTint(themeColor(slot))
+        row.themeColorPreview.background = circleDrawable(themeColor(slot))
         row.root.setOnClickListener { openColorPicker(slot) }
         indentRow(row.root, indent)
         previews[slot] = row.themeColorPreview
@@ -1691,7 +1776,7 @@ class ThemeActivity : SimpleActivity() {
         b.themeTextFontTitle.setRowIcon(RowIcon.TEXT)
         b.themeTextWeightTitle.setRowIcon(RowIcon.WEIGHT)
         b.themeTextSizeTitle.setRowIcon(RowIcon.SIZE)
-        b.themeTextColorPreview.background.setTint(themeColor(slot))
+        b.themeTextColorPreview.background = circleDrawable(themeColor(slot))
         b.themeTextFontValue.text = fontDisplayName(config.getFontFamily(slot.key))
         b.themeTextWeightValue.text = getString(FontWeightOption.fromValue(config.getFontWeight(slot.key)).labelRes)
         b.themeTextSizeSeekbar.max = MAX_FONT_SIZE_SP
@@ -1775,7 +1860,7 @@ class ThemeActivity : SimpleActivity() {
                 // foundation cascades into the chrome + every inheriting preview
                 recreate()
             } else {
-                previews[slot]?.background?.setTint(themeColor(slot))
+                previews[slot]?.background = circleDrawable(themeColor(slot))
             }
             bumpRowRevisionIfNeeded(slot)
         }
@@ -1784,7 +1869,7 @@ class ThemeActivity : SimpleActivity() {
     private fun openTextColorPicker(slot: ThemeSlot, b: ItemThemeTextBinding) {
         AlphaColorPickerDialog(this, themeColor(slot), addDefaultColorButton = true) { wasPositive, color ->
             if (wasPositive) setThemeColor(slot, color) else resetThemeColor(slot)
-            b.themeTextColorPreview.background.setTint(themeColor(slot))
+            b.themeTextColorPreview.background = circleDrawable(themeColor(slot))
             refreshSample(b, slot)
             bumpRowRevisionIfNeeded(slot)
         }

@@ -4,4 +4,7 @@
     <item name="rin_callback" type="id" />
     <item name="rin_call" type="id" />
     <item name="rin_set_account" type="id" />
+    <!-- layers of the pinned-contact shortcut icon, built in code (ContactsAdapter.createShortcut) -->
+    <item name="shortcut_contact_background" type="id" />
+    <item name="shortcut_contact_image" type="id" />
 </resources>

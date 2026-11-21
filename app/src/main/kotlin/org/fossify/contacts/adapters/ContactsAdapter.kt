@@ -1,5 +1,10 @@
 package org.fossify.contacts.adapters
 
+import org.fossify.commons.helpers.uiColor
+import org.fossify.commons.helpers.UiRole
+import org.fossify.commons.extensions.circleRippleDrawable
+import org.fossify.commons.extensions.circleDrawable
+import org.fossify.contacts.extensions.styleSimBadge
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -760,7 +765,13 @@ class ContactsAdapter(
         val manager = activity.getSystemService(ShortcutManager::class.java)
         if (manager.isRequestPinShortcutSupported) {
             val contact = getSelectedItems().first()
-            val drawable = resources.getDrawable(R.drawable.shortcut_contact).mutate()
+            // built here: a disc in the accent role under the contact's picture
+            val drawable = LayerDrawable(
+                arrayOf(circleDrawable(activity.uiColor(UiRole.ACCENT)), AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_person_vector))
+            ).apply {
+                setId(0, R.id.shortcut_contact_background)
+                setId(1, R.id.shortcut_contact_image)
+            }
             getShortcutImage(contact, drawable) {
                 val intent = Intent(activity, ViewContactActivity::class.java)
                 intent.action = Intent.ACTION_VIEW
@@ -780,11 +791,9 @@ class ContactsAdapter(
     }
 
     private fun getShortcutImage(contact: Contact, drawable: Drawable, callback: () -> Unit) {
-        val appIconColor = baseConfig.appIconColor
-        (drawable as LayerDrawable).findDrawableByLayerId(R.id.shortcut_contact_background).applyColorFilter(appIconColor)
         val placeholderImage = AppCompatResources.getDrawable(activity, R.drawable.ic_unknown_contact)
         if (contact.photoUri.isEmpty() && contact.photo == null) {
-            drawable.setDrawableByLayerId(R.id.shortcut_contact_image, placeholderImage)
+            (drawable as LayerDrawable).setDrawableByLayerId(R.id.shortcut_contact_image, placeholderImage)
             callback()
         } else {
             ensureBackgroundThread {
@@ -805,7 +814,7 @@ class ContactsAdapter(
 
                 try {
                     val bitmap = builder.get()
-                    drawable.setDrawableByLayerId(R.id.shortcut_contact_image, bitmap)
+                    (drawable as LayerDrawable).setDrawableByLayerId(R.id.shortcut_contact_image, bitmap)
                 } catch (e: Exception) {
                 }
 
@@ -878,9 +887,7 @@ class ContactsAdapter(
         }
 
         val badge = LayoutInflater.from(activity).inflate(R.layout.sim_badge, frame, false)
-        badge.findViewById<ImageView>(R.id.sim_badge_icon)
-            .applyColorFilter(if (slot == 1) SIM1_BADGE_COLOR else SIM2_BADGE_COLOR)
-        badge.findViewById<TextView>(R.id.sim_badge_number).text = slot.toString()
+        badge.styleSimBadge(slot)
         badge.layoutParams = ConstraintLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply {
@@ -940,7 +947,7 @@ class ContactsAdapter(
         val badge = LayoutInflater.from(activity).inflate(R.layout.visibility_badge, frame, false) as ImageView
         badge.setImageResource(icon)
         badge.applyColorFilter(activity.themeColor(slot))
-        badge.background?.mutate()?.setTint(activity.themeColor(ThemeSlot.BADGE_OUTLINE))
+        badge.background = circleDrawable(activity.themeColor(ThemeSlot.BADGE_OUTLINE))
         val image = view.findViewById<View>(org.fossify.commons.R.id.item_contact_image)
         val imageSize = image?.layoutParams?.width?.takeIf { it > 0 } ?: thumbnailSizePx
         val size = (imageSize * VISIBILITY_BADGE_FRACTION).toInt()
@@ -980,7 +987,7 @@ class ContactsAdapter(
                     }
                 }
                 if (profileIconClick != null && viewType != VIEW_TYPE_GRID) {
-                    setBackgroundResource(R.drawable.selector_clickable_circle)
+                    background = activity.circleRippleDrawable()
                     setOnClickListener {
                         if (!actModeCallback.isSelectable) {
                             profileIconClick.invoke(contact)
@@ -1138,9 +1145,9 @@ class ContactsAdapter(
     private fun buildEventLineView(glyph: String, event: LastEvent, slot: ThemeSlot): TextView {
         val arrow = if (event.incoming) INCOMING_ARROW else OUTGOING_ARROW
         val arrowColor = when {
-            event.missed -> DETAIL_MISSED_COLOR
-            event.incoming -> DETAIL_INCOMING_COLOR
-            else -> DETAIL_OUTGOING_COLOR
+            event.missed -> activity.themeColor(ThemeSlot.DETAIL_MISSED)
+            event.incoming -> activity.themeColor(ThemeSlot.DETAIL_INCOMING)
+            else -> activity.themeColor(ThemeSlot.DETAIL_OUTGOING)
         }
         val line = SpannableString("$glyph $arrow ${event.timestamp.formatDetailTime(activity)}")
         val arrowStart = glyph.length + 1

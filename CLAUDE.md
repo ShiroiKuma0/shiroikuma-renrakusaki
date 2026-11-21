@@ -117,7 +117,7 @@ colors") whenever the installed app id is not `org.fossify.*` — always the cas
 
 - **Source:** the `shiroikuma-commons` fork (`~/git/shiroikuma-commons`, branch `custom`), which strips
   Commons' anti-tamper "fake version" / sideloading checks out entirely.
-- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk17"` in
+- **Delivery:** published to the local Maven repo, consumed as `commons = "6.1.6-sk18"` in
   `gradle/libs.versions.toml` (`mavenLocal()` is already a repository in `settings.gradle.kts`).
 - Because Commons itself no longer nags, this app carries **no** in-app workaround — no `getPackageName`
   spoof, no `SIDELOADING_FALSE`, no `res/raw/keep.xml`.
@@ -221,10 +221,41 @@ jumps on a tap and reorders by a long-press drag; *Reset section order* is in Ma
 a `RowIcon` (drawable + menu icon role), set as the label's start drawable; each builder has a default by
 row type, and a call site names another where the row's meaning is clearer.
 
-Switches and the + button are drawn by commons (sk17) under `pillDialogButtons`: the outlined switch
-(off colour = `ThemeSlot.SWITCH_OFF`, mirrored into `BaseConfig.switchOffColor`) and the outlined floating
-button. `ThemeSlot.MENU_WARNING` is mirrored into `BaseConfig.dialogWarningColor`; a confirmation that
-deletes passes `destructive = true`.
+Switches and the + button are drawn by commons (sk17) under `pillDialogButtons`: the outlined switch and
+the outlined floating button, coloured from their own commons roles (see *Colours* below). A confirmation
+that deletes passes `destructive = true` and is drawn in `UiRole.BUTTON_DESTRUCTIVE`.
+
+## Colours — nothing in XML, every item a role (from `+133`, commons sk18)
+
+白い熊, 2026-11-21: `#FFFF00` and `#000000` are defaults only, and every item's colour is set on the UI page.
+
+- **No colour is written in XML** — not in this app's layouts, drawables or styles, and not in the commons'
+  (its `colors.xml`, the `md_` palette, the stock per-colour / white / system themes and *Customize colors*
+  are deleted). A new layout or drawable must not name one: build the shape in code
+  (commons `extensions/UiRoleViews.kt`: `rowSelectorDrawable`, `rippleDrawable`, `circleDrawable`,
+  `listDividerDrawable`, `menuPanelDrawable`, `sectionFrameDrawable`, …; `@layout/divider` paints itself).
+- **Two role tables.** Commons `helpers/UiRoles.kt` (`UiRole`, sections `UiRoleSection`) holds everything
+  the commons draws — foundation, text, fields, buttons, dialogs, switches, marks, menus, lists, bars,
+  toasts — and is where the two primaries are written, once. `ThemeSlot` (extensions/ThemeColors.kt) holds
+  this app's own items; a slot with `role = UiRole.X` **is** that commons role under our label and section
+  (stored in the role's key `ui_role_<key>`; slot overrides from before `+133` are moved once,
+  `migrateSlotsToRolesIfNeeded`). Read with `uiColor(role)` / `themeColor(slot)`.
+- **The UI page** shows the commons roles no slot stands for in sections `roles_<section>` (Text, Text
+  fields and pickers, Dialogs, Switches, Check boxes and radio buttons, Bars, Toasts) and inside Buttons,
+  Menus and Lists (`ThemeActivity.addRoleRows`). A colour picker's *default* button resets one role;
+  Maintenance → *Reset all colours* resets all (`resetAllThemeColors`). All keys travel in the export.
+- **Stock widgets get their roles as they are inflated**: commons `views/FamilyViewInflater` is the theme's
+  `viewInflaterClass`. An icon keeps a neutral placeholder fill in its vector file and is tinted there
+  from the text role (on the drawable, never the view), unless a screen gives it its own role afterwards.
+- **What stays in XML, and why:** the black `android:windowBackground` of `AppTheme.Base` (the platform
+  draws it before any code runs; the activity repaints it from the role); the launcher icon variants'
+  grounds (`mipmap-anydpi-v26/ic_launcher_*.xml`, drawn by the launcher); commons
+  `widget_round_background` (a home-screen widget's shape); `?attr/selectableItemBackground` in layouts
+  (a shape, recoloured in code from `UiRole.LIST_PRESSED`); multi-colour pictures (brand marks, flags).
+- **The date picker is ours** (from `+134`): commons `views/FamilyDatePicker` — a month grid drawn in code
+  (ring on the chosen day, never a filled disc; a short line under today; arrow pills, the year stepping by
+  1 and by 10), every part from a `UiRole.PICKER_*` role (UI page → Dialogs). The platform `DatePicker`
+  draws its day grid from theme attributes with no setter and must not be used in a layout.
 
 ## Menus — pills with coloured icons
 
@@ -302,6 +333,14 @@ authority (Messēji, yotehyo). **Never rename the authority or the `contacts` pa
   (same gate, `getType` = `image/jpeg` so `loadThumbnail` works). Without it denwa showed placeholders.
 - 臨電話 (`shiroikuma.rindenwa`) is a default since `+123`, and was added once to lists stored before that
   (`Config.addRindenwaToPrivateDataAppsOnce`).
+- **The call-route door** (from `+133`; Messēji asked for it, so one contact has one route everywhere):
+  `ContentResolver.call()` on the provider, same gate. `get_route` (arg or extra `number`) →
+  `{result: "OK", route: sim1 | sim2 | rin | rin:N | off}`; `set_route`, extras `{number, route}` →
+  `{result: "OK"}` (`off` clears). Errors `ERROR:not allowed | no number | bad route | failed`. Any other
+  method — and these two on an older 連絡先 — return `null`, which is how a caller tells “no route set”
+  from “no door”. It works per number (`numberDefaultRoute` / `setNumberDefaultRoute`, helpers/Rindenwa.kt),
+  matching stored keys as phone numbers, and bumps `contactsListRevision`. **Keep the names in sync with
+  Messēji.**
 - **Change notification:** `helpers/PrivateContactsWatch` calls `notifyChange` on
   `content://<our id>.contactsprovider/contacts` after any write to the private contacts table (Room's
   invalidation tracker, re-attached whenever the database singleton is rebuilt). Rindenwa observes it.
