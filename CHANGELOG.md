@@ -7,6 +7,25 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+136] — 2026-11-22
+
+Since `1.6.0+135`, still on **Fossify Contacts 1.6.0**; Commons moves from **6.1.6-sk19** to **7.1.3-sk1**.
+
+### Commons 7.1.3-sk1
+- The app is built on the patched Commons re-cut onto upstream **Commons 7.1.3**: every fork patch of
+  `6.1.6-sk1` – `sk19` (anti-tamper removed, the role colours, pills, outlined switches, our date and
+  time pickers, swipe to call, `Contact.extra`, …) replayed onto the new base.
+- Follows upstream's own “migrate to commons 7” change: the flavour bools `hide_google_relations` and
+  `pretend_thank_you_installed` give way to `is_google_play_build` (false in our foss build), which
+  *More apps from us* and the Play-only FAQ entries now read — both stay hidden, as before.
+- Commons 7's timed donation / rating prompt never appears: it is a no-op in the patched Commons.
+- Upstream's “thank you” feature locks are gone from Commons; the app used none of them.
+
+### Packaging
+- The unused `core` product flavour is removed, as upstream did; `foss` (ours) and `gplay` remain.
+
+Nothing else changes in the app.
+
 ## [1.6.0+135] — 2026-11-21
 
 Since `1.6.0+134`, still on **Fossify Contacts 1.6.0**; Commons moves from **6.1.6-sk18** to **6.1.6-sk19**.
