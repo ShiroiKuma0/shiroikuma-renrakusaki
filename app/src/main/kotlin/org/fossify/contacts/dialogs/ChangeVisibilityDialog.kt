@@ -19,6 +19,7 @@ import org.fossify.contacts.extensions.fetchAllContactsBlocking
 import org.fossify.contacts.extensions.getCachePhotoUri
 import org.fossify.contacts.helpers.ContactMover
 import org.fossify.contacts.helpers.SystemMirror
+import org.fossify.contacts.helpers.TemporaryVisibility
 import org.fossify.contacts.helpers.privateGroupsNamed
 import org.fossify.contacts.helpers.systemGroupsNamed
 import java.io.FileOutputStream
@@ -26,7 +27,9 @@ import java.util.Locale
 
 /**
  * Who can see a contact, and the one place to change it: System (every app), Private (this app and
- * the allowed sister apps), Private + visible (private, with a system copy — helpers/SystemMirror).
+ * the allowed sister apps), Private + visible (private, with a system copy — helpers/SystemMirror), and
+ * the same for some minutes only (helpers/TemporaryVisibility). Another app's own entry beside a contact
+ * (helpers/ForeignEntries) is no entry of it: every load drops those.
  *
  * Opened by a long-press on a contact's photo in the lists and by the visibility row on the contact
  * screen. Private ⇄ Private + visible only adds or removes the copy. Crossing between System and
@@ -47,27 +50,37 @@ class ChangeVisibilityDialog(
         ensureBackgroundThread {
             val members = membersOf(activity, contact)
             val current = stateOfGroup(activity, members)
-            activity.runOnUiThread { show(current, members) }
+            val temporary = current == State.VISIBLE && temporaryEndOf(activity, members) != null
+            activity.runOnUiThread { show(current, temporary, members) }
         }
     }
 
-    private fun show(current: State?, members: List<Contact>) {
+    private fun show(current: State?, temporary: Boolean, members: List<Contact>) {
         if (activity.isFinishing || activity.isDestroyed) return
+        val minutes = activity.config.temporaryVisibilityMinutes
         val items = arrayListOf(
             RadioItem(State.SYSTEM.ordinal, activity.getString(R.string.visibility_system), State.SYSTEM),
             RadioItem(State.PRIVATE.ordinal, activity.getString(R.string.visibility_private), State.PRIVATE),
             RadioItem(State.VISIBLE.ordinal, activity.getString(R.string.visibility_visible), State.VISIBLE),
+            // the visible state with an end (helpers/TemporaryVisibility); its value is the minutes
+            RadioItem(TEMPORARY_ID, activity.getString(R.string.visibility_temporary, minutes), minutes),
         )
         // A mixed group (its entries in different states) has nothing ticked; any choice unifies it.
-        RadioGroupDialog(activity, items, current?.ordinal ?: -1, R.string.visibility_title) { chosen ->
+        val checked = if (temporary) TEMPORARY_ID else current?.ordinal ?: -1
+        RadioGroupDialog(activity, items, checked, R.string.visibility_title) { chosen ->
+            if (chosen is Int) {
+                // chosen again while it runs, it starts the time anew
+                perform { applyTo(members, State.VISIBLE, chosen) }
+                return@RadioGroupDialog
+            }
             val target = chosen as State
-            if (target == current) return@RadioGroupDialog
+            if (target == current && !temporary) return@RadioGroupDialog
             // No confirmation: a move carries every field (Contact.extra), so nothing is lost either way.
-            perform { applyTo(members, target) }
+            perform { applyTo(members, target, null) }
         }
     }
 
-    private class Result(val ok: Boolean, val moved: Boolean)
+    private class Result(val ok: Boolean, val moved: Boolean, val localId: Int = 0)
 
     private fun perform(action: () -> Result) {
         ensureBackgroundThread {
@@ -93,10 +106,11 @@ class ChangeVisibilityDialog(
      * merge duplicate contacts), and this phone holds many contacts twice; changing only the entry behind
      * the row left its twin behind, and the row then showed whichever one the merge happened to pick.
      */
-    private fun applyTo(members: List<Contact>, target: State): Result {
+    private fun applyTo(members: List<Contact>, target: State, temporaryMinutes: Int?): Result {
         var ok = true
         var moved = false
         val mirrored = SystemMirror.mirrors(activity).keys
+        val nowPrivate = ArrayList<Int>() // the private ids the entries have after this
         members.forEach { member ->
             val step: Result = when {
                 target == State.SYSTEM && member.isPrivate() -> moveToSystem(member)
@@ -107,18 +121,29 @@ class ChangeVisibilityDialog(
             }
             ok = ok && step.ok
             moved = moved || step.moved
+            if (step.ok && target != State.SYSTEM) nowPrivate.add(if (member.isPrivate()) member.id else step.localId)
         }
+        // The copy's end: set for "visible for N minutes", forgotten for "visible" and "private".
+        val ids = nowPrivate.filter { it != 0 }
+        if (temporaryMinutes != null) TemporaryVisibility.start(activity, ids, temporaryMinutes) else TemporaryVisibility.forget(activity, ids)
         return Result(ok, moved)
     }
 
     // The moves themselves live in helpers/ContactMover, shared with the bulk "move everything to private".
     private fun moveToPrivate(member: Contact, visible: Boolean): Result =
-        ContactMover.toPrivate(activity, member, visible).let { Result(it.ok, it.moved) }
+        ContactMover.toPrivate(activity, member, visible).let { Result(it.ok, it.moved, it.localId) }
 
     private fun moveToSystem(member: Contact): Result =
         ContactMover.toSystem(activity, member).let { Result(it.ok, it.moved) }
 
     companion object {
+        private const val TEMPORARY_ID = 3
+
+        /** When a visible row's copies end (the earliest, epoch ms) — null unless every private entry has an end. */
+        fun temporaryEndOf(activity: Activity, members: List<Contact>): Long? {
+            val ends = members.filter { it.isPrivate() }.map { TemporaryVisibility.endOf(activity, it.id) }
+            return if (ends.isEmpty() || ends.any { it == null }) null else ends.filterNotNull().minOrNull()
+        }
 
         /** The state of one entry. Blocking — reads the copies. */
         fun stateOf(activity: Activity, contact: Contact): State = when {

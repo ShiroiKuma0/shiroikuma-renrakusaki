@@ -7,4 +7,6 @@
     <!-- layers of the pinned-contact shortcut icon, built in code (ContactsAdapter.createShortcut) -->
     <item name="shortcut_contact_background" type="id" />
     <item name="shortcut_contact_image" type="id" />
+    <!-- the layout listener that sizes a row's icon by its label (extensions/RowIcons.kt) -->
+    <item name="row_icon_sizer" type="id" />
 </resources>

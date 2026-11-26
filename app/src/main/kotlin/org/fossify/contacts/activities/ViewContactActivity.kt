@@ -17,9 +17,14 @@ import android.provider.ContactsContract.CommonDataKinds
 import android.util.TypedValue
 import android.view.View
 import android.view.WindowManager
-import android.widget.RelativeLayout
+import android.graphics.Typeface
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import androidx.core.graphics.ColorUtils
 import android.widget.TextView
-import androidx.core.view.isVisible
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.FitCenter
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
@@ -41,12 +46,52 @@ import org.fossify.contacts.extensions.*
 import org.fossify.contacts.helpers.*
 import java.util.Locale
 
-// Route badges on the contact screen's numbers (dp / sp).
-private const val ROUTE_BADGE_SIZE_DP = 30
-private const val ROUTE_BADGE_PAD_DP = 7
-private const val ROUTE_BADGE_GAP_DP = 6
+// The route mark inside a call pill (dp / sp).
+private const val ROUTE_BADGE_SIZE_DP = 26
+private const val ROUTE_BADGE_PAD_DP = 6
 private const val ROUTE_BADGE_RADIUS_DP = 7f
-private const val ROUTE_BADGE_TEXT_SP = 16f
+private const val ROUTE_BADGE_TEXT_SP = 15f
+
+// A call pill: mark, gap, label.
+private const val ACTION_PILL_PAD_START_DP = 11f
+private const val ACTION_PILL_PAD_END_DP = 16f
+private const val ACTION_PILL_PAD_V_DP = 8f
+private const val ACTION_PILL_GAP_DP = 8f
+private const val ACTION_PILL_TEXT_SP = 16f
+private const val ACTION_PILL_LABEL_MAX_DP = 150f
+
+// The tiles of the contact card (dp), and their text sizes as multiples of the app's text size.
+private const val TILE_RADIUS_DP = 22f
+private const val TILE_STROKE_DP = 1.5f
+private const val TILE_GAP_DP = 10f
+private const val TILE_EDGE_DP = 7f
+private const val TILE_PAD_H_DP = 16f
+private const val TILE_PAD_V_DP = 13f
+private const val LINE_PAD_V_DP = 4f
+private const val WATERMARK_SIZE_DP = 96f
+private const val WATERMARK_OUT_END_DP = 14f
+private const val WATERMARK_OUT_BOTTOM_DP = 18f
+private const val WATERMARK_ALPHA = 0.13f
+private const val TWO_COLUMN_MIN_WIDTH_DP = 520
+private const val PHOTO_ASPECT_W = 3
+private const val PHOTO_ASPECT_H = 4
+private const val STAR_SIZE_DP = 40f
+private const val STAR_PAD_DP = 6f
+private const val CHIP_TOP_DP = 8f
+private const val CHIP_ICON_DP = 15f
+private const val CHIP_ICON_GAP_DP = 6f
+private const val CHIP_PAD_H_DP = 12f
+private const val CHIP_PAD_V_DP = 4f
+private const val SOURCE_ICON_DP = 32f
+private const val PERCENT = 100f
+private const val CAPTION_SCALE = 0.78f
+private const val CAPTION_LETTER_SPACING = 0.08f
+private const val LABEL_SCALE = 0.85f
+private const val VALUE_SCALE = 1.15f
+private const val TITLE_SCALE = 1.35f
+private const val NUMBER_SCALE = 1.6f
+private const val NAME_SCALE = 1.7f
+private const val CAPTION_SEPARATOR = " · "
 
 class ViewContactActivity : ContactActivity() {
     private var isViewIntent = false
@@ -61,7 +106,6 @@ class ViewContactActivity : ContactActivity() {
 
     companion object {
         private const val COMPARABLE_PHONE_NUMBER_LENGTH = 9
-        private const val CALL_HISTORY_HEADING_SCALE = 1.1f
         private const val CALL_NUMBER_LABEL_SEPARATOR = " · "
 
         // Kinds with their own fields on this screen; a kept row of one of them only carries extra columns.
@@ -79,13 +123,6 @@ class ViewContactActivity : ContactActivity() {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
 
-        // The shades behind the icons over the photo, built here from their role (no gradient in XML).
-        val shade = themeColor(ThemeSlot.PHOTO_SHADE)
-        val clear = androidx.core.graphics.ColorUtils.setAlphaComponent(shade, 0)
-        binding.contactPhotoTopShadow.background =
-            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(shade, clear))
-        binding.contactPhotoBottomShadow.background =
-            GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(shade, clear))
         binding.contactAppbar.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         binding.contactPhotoBig.setBackgroundColor(themeColor(ThemeSlot.PHOTO_SCRIM))
 
@@ -169,6 +206,8 @@ class ViewContactActivity : ContactActivity() {
                 val visible = !item.isChecked
                 ensureBackgroundThread {
                     val changed = SystemMirror.setVisible(applicationContext, listOf(localId), visible) > 0
+                    // switched on here, the copy stays: it has no end (helpers/TemporaryVisibility)
+                    org.fossify.contacts.helpers.TemporaryVisibility.forget(applicationContext, listOf(localId))
                     runOnUiThread {
                         if (changed) {
                             item.isChecked = visible
@@ -263,70 +302,19 @@ class ViewContactActivity : ContactActivity() {
         }
 
         binding.contactScrollview.beVisible()
+        setupPhoto()
         setupViewContact()
-        binding.contactSendSms.beVisibleIf(contact!!.phoneNumbers.isNotEmpty())
-        binding.contactStartCall.beVisibleIf(contact!!.phoneNumbers.isNotEmpty())
-        binding.contactSendEmail.beVisibleIf(contact!!.emails.isNotEmpty())
 
-        if (contact!!.photoUri.isEmpty() && contact!!.photo == null) {
-            showPhotoPlaceholder(binding.contactPhoto)
-            binding.contactPhotoBottomShadow.beGone()
-        } else {
-            updateContactPhoto(contact!!.photoUri, binding.contactPhoto, binding.contactPhotoBottomShadow, contact!!.photo)
-            val options = RequestOptions()
-                .transform(FitCenter(), RoundedCorners(resources.getDimension(org.fossify.commons.R.dimen.normal_margin).toInt()))
-
-            Glide.with(this)
-                .load(contact!!.photo ?: currentContactPhotoPath)
-                .apply(options)
-                .into(binding.contactPhotoBig)
-
-            binding.contactPhoto.setOnClickListener {
-                binding.contactPhotoBig.alpha = 0f
-                binding.contactPhotoBig.beVisible()
-                binding.contactPhotoBig.animate().alpha(1f).start()
-            }
-
-            binding.contactPhotoBig.setOnClickListener {
-                hideBigContactPhoto()
-            }
-        }
-
-        val textColor = getProperTextColor()
-        arrayOf(
-            binding.contactNameImage, binding.contactNumbersImage, binding.contactEmailsImage, binding.contactAddressesImage, binding.contactImsImage,
-            binding.contactEventsImage, binding.contactSourceImage, binding.contactNotesImage, binding.contactRingtoneImage, binding.contactOrganizationImage,
-            binding.contactWebsitesImage, binding.contactGroupsImage
-        ).forEach {
-            it.applyColorFilter(textColor)
-        }
-
-        binding.contactSendSms.setOnClickListener { trySendSMS() }
-        binding.contactStartCall.setOnClickListener { tryInitiateCall(contact!!) { startDefaultRouteCall(contact!!, it) } }
-        binding.contactSendEmail.setOnClickListener { trySendEmail() }
-
-        binding.contactSendSms.setOnLongClickListener { toast(org.fossify.commons.R.string.send_sms); true; }
-        binding.contactStartCall.setOnLongClickListener { toast(org.fossify.commons.R.string.call_contact); true; }
-        binding.contactSendEmail.setOnLongClickListener { toast(org.fossify.commons.R.string.send_email); true; }
-
-        updateTextColors(binding.contactScrollview)
         binding.contactToolbar.menu.findItem(R.id.open_with).isVisible = contact?.isPrivate() == false
         refreshVisibleToOtherAppsItem()
         // The overflow popup draws its titles in the platform's white otherwise — same slot as every
         // other menu in the app.
         binding.contactToolbar.menu.colorItemTitles(themeColor(ThemeSlot.SEARCH_MENU_TEXT))
-
-        // Fork: everything drawn over the photo gets its own color plus a halo (the favorite star is
-        // haloed in getStarDrawable, since it is re-set on every toggle).
-        applyPhotoOverlayIcons(
-            binding.contactToolbar, binding.contactSendSms, binding.contactStartCall, binding.contactSendEmail
-        )
+        applyPhotoOverlayIcons(binding.contactToolbar)
     }
 
     private fun setupViewContact() {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-        setupFavorite()
-        setupNames()
         setupReading()
 
         ContactsHelper(this).getContactSources {
@@ -342,95 +330,344 @@ class ViewContactActivity : ContactActivity() {
         }
     }
 
+    // ---- The card: tiles ------------------------------------------------------------------------------
+    //
+    // Every kind of information is a tile of its own — an outlined, faintly tinted box in the colour of its
+    // kind (ThemeSlot.CARD_*), with a caption saying what it holds and a large faint icon in its corner.
+    // The photo (whole, never cropped) and the name head the card, each number follows as a full-width tile
+    // with its one-touch call pills, the other fields pack two to a row where the screen is wide enough,
+    // and the call history closes it. The whole card is rebuilt whenever the duplicates or sources arrive.
+
+    private class Tile(val root: FrameLayout, val body: LinearLayout, val color: Int)
+
+    private var readingText = ""
+    private var readingView: TextView? = null
+    private var ringtoneView: TextView? = null
+    private var sourceCount = 0
+
+    private fun dp(value: Float) = (value * resources.displayMetrics.density).toInt()
+
+    private val twoColumns: Boolean get() = resources.configuration.screenWidthDp >= TWO_COLUMN_MIN_WIDTH_DP
+
+    private fun tileGround(color: Int) = GradientDrawable().apply {
+        cornerRadius = dp(TILE_RADIUS_DP).toFloat()
+        setColor(ColorUtils.blendARGB(getProperBackgroundColor(), color, config.cardTileFill / PERCENT))
+        setStroke(dp(TILE_STROKE_DP).coerceAtLeast(1), color)
+    }
+
+    private fun tileMargins(params: ViewGroup.MarginLayoutParams) {
+        val gap = dp(TILE_GAP_DP / 2)
+        params.setMargins(gap, gap, gap, gap)
+    }
+
+    private fun tile(slot: ThemeSlot, caption: String, icon: Int?): Tile {
+        val color = themeColor(slot)
+        val root = FrameLayout(this).apply {
+            background = tileGround(color)
+            clipToOutline = true
+        }
+        if (icon != null && config.cardWatermarks) {
+            val mark = ImageView(this).apply {
+                setImageDrawable(resources.getColoredDrawableWithColor(icon, color))
+                alpha = WATERMARK_ALPHA
+            }
+            val size = dp(WATERMARK_SIZE_DP)
+            root.addView(mark, FrameLayout.LayoutParams(size, size, Gravity.BOTTOM or Gravity.END).apply {
+                marginEnd = -dp(WATERMARK_OUT_END_DP)
+                bottomMargin = -dp(WATERMARK_OUT_BOTTOM_DP)
+            })
+        }
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(TILE_PAD_H_DP), dp(TILE_PAD_V_DP), dp(TILE_PAD_H_DP), dp(TILE_PAD_V_DP))
+        }
+        root.addView(body, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        if (caption.isNotEmpty()) body.addView(captionView(caption, color))
+        return Tile(root, body, color)
+    }
+
+    private fun captionView(caption: String, color: Int) = TextView(this).apply {
+        text = caption.uppercase(Locale.getDefault())
+        setTextColor(color)
+        setTextSize(TypedValue.COMPLEX_UNIT_PX, getTextSize() * CAPTION_SCALE)
+        setTypeface(typeface, Typeface.BOLD)
+        letterSpacing = CAPTION_LETTER_SPACING
+    }
+
+    /**
+     * One line of a tile: the value, what it is ([label]) beneath it in the quieter colour, and an optional
+     * view at its end. A tap does [onClick]; a long-press copies [copyValue], or the value as it then reads.
+     */
+    @Suppress("LongParameterList")
+    private fun Tile.line(
+        value: CharSequence,
+        label: String = "",
+        scale: Float = VALUE_SCALE,
+        bold: Boolean = false,
+        end: View? = null,
+        copyValue: String? = null,
+        onClick: (() -> Unit)? = null,
+    ): TextView {
+        val activity = this@ViewContactActivity
+        val valueView = TextView(activity).apply {
+            text = value
+            setTextColor(themeColor(ThemeSlot.CARD_VALUE))
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, getTextSize() * scale)
+            if (bold) setTypeface(typeface, Typeface.BOLD)
+        }
+        val column = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(valueView)
+        }
+        if (label.isNotEmpty()) {
+            column.addView(TextView(activity).apply {
+                text = label
+                setTextColor(themeColor(ThemeSlot.CARD_LABEL))
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, getTextSize() * LABEL_SCALE)
+            })
+        }
+        val row = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(LINE_PAD_V_DP), 0, dp(LINE_PAD_V_DP))
+            addView(column, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            end?.let { addView(it) }
+            if (onClick != null) {
+                background = rippleDrawable()
+                setOnClickListener { onClick() }
+            }
+            setOnLongClickListener {
+                copyToClipboard(copyValue ?: valueView.text.toString())
+                true
+            }
+        }
+        body.addView(row)
+        return valueView
+    }
+
     private fun setupContactDetails() {
         if (isFinishing || isDestroyed || contact == null) {
             return
         }
 
-        setupPhoneNumbers()
-        setupEmails()
-        setupAddresses()
-        setupIMs()
-        setupEvents()
-        setupWebsites()
-        setupMoreFields()
-        setupGroups()
-        setupContactSources()
-        setupNotes()
-        setupRingtone()
-        setupOrganization()
-        updateTextColors(binding.contactScrollview)
+        refreshRinAccountsOnce()
+        binding.contactHeadColumn.removeAllViews()
+        binding.contactFields.removeAllViews()
+
+        val numbers = mergedPhoneNumbers()
+        addHeadTiles()
+        if (showFields and SHOW_PHONE_NUMBERS_FIELD != 0) {
+            numbers.forEach { number ->
+                val phone = phoneTile(number)
+                binding.contactFields.addView(
+                    phone.root,
+                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).also(::tileMargins),
+                )
+            }
+        }
+        addFieldTiles(
+            listOfNotNull(
+                emailsTile(), addressesTile(), imsTile(), eventsTile(), websitesTile(), moreTile(),
+                groupsTile(), notesTile(), ringtoneTile(), sourcesTile(),
+            )
+        )
         setupCallHistory()
     }
 
-    private fun launchEditContact(contact: Contact, editExactContact: Boolean) {
-        wasEditLaunched = true
-        duplicateInitialized = false
-        if (editExactContact) {
-            editContact(contact)
+    // Two tiles to a row on a wide screen, one on a narrow one; an odd last tile takes the whole row.
+    private fun addFieldTiles(tiles: List<Tile>) {
+        tiles.chunked(if (twoColumns) 2 else 1).forEach { chunk ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                isBaselineAligned = false
+            }
+            chunk.forEach {
+                row.addView(it.root, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).also(::tileMargins))
+            }
+            binding.contactFields.addView(row)
+        }
+    }
+
+    // The photo tile: the whole picture, fitted, never cropped to a strip. A tap enlarges it.
+    private fun setupPhoto() {
+        val edge = dp(TILE_EDGE_DP)
+        val frame = dp(TILE_STROKE_DP).coerceAtLeast(1)
+        binding.contactHolder.setPadding(edge, 0, edge, edge)
+        binding.contactPhotoTile.apply {
+            background = tileGround(themeColor(ThemeSlot.CARD_NAME))
+            clipToOutline = true
+            setPadding(frame, frame, frame, frame)
+            val tileWidth = (resources.displayMetrics.widthPixels - 2 * edge) / 2 - dp(TILE_GAP_DP)
+            layoutParams = (layoutParams as LinearLayout.LayoutParams).apply {
+                height = minOf(resources.getDimensionPixelSize(R.dimen.top_contact_image_height), tileWidth * PHOTO_ASPECT_H / PHOTO_ASPECT_W)
+                tileMargins(this)
+            }
+        }
+
+        val shown = contact!!
+        if (shown.photoUri.isEmpty() && shown.photo == null) {
+            showPhotoPlaceholder(binding.contactPhoto)
+            binding.contactPhoto.setOnClickListener(null)
+            return
+        }
+
+        currentContactPhotoPath = shown.photoUri
+        Glide.with(this)
+            .load(shown.photo ?: shown.photoUri)
+            .fitCenter()
+            .error(R.drawable.ic_unknown_contact)
+            .into(binding.contactPhoto)
+
+        val options = RequestOptions()
+            .transform(FitCenter(), RoundedCorners(resources.getDimension(org.fossify.commons.R.dimen.normal_margin).toInt()))
+        Glide.with(this)
+            .load(shown.photo ?: currentContactPhotoPath)
+            .apply(options)
+            .into(binding.contactPhotoBig)
+
+        binding.contactPhoto.setOnClickListener {
+            binding.contactPhotoBig.alpha = 0f
+            binding.contactPhotoBig.beVisible()
+            binding.contactPhotoBig.animate().alpha(1f).start()
+        }
+        binding.contactPhotoBig.setOnClickListener {
+            hideBigContactPhoto()
+        }
+    }
+
+    // Beside the photo: who it is (name, reading, favorite star, who can see it) and where they work.
+    private fun addHeadTiles() {
+        val shown = contact!!
+        var displayName = shown.getNameToDisplay()
+        if (shown.nickname.isNotEmpty()) {
+            displayName += " (${shown.nickname})"
+        }
+        val showNameFields = showFields and SHOW_PREFIX_FIELD != 0 || showFields and SHOW_FIRST_NAME_FIELD != 0 ||
+            showFields and SHOW_MIDDLE_NAME_FIELD != 0 || showFields and SHOW_SURNAME_FIELD != 0 || showFields and SHOW_SUFFIX_FIELD != 0
+        val showName = displayName.isNotEmpty() && (showNameFields || shown.isABusinessContact())
+
+        val name = tile(ThemeSlot.CARD_NAME, "", null)
+        (name.body.layoutParams as FrameLayout.LayoutParams).gravity = Gravity.CENTER_VERTICAL
+        val star = favoriteStar()
+        val starSize = dp(STAR_SIZE_DP)
+        if (showName) {
+            star.layoutParams = LinearLayout.LayoutParams(starSize, starSize).apply { gravity = Gravity.TOP }
+            name.line(displayName, scale = NAME_SCALE, bold = true, end = star)
         } else {
-            editContact(contact, config.mergeDuplicateContacts)
+            name.body.addView(star, LinearLayout.LayoutParams(starSize, starSize))
+        }
+        readingView = TextView(this).apply {
+            text = readingText
+            setTextColor(themeColor(ThemeSlot.CARD_LABEL))
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, getTextSize())
+            beVisibleIf(showName && readingText.isNotEmpty())
+            setOnLongClickListener {
+                copyToClipboard(text.toString())
+                true
+            }
+        }.also { name.body.addView(it) }
+        if (config.showVisibilityRow) {
+            name.body.addView(
+                visibilityChip(shown),
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    topMargin = dp(CHIP_TOP_DP)
+                },
+            )
+        }
+
+        binding.contactHeadColumn.addView(
+            name.root, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).also(::tileMargins),
+        )
+        organizationTile()?.let {
+            binding.contactHeadColumn.addView(
+                it.root,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).also(::tileMargins),
+            )
         }
     }
 
-    private fun openWith() {
-        if (contact != null) {
-            val uri = getContactPublicUri(contact!!)
-            launchViewContactIntent(uri)
-        }
-    }
+    private fun favoriteStar() = ImageView(this).apply {
+        val pad = dp(STAR_PAD_DP)
+        setPadding(pad, pad, pad, pad)
+        background = circleRippleDrawable()
+        contentDescription = getString(R.string.toggle_favorite)
+        tag = contact!!.starred
+        setImageDrawable(getStarDrawable(tag == 1))
 
-    private fun setupFavorite() {
-        binding.contactToggleFavorite.apply {
-            beVisible()
+        setOnClickListener {
+            val newIsStarred = if (tag == 1) 0 else 1
+            ensureBackgroundThread {
+                val contacts = arrayListOf(contact!!)
+                if (newIsStarred == 1) {
+                    ContactsHelper(context).addFavorites(contacts)
+                } else {
+                    ContactsHelper(context).removeFavorites(contacts)
+                }
+            }
+            contact!!.starred = newIsStarred
             tag = contact!!.starred
             setImageDrawable(getStarDrawable(tag == 1))
 
-            setOnClickListener {
-                val newIsStarred = if (tag == 1) 0 else 1
-                ensureBackgroundThread {
-                    val contacts = arrayListOf(contact!!)
-                    if (newIsStarred == 1) {
-                        ContactsHelper(context).addFavorites(contacts)
-                    } else {
-                        ContactsHelper(context).removeFavorites(contacts)
-                    }
-                }
-                contact!!.starred = newIsStarred
-                tag = contact!!.starred
-                setImageDrawable(getStarDrawable(tag == 1))
-
-                // Newly a favorite, and so one tap from being called: settle which of its numbers that
-                // tap dials while the choice is being made, not from the car.
-                if (newIsStarred == 1) {
-                    promptForCallNumbers(listOf(contact!!))
-                }
+            // Newly a favorite, and so one tap from being called: settle which of its numbers that
+            // tap dials while the choice is being made, not from the car.
+            if (newIsStarred == 1) {
+                promptForCallNumbers(listOf(contact!!))
             }
-
-            setOnLongClickListener { toast(R.string.toggle_favorite); true; }
         }
+
+        setOnLongClickListener { toast(R.string.toggle_favorite); true; }
     }
 
-    private fun setupNames() {
-        var displayName = contact!!.getNameToDisplay()
-        if (contact!!.nickname.isNotEmpty()) {
-            displayName += " (${contact!!.nickname})"
+    // Who can see this contact — System / Private / Private + visible — as a chip in the name tile; a tap
+    // opens the same three-way menu as a long-press on the photo in the lists (dialogs/ChangeVisibilityDialog).
+    private fun visibilityChip(shown: Contact): TextView {
+        val color = themeColor(ThemeSlot.CARD_STORAGE)
+        val chip = TextView(this).apply {
+            text = getString(R.string.visibility_title)
+            setTextColor(color)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, getTextSize() * LABEL_SCALE)
+            val lock = resources.getColoredDrawableWithColor(org.fossify.commons.R.drawable.ic_lock_vector, color)
+            lock.setBounds(0, 0, dp(CHIP_ICON_DP), dp(CHIP_ICON_DP))
+            setCompoundDrawablesRelative(lock, null, null, null)
+            compoundDrawablePadding = dp(CHIP_ICON_GAP_DP)
+            setPadding(dp(CHIP_PAD_H_DP), dp(CHIP_PAD_V_DP), dp(CHIP_PAD_H_DP), dp(CHIP_PAD_V_DP))
+            background = pillDrawable(color, android.graphics.Color.TRANSPARENT, false)
+            setOnClickListener {
+                ChangeVisibilityDialog(this@ViewContactActivity, shown) { moved ->
+                    if (moved) {
+                        // It now lives under another id in the other store — there is nothing here to reload.
+                        finish()
+                    } else {
+                        setupContactDetails()
+                        refreshVisibleToOtherAppsItem()
+                    }
+                }
+            }
         }
-
-        val showNameFields = showFields and SHOW_PREFIX_FIELD != 0 || showFields and SHOW_FIRST_NAME_FIELD != 0 || showFields and SHOW_MIDDLE_NAME_FIELD != 0 ||
-            showFields and SHOW_SURNAME_FIELD != 0 || showFields and SHOW_SUFFIX_FIELD != 0
-
-        binding.contactName.text = displayName
-        binding.contactName.copyOnLongClick(displayName)
-        binding.contactName.beVisibleIf(displayName.isNotEmpty() && !contact!!.isABusinessContact() && showNameFields)
-        binding.contactNameImage.beInvisibleIf(binding.contactName.isGone())
+        ensureBackgroundThread {
+            val members = ChangeVisibilityDialog.membersOf(this, shown)
+            val state = ChangeVisibilityDialog.stateOfGroup(this, members)
+            val end = if (state == ChangeVisibilityDialog.State.VISIBLE) ChangeVisibilityDialog.temporaryEndOf(this, members) else null
+            val label = when (state) {
+                ChangeVisibilityDialog.State.SYSTEM -> getString(R.string.card_visibility_system)
+                ChangeVisibilityDialog.State.PRIVATE -> getString(R.string.card_visibility_private)
+                ChangeVisibilityDialog.State.VISIBLE -> if (end == null) {
+                    getString(R.string.card_visibility_visible)
+                } else {
+                    getString(R.string.card_visibility_temporary, android.text.format.DateFormat.getTimeFormat(this).format(java.util.Date(end)))
+                }
+                null -> getString(R.string.card_visibility_mixed)
+            }
+            runOnUiThread { chip.text = label }
+        }
+        return chip
     }
 
     // Fork: the name's reading (フリガナ), under the name it belongs to. Read straight from the provider
     // rather than from ContactExtras: this screen opens from other apps too, in a process where no
     // contacts refresh has ever run. A private contact carries its reading in Contact.extra.
     private fun setupReading() {
-        binding.contactReading.beGone()
+        readingText = ""
         val rawId = contact?.id ?: return
         if (rawId == 0 || !config.showReadingWhenViewing) {
             return
@@ -454,11 +691,10 @@ class ViewContactActivity : ContactActivity() {
                     return@runOnUiThread
                 }
 
-                binding.contactReading.apply {
+                readingText = reading
+                readingView?.apply {
                     text = reading
-                    copyOnLongClick(reading)
-                    beVisibleIf(!binding.contactName.isGone())
-                    setTextColor(getProperTextColor())
+                    beVisible()
                 }
             }
         }
@@ -476,55 +712,134 @@ class ViewContactActivity : ContactActivity() {
         return parts.filter { it.isNotEmpty() }.joinToString(" ")
     }
 
-    // Route badges on a number: red 1 and blue 2 dial through that SIM (by way of denwa), the yellow 臨N
-    // through 白い熊 臨電話 — the contact's own 臨 account, else the default from UI settings. One tap dials;
-    // a long-press on 臨 picks the contact's account. A route whose app is not installed has no badge.
-    private fun setupRouteBadges(holder: android.widget.LinearLayout, number: String) {
-        holder.removeAllViews()
-        if (!config.routeBadges) return
-        val shown = fullContact ?: contact ?: return
+    private fun organizationTile(): Tile? {
+        val shown = contact!!
+        val organization = shown.organization
+        val extra = shown.extra
+        val company = tile(ThemeSlot.CARD_ORG, getString(R.string.company), org.fossify.commons.R.drawable.ic_business_vector)
+        var lines = 0
+        fun add(value: String, label: String = "", scale: Float = VALUE_SCALE) {
+            if (value.isNotEmpty()) {
+                company.line(value, label, scale)
+                lines++
+            }
+        }
+        if (showFields and SHOW_ORGANIZATION_FIELD != 0) {
+            // a business contact's company is its name, in the tile above
+            if (!shown.isABusinessContact()) add(organization.company, scale = TITLE_SCALE)
+            add(organization.jobPosition)
+        }
+        add(extra.department, getString(R.string.more_department))
+        add(extra.jobDescription, getString(R.string.more_job_description))
+        add(extra.officeLocation, getString(R.string.more_office_location))
+        add(extra.companyPhonetic, getString(R.string.more_company_phonetic))
+        add(extra.symbol, getString(R.string.more_symbol))
+        return company.takeIf { lines > 0 }
+    }
+
+    // ---- Phone numbers: one tile each, with its one-touch pills ----------------------------------------
+
+    // The pills of a number, as set in UI settings → Contact card: each calls the number by one route
+    // (SIM 1, SIM 2, the 臨 default, one 臨 account) or writes to it. A route whose app is not installed has
+    // no pill. The pill of the contact's default route has the thick frame. On a 臨 pill a long-press opens
+    // the callback menu when its account can set one up (Odorik), else — on the 臨 default pill — picks the
+    // contact's own account.
+    private fun phonePills(number: String): View? {
+        val shown = fullContact ?: contact ?: return null
         val name = shown.getNameToDisplay()
-        if (getInstalledDialerAppPackage() != null) {
-            val simText = themeColor(ThemeSlot.ROUTE_SIM_TEXT)
-            holder.addView(routeBadge("1", themeColor(ThemeSlot.ROUTE_SIM1), simText) { callNumberWithSim(number, name, true) })
-            holder.addView(routeBadge("2", themeColor(ThemeSlot.ROUTE_SIM2), simText) { callNumberWithSim(number, name, false) })
+        val default = contactDefaultRoute(shown)
+        val hasDialer = getInstalledDialerAppPackage() != null
+        val hasRin = Rindenwa.isInstalled(this)
+        val simText = themeColor(ThemeSlot.ROUTE_SIM_TEXT)
+        var mainGiven = false
+        val pills = ArrayList<View>()
+        config.phonePills.forEach { action ->
+            val isRoute = action != PILL_ACTION_SMS
+            if (isRoute && !config.routeBadges) return@forEach
+            val main = isRoute && !mainGiven && isDefaultRoute(action, default, shown)
+            val pill = when {
+                action == PILL_ACTION_SMS -> {
+                    val icon = ImageView(this).apply {
+                        setImageDrawable(
+                            resources.getColoredDrawableWithColor(org.fossify.commons.R.drawable.ic_sms_vector, themeColor(ThemeSlot.CARD_MESSAGE))
+                        )
+                        layoutParams = LinearLayout.LayoutParams(dp(ROUTE_BADGE_SIZE_DP.toFloat()), dp(ROUTE_BADGE_SIZE_DP.toFloat()))
+                    }
+                    actionPill(icon, getString(R.string.card_write), false) { launchSendSMSIntent(number) }
+                }
+
+                action == ROUTE_SIM1 && hasDialer ->
+                    actionPill(routeBadge("1", themeColor(ThemeSlot.ROUTE_SIM1), simText), getString(R.string.sim_slot_1), main) {
+                        callNumberWithSim(number, name, true)
+                    }
+
+                action == ROUTE_SIM2 && hasDialer ->
+                    actionPill(routeBadge("2", themeColor(ThemeSlot.ROUTE_SIM2), simText), getString(R.string.sim_slot_2), main) {
+                        callNumberWithSim(number, name, false)
+                    }
+
+                (action == ROUTE_RIN || action.startsWith(ROUTE_RIN_PREFIX)) && hasRin -> rinPill(action, shown, number, name, main)
+                else -> null
+            } ?: return@forEach
+            if (main) mainGiven = true
+            pills.add(pill)
         }
-        if (Rindenwa.isInstalled(this)) {
-            // each 臨 account wears the colours 白い熊 gave it in Rindenwa
-            val account = effectiveRinAccount(shown)
-            val (rinGround, rinText) = rinBadgeColors(account)
-            val badge = routeBadge(rinBadgeFor(account), rinGround, rinText) {
-                callNumberViaRindenwa(number, name, effectiveRinAccount(shown))
-            }
-            // an account that can do callback offers it first; any other keeps the plain account picker
-            badge.setOnLongClickListener {
-                if (rinCanCallback(effectiveRinAccount(shown))) showRinBadgeMenu(badge, shown, number, name) else pickOwnRinAccount(shown)
-                true
-            }
-            holder.addView(badge)
+        return if (pills.isEmpty()) null else pillRow(*pills.toTypedArray())
+    }
+
+    private fun isDefaultRoute(action: String, default: String, shown: Contact): Boolean = when {
+        default == ROUTE_OFF -> false
+        action == default -> true
+        action == ROUTE_RIN -> default.startsWith(ROUTE_RIN_PREFIX)
+        action.startsWith(ROUTE_RIN_PREFIX) && default == ROUTE_RIN ->
+            action.removePrefix(ROUTE_RIN_PREFIX).toIntOrNull() == effectiveRinAccount(shown)
+
+        else -> false
+    }
+
+    // A 臨 pill: the account's own badge (in the colours 白い熊 gave it in Rindenwa) and its name there.
+    private fun rinPill(action: String, shown: Contact, number: String, name: String, main: Boolean): View {
+        val fixed = if (action == ROUTE_RIN) null else action.removePrefix(ROUTE_RIN_PREFIX).toIntOrNull()
+        fun account() = fixed ?: effectiveRinAccount(shown)
+        val now = account()
+        val (ground, text) = rinBadgeColors(now)
+        val known = Rindenwa.cachedAccounts(this).firstOrNull { if (now >= 0) it.number == now else it.isDefault }
+        val label = known?.name?.takeIf { it.isNotBlank() } ?: getString(R.string.card_rindenwa)
+        val pill = actionPill(routeBadge(rinBadgeFor(now), ground, text), label, main) {
+            callNumberViaRindenwa(number, name, account())
         }
+        pill.setOnLongClickListener {
+            when {
+                rinCanCallback(account()) -> showRinBadgeMenu(pill, shown, number, name, account(), ownAccount = fixed == null)
+                fixed == null -> pickOwnRinAccount(shown)
+                else -> copyToClipboard(number)
+            }
+            true
+        }
+        return pill
     }
 
     private fun pickOwnRinAccount(shown: Contact) {
         pickRinAccount(contactRinAccount(shown), getString(R.string.rin_account_use_default)) { account ->
             setContactRinAccount(shown, account)
-            setupPhoneNumbers()
+            setupContactDetails()
         }
     }
 
-    // The long-press menu of a 臨N badge whose account can set up a callback (Odorik): Callback first,
-    // then the ordinary call the tap places, then the account picker the long-press opened before.
-    private fun showRinBadgeMenu(badge: View, shown: Contact, number: String, name: String) {
+    // The long-press menu of a 臨 pill whose account can set up a callback (Odorik): Callback first, then
+    // the ordinary call the tap places, then — on the 臨 default pill — the contact's account picker.
+    @Suppress("LongParameterList")
+    private fun showRinBadgeMenu(anchor: View, shown: Contact, number: String, name: String, account: Int, ownAccount: Boolean) {
         androidx.appcompat.widget.PopupMenu(
-            this, badge, android.view.Gravity.END, androidx.appcompat.R.attr.actionOverflowMenuStyle, 0
+            this, anchor, Gravity.END, androidx.appcompat.R.attr.actionOverflowMenuStyle, 0
         ).apply {
             menu.add(0, R.id.rin_callback, 0, R.string.rin_callback)
             menu.add(0, R.id.rin_call, 1, org.fossify.commons.R.string.call)
-            menu.add(0, R.id.rin_set_account, 2, R.string.set_rin_account)
+            if (ownAccount) menu.add(0, R.id.rin_set_account, 2, R.string.set_rin_account)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
-                    R.id.rin_callback -> orderCallbackViaRindenwa(number, name, effectiveRinAccount(shown))
-                    R.id.rin_call -> callNumberViaRindenwa(number, name, effectiveRinAccount(shown))
+                    R.id.rin_callback -> orderCallbackViaRindenwa(number, name, account)
+                    R.id.rin_call -> callNumberViaRindenwa(number, name, account)
                     R.id.rin_set_account -> pickOwnRinAccount(shown)
                 }
                 true
@@ -533,30 +848,51 @@ class ViewContactActivity : ContactActivity() {
         }
     }
 
-    private fun routeBadge(label: String, ground: Int, text: Int, onClick: () -> Unit): TextView {
-        val density = resources.displayMetrics.density
-        return TextView(this).apply {
-            this.text = label
-            setTextColor(text)
-            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, ROUTE_BADGE_TEXT_SP)
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            gravity = android.view.Gravity.CENTER
-            includeFontPadding = false
-            minWidth = (ROUTE_BADGE_SIZE_DP * density).toInt()
-            val pad = (ROUTE_BADGE_PAD_DP * density).toInt()
-            setPadding(pad, 0, pad, 0)
-            background = android.graphics.drawable.GradientDrawable().apply {
-                cornerRadius = ROUTE_BADGE_RADIUS_DP * density
-                setColor(ground)
-            }
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, (ROUTE_BADGE_SIZE_DP * density).toInt()
-            ).apply { marginStart = (ROUTE_BADGE_GAP_DP * density).toInt() }
+    // A call pill: outlined, never filled — thick frame and bold for the contact's default route.
+    private fun actionPill(mark: View, label: String, main: Boolean, onClick: () -> Unit): LinearLayout {
+        val accent = getProperPrimaryColor()
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(ACTION_PILL_PAD_START_DP), dp(ACTION_PILL_PAD_V_DP), dp(ACTION_PILL_PAD_END_DP), dp(ACTION_PILL_PAD_V_DP))
+            background = pillDrawable(accent, android.graphics.Color.TRANSPARENT, main)
+            addView(mark)
+            addView(TextView(context).apply {
+                text = label
+                setTextColor(accent)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, ACTION_PILL_TEXT_SP)
+                if (main) setTypeface(typeface, Typeface.BOLD)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                maxWidth = dp(ACTION_PILL_LABEL_MAX_DP)
+                setPadding(dp(ACTION_PILL_GAP_DP), 0, 0, 0)
+            })
             setOnClickListener { onClick() }
         }
     }
 
-    // Rindenwa's account list decides what a 臨 badge reads; ask for it once per visit and redraw on news.
+    // The mark of a route inside its pill: 1 and 2 (SIM), 臨N (a Rindenwa account), on the route's own ground.
+    private fun routeBadge(label: String, ground: Int, text: Int): TextView {
+        val density = resources.displayMetrics.density
+        return TextView(this).apply {
+            this.text = label
+            setTextColor(text)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, ROUTE_BADGE_TEXT_SP)
+            setTypeface(typeface, Typeface.BOLD)
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            minWidth = (ROUTE_BADGE_SIZE_DP * density).toInt()
+            val pad = (ROUTE_BADGE_PAD_DP * density).toInt()
+            setPadding(pad, 0, pad, 0)
+            background = GradientDrawable().apply {
+                cornerRadius = ROUTE_BADGE_RADIUS_DP * density
+                setColor(ground)
+            }
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, (ROUTE_BADGE_SIZE_DP * density).toInt())
+        }
+    }
+
+    // Rindenwa's account list decides what a 臨 pill reads; ask for it once per visit and redraw on news.
     private var rinAccountsAsked = false
 
     private fun refreshRinAccountsOnce() {
@@ -567,13 +903,12 @@ class ViewContactActivity : ContactActivity() {
             val before = Rindenwa.cachedAccounts(appContext)
             val now = Rindenwa.refreshAccounts(appContext)
             if (now != null && now != before) {
-                runOnUiThread { if (!isFinishing && !isDestroyed && contact != null) setupPhoneNumbers() }
+                runOnUiThread { setupContactDetails() }
             }
         }
     }
 
-    private fun setupPhoneNumbers() {
-        refreshRinAccountsOnce()
+    private fun mergedPhoneNumbers(): LinkedHashSet<PhoneNumber> {
         var phoneNumbers = contact!!.phoneNumbers.toMutableSet() as LinkedHashSet<PhoneNumber>
 
         if (mergeDuplicate) {
@@ -613,76 +948,45 @@ class ViewContactActivity : ContactActivity() {
 
         phoneNumbers = phoneNumbers.sortedBy { it.type }.toMutableSet() as LinkedHashSet<PhoneNumber>
         fullContact!!.phoneNumbers = phoneNumbers.toMutableList() as ArrayList<PhoneNumber>
-        binding.contactNumbersHolder.removeAllViews()
-
-        if (phoneNumbers.isNotEmpty() && showFields and SHOW_PHONE_NUMBERS_FIELD != 0) {
-            phoneNumbers.forEach { phoneNumber ->
-                ItemViewPhoneNumberBinding.inflate(layoutInflater, binding.contactNumbersHolder, false).apply {
-                    binding.contactNumbersHolder.addView(root)
-                    if (config.formatPhoneNumbers) {
-                        contactNumber.text = phoneNumber.value.formatPhoneNumber()
-                    } else {
-                        contactNumber.text = phoneNumber.value
-                    }
-                    contactNumberType.text = getPhoneNumberTypeText(phoneNumber.type, phoneNumber.label)
-                    root.copyOnLongClick(phoneNumber.value)
-
-                    root.setOnClickListener {
-                        if (config.showCallConfirmation) {
-                            CallConfirmationDialog(this@ViewContactActivity, phoneNumber.value) {
-                                startDefaultRouteCall(contact!!, phoneNumber.value)
-                            }
-                        } else {
-                            startDefaultRouteCall(contact!!, phoneNumber.value)
-                        }
-                    }
-
-                    defaultToggleIcon.isVisible = phoneNumber.isPrimary
-                    defaultToggleIcon.applyColorFilter(getProperTextColor())
-                    setupRouteBadges(contactNumberRoutes, phoneNumber.value)
-                }
-            }
-            binding.contactNumbersImage.beVisible()
-            binding.contactNumbersHolder.beVisible()
-        } else {
-            binding.contactNumbersImage.beGone()
-            binding.contactNumbersHolder.beGone()
-        }
-
-        // make sure the Call and SMS buttons are visible if any phone number is shown
-        if (phoneNumbers.isNotEmpty()) {
-            binding.contactSendSms.beVisible()
-            binding.contactStartCall.beVisible()
-        }
+        return phoneNumbers
     }
+
+    // One number: what it is filed under (★ = the contact's default number), the number itself — a tap
+    // calls it by the contact's default route, a long-press copies it — and its pills.
+    private fun phoneTile(phoneNumber: PhoneNumber): Tile {
+        val type = getPhoneNumberTypeText(phoneNumber.type, phoneNumber.label)
+        var caption = getString(R.string.card_phone)
+        if (type.isNotBlank()) caption += CAPTION_SEPARATOR + type
+        if (phoneNumber.isPrimary) caption += " ★"
+        val phone = tile(ThemeSlot.CARD_PHONE, caption, org.fossify.commons.R.drawable.ic_phone_vector)
+        val shownNumber = if (config.formatPhoneNumbers) phoneNumber.value.formatPhoneNumber() else phoneNumber.value
+        phone.line(shownNumber, scale = NUMBER_SCALE, bold = true, copyValue = phoneNumber.value) {
+            if (config.showCallConfirmation) {
+                CallConfirmationDialog(this, phoneNumber.value) {
+                    startDefaultRouteCall(contact!!, phoneNumber.value)
+                }
+            } else {
+                startDefaultRouteCall(contact!!, phoneNumber.value)
+            }
+        }
+        phonePills(phoneNumber.value)?.let { phone.body.addView(it) }
+        return phone
+    }
+
+    // ---- The other fields: one tile per kind -----------------------------------------------------------
 
     // a contact cannot have different emails per contact source. Such contacts are handled as separate ones, not duplicates of each other
-    private fun setupEmails() {
-        binding.contactEmailsHolder.removeAllViews()
+    private fun emailsTile(): Tile? {
         val emails = contact!!.emails
-        if (emails.isNotEmpty() && showFields and SHOW_EMAILS_FIELD != 0) {
-            emails.forEach {
-                ItemViewEmailBinding.inflate(layoutInflater, binding.contactEmailsHolder, false).apply {
-                    val email = it
-                    binding.contactEmailsHolder.addView(root)
-                    contactEmail.text = email.value
-                    contactEmailType.text = getEmailTypeText(email.type, email.label)
-                    root.copyOnLongClick(email.value)
-
-                    root.setOnClickListener {
-                        sendEmailIntent(email.value)
-                    }
-                }
-            }
-            binding.contactEmailsImage.beVisible()
-            binding.contactEmailsHolder.beVisible()
-        } else {
-            binding.contactEmailsImage.beGone()
-            binding.contactEmailsHolder.beGone()
+        if (emails.isEmpty() || showFields and SHOW_EMAILS_FIELD == 0) return null
+        val tile = tile(ThemeSlot.CARD_WEB, getString(R.string.emails), org.fossify.commons.R.drawable.ic_mail_vector)
+        emails.forEach { email ->
+            tile.line(email.value, getEmailTypeText(email.type, email.label)) { sendEmailIntent(email.value) }
         }
+        return tile
     }
 
-    private fun setupAddresses() {
+    private fun addressesTile(): Tile? {
         var addresses = contact!!.addresses.toMutableSet() as LinkedHashSet<Address>
 
         if (mergeDuplicate) {
@@ -693,31 +997,15 @@ class ViewContactActivity : ContactActivity() {
 
         addresses = addresses.sortedBy { it.type }.toMutableSet() as LinkedHashSet<Address>
         fullContact!!.addresses = addresses.toMutableList() as ArrayList<Address>
-        binding.contactAddressesHolder.removeAllViews()
-
-        if (addresses.isNotEmpty() && showFields and SHOW_ADDRESSES_FIELD != 0) {
-            addresses.forEach {
-                ItemViewAddressBinding.inflate(layoutInflater, binding.contactAddressesHolder, false).apply {
-                    val address = it
-                    binding.contactAddressesHolder.addView(root)
-                    contactAddress.text = address.value
-                    contactAddressType.text = getAddressTypeText(address.type, address.label)
-                    root.copyOnLongClick(address.value)
-
-                    root.setOnClickListener {
-                        sendAddressIntent(address.value)
-                    }
-                }
-            }
-            binding.contactAddressesImage.beVisible()
-            binding.contactAddressesHolder.beVisible()
-        } else {
-            binding.contactAddressesImage.beGone()
-            binding.contactAddressesHolder.beGone()
+        if (addresses.isEmpty() || showFields and SHOW_ADDRESSES_FIELD == 0) return null
+        val tile = tile(ThemeSlot.CARD_WEB, getString(R.string.addresses), org.fossify.commons.R.drawable.ic_place_vector)
+        addresses.forEach { address ->
+            tile.line(address.value, getAddressTypeText(address.type, address.label)) { sendAddressIntent(address.value) }
         }
+        return tile
     }
 
-    private fun setupIMs() {
+    private fun imsTile(): Tile? {
         var IMs = contact!!.IMs.toMutableSet() as LinkedHashSet<IM>
 
         if (mergeDuplicate) {
@@ -728,27 +1016,13 @@ class ViewContactActivity : ContactActivity() {
 
         IMs = IMs.sortedBy { it.type }.toMutableSet() as LinkedHashSet<IM>
         fullContact!!.IMs = IMs.toMutableList() as ArrayList<IM>
-        binding.contactImsHolder.removeAllViews()
-
-        if (IMs.isNotEmpty() && showFields and SHOW_IMS_FIELD != 0) {
-            IMs.forEach {
-                ItemViewImBinding.inflate(layoutInflater, binding.contactImsHolder, false).apply {
-                    val IM = it
-                    binding.contactImsHolder.addView(root)
-                    contactIm.text = IM.value
-                    contactImType.text = getIMTypeText(IM.type, IM.label)
-                    root.copyOnLongClick(IM.value)
-                }
-            }
-            binding.contactImsImage.beVisible()
-            binding.contactImsHolder.beVisible()
-        } else {
-            binding.contactImsImage.beGone()
-            binding.contactImsHolder.beGone()
-        }
+        if (IMs.isEmpty() || showFields and SHOW_IMS_FIELD == 0) return null
+        val tile = tile(ThemeSlot.CARD_MESSAGE, getString(R.string.card_im), R.drawable.ic_im)
+        IMs.forEach { tile.line(it.value, getIMTypeText(it.type, it.label)) }
+        return tile
     }
 
-    private fun setupEvents() {
+    private fun eventsTile(): Tile? {
         var events = contact!!.events.toMutableSet() as LinkedHashSet<Event>
 
         if (mergeDuplicate) {
@@ -759,26 +1033,17 @@ class ViewContactActivity : ContactActivity() {
 
         events = events.sortedBy { it.type }.toMutableSet() as LinkedHashSet<Event>
         fullContact!!.events = events.toMutableList() as ArrayList<Event>
-        binding.contactEventsHolder.removeAllViews()
-
-        if (events.isNotEmpty() && showFields and SHOW_EVENTS_FIELD != 0) {
-            events.forEach {
-                ItemViewEventBinding.inflate(layoutInflater, binding.contactEventsHolder, false).apply {
-                    binding.contactEventsHolder.addView(root)
-                    it.value.getDateTimeFromDateString(true, contactEvent)
-                    if (it.type == CommonDataKinds.Event.TYPE_CUSTOM && it.label.isNotEmpty()) contactEventType.text = it.label else contactEventType.setText(getEventTextId(it.type))
-                    root.copyOnLongClick(it.value)
-                }
-            }
-            binding.contactEventsImage.beVisible()
-            binding.contactEventsHolder.beVisible()
-        } else {
-            binding.contactEventsImage.beGone()
-            binding.contactEventsHolder.beGone()
+        if (events.isEmpty() || showFields and SHOW_EVENTS_FIELD == 0) return null
+        val tile = tile(ThemeSlot.CARD_NOTE, getString(R.string.card_events), R.drawable.ic_cake_vector)
+        events.forEach {
+            val label = if (it.type == CommonDataKinds.Event.TYPE_CUSTOM && it.label.isNotEmpty()) it.label else getString(getEventTextId(it.type))
+            val valueView = tile.line(it.value, label, copyValue = it.value)
+            it.value.getDateTimeFromDateString(true, valueView)
         }
+        return tile
     }
 
-    private fun setupWebsites() {
+    private fun websitesTile(): Tile? {
         var websites = contact!!.websites.toMutableSet() as LinkedHashSet<String>
 
         if (mergeDuplicate) {
@@ -789,55 +1054,25 @@ class ViewContactActivity : ContactActivity() {
 
         websites = websites.sorted().toMutableSet() as LinkedHashSet<String>
         fullContact!!.websites = websites.toMutableList() as ArrayList<String>
-        binding.contactWebsitesHolder.removeAllViews()
-
-        if (websites.isNotEmpty() && showFields and SHOW_WEBSITES_FIELD != 0) {
-            websites.forEach {
-                val url = it
-                ItemWebsiteBinding.inflate(layoutInflater, binding.contactWebsitesHolder, false).apply {
-                    binding.contactWebsitesHolder.addView(root)
-                    contactWebsite.text = url
-                    root.copyOnLongClick(url)
-
-                    root.setOnClickListener {
-                        openWebsiteIntent(url)
-                    }
-                }
-            }
-            binding.contactWebsitesImage.beVisible()
-            binding.contactWebsitesHolder.beVisible()
-        } else {
-            binding.contactWebsitesImage.beGone()
-            binding.contactWebsitesHolder.beGone()
-        }
+        if (websites.isEmpty() || showFields and SHOW_WEBSITES_FIELD == 0) return null
+        val tile = tile(ThemeSlot.CARD_WEB, getString(R.string.websites), org.fossify.commons.R.drawable.ic_link_vector)
+        websites.forEach { url -> tile.line(url) { openWebsiteIntent(url) } }
+        return tile
     }
 
-    // Fork (sk11): every field beyond Fossify's own (Contact.extra) — organization details, relationships,
-    // internet-call addresses, send to voicemail, and any other data the contact holds, read-only.
-    private fun setupMoreFields() {
-        val holder = binding.contactMoreHolder
-        holder.removeAllViews()
+    // Fork (sk11): the fields beyond Fossify's own (Contact.extra) that are not about the company —
+    // relationships, internet-call addresses, send to voicemail, and any other data the contact holds,
+    // read-only. (The organization details sit in the company tile.)
+    private fun moreTile(): Tile? {
         val extra = contact!!.extra
-        val textColor = getProperTextColor()
-
+        val tile = tile(ThemeSlot.CARD_NOTE, getString(R.string.more_other_data), org.fossify.commons.R.drawable.ic_label_vector)
+        var lines = 0
         fun row(value: String, type: String, onClick: (() -> Unit)? = null) {
             if (value.isEmpty()) return
-            ItemViewImBinding.inflate(layoutInflater, holder, false).apply {
-                holder.addView(root)
-                contactIm.text = value
-                contactImType.text = type
-                contactIm.setTextColor(textColor)
-                contactImType.setTextColor(textColor)
-                root.copyOnLongClick(value)
-                if (onClick != null) root.setOnClickListener { onClick() } else root.background = null
-            }
+            tile.line(value, type, onClick = onClick)
+            lines++
         }
 
-        row(extra.department, getString(R.string.more_department))
-        row(extra.jobDescription, getString(R.string.more_job_description))
-        row(extra.officeLocation, getString(R.string.more_office_location))
-        row(extra.companyPhonetic, getString(R.string.more_company_phonetic))
-        row(extra.symbol, getString(R.string.more_symbol))
         extra.relations.forEach {
             row(it.name, CommonDataKinds.Relation.getTypeLabel(resources, it.type, it.label).toString())
         }
@@ -857,7 +1092,125 @@ class ViewContactActivity : ContactActivity() {
             row(value, dataRow.mimetype.substringAfterLast('/').substringAfterLast('.'))
         }
 
-        holder.beVisibleIf(holder.childCount > 0)
+        return tile.takeIf { lines > 0 }
+    }
+
+    private fun groupsTile(): Tile? {
+        var groups = contact!!.groups.toMutableSet() as LinkedHashSet<Group>
+
+        if (mergeDuplicate) {
+            duplicateContacts.forEach {
+                groups.addAll(it.groups)
+            }
+        }
+
+        groups = groups.sortedBy { it.title }.toMutableSet() as LinkedHashSet<Group>
+        fullContact!!.groups = groups.toMutableList() as ArrayList<Group>
+        if (groups.isEmpty() || showFields and SHOW_GROUPS_FIELD == 0) return null
+        val tile = tile(ThemeSlot.CARD_NOTE, getString(R.string.groups), org.fossify.commons.R.drawable.ic_people_vector)
+        groups.forEach { tile.line(it.title) }
+        return tile
+    }
+
+    private fun notesTile(): Tile? {
+        val notes = contact!!.notes
+        if (notes.isEmpty() || showFields and SHOW_NOTES_FIELD == 0) return null
+        val tile = tile(ThemeSlot.CARD_NOTE, getString(org.fossify.commons.R.string.notes), org.fossify.commons.R.drawable.ic_label_vector)
+        tile.line(notes)
+        return tile
+    }
+
+    // Shown only for a contact with a ringtone of its own (or silenced); a tap picks another.
+    private fun ringtoneTile(): Tile? {
+        ringtoneView = null
+        if (showFields and SHOW_RINGTONE_FIELD == 0) return null
+        val ringtone = contact!!.ringtone
+        val silent = ringtone?.isEmpty() == true || ringtone == SILENT
+        val own = ringtone?.isNotEmpty() == true && ringtone != getDefaultRingtoneUri().toString()
+        if (!silent && !own) return null
+
+        val tile = tile(ThemeSlot.CARD_NOTE, getString(R.string.ringtone), org.fossify.commons.R.drawable.ic_bell_vector)
+        ringtoneView = tile.line(getString(org.fossify.commons.R.string.no_sound)) {
+            val ringtonePickerIntent = getRingtonePickerIntent()
+            try {
+                startActivityForResult(ringtonePickerIntent, INTENT_SELECT_RINGTONE)
+            } catch (e: Exception) {
+                val currentRingtone = contact!!.ringtone ?: getDefaultAlarmSound(RingtoneManager.TYPE_RINGTONE).uri
+                SelectAlarmSoundDialog(this@ViewContactActivity,
+                    currentRingtone,
+                    AudioManager.STREAM_RING,
+                    PICK_RINGTONE_INTENT_ID,
+                    RingtoneManager.TYPE_RINGTONE,
+                    true,
+                    onAlarmPicked = {
+                        ringtoneView?.text = it?.title
+                        ringtoneUpdated(it?.uri)
+                    },
+                    onAlarmSoundDeleted = {}
+                )
+            }
+        }
+        if (!silent) systemRingtoneSelected(Uri.parse(ringtone))
+        return tile
+    }
+
+    // Where the contact is stored; a tap edits that entry, and a messenger's icon opens its actions.
+    private fun sourcesTile(): Tile? {
+        sourceCount = 0
+        if (showFields and SHOW_CONTACT_SOURCE_FIELD == 0) return null
+        var sources = HashMap<Contact, String>()
+        sources[contact!!] = getPublicContactSourceSync(contact!!.source, contactSources)
+
+        if (mergeDuplicate) {
+            duplicateContacts.forEach {
+                sources[it] = getPublicContactSourceSync(it.source, contactSources)
+            }
+        }
+
+        if (sources.size > 1) {
+            sources = sources.toList().sortedBy { (key, value) -> value.lowercase(Locale.getDefault()) }.toMap() as LinkedHashMap<Contact, String>
+        }
+        sourceCount = sources.size
+
+        val tile = tile(ThemeSlot.CARD_STORAGE, getString(R.string.contact_source), R.drawable.ic_account_box_vector)
+        for ((key, value) in sources) {
+            val messenger = when (value.lowercase(Locale.getDefault())) {
+                WHATSAPP -> WHATSAPP_PACKAGE
+                SIGNAL -> SIGNAL_PACKAGE
+                VIBER -> VIBER_PACKAGE
+                TELEGRAM -> TELEGRAM_PACKAGE
+                THREEMA -> THREEMA_PACKAGE
+                else -> null
+            }
+            val icon = messenger?.let {
+                ImageView(this).apply {
+                    setImageDrawable(getPackageDrawable(it))
+                    layoutParams = LinearLayout.LayoutParams(dp(SOURCE_ICON_DP), dp(SOURCE_ICON_DP))
+                    setOnClickListener { showSocialActions(key.id) }
+                }
+            }
+            tile.line(if (value == "") getString(R.string.phone_storage) else value, end = icon, copyValue = value) {
+                launchEditContact(key, true)
+            }
+        }
+        return tile
+    }
+
+    private fun launchEditContact(contact: Contact, editExactContact: Boolean) {
+        wasEditLaunched = true
+        duplicateInitialized = false
+        if (editExactContact) {
+            editContact(contact)
+        } else {
+            editContact(contact, config.mergeDuplicateContacts)
+        }
+    }
+
+    private fun openWith() {
+        if (contact != null) {
+            val uri = getContactPublicUri(contact!!)
+            launchViewContactIntent(uri)
+        }
     }
 
     // 発着信履歴 — the contact's latest calls under its fields, drawn exactly like denwa's Recents: its
@@ -915,17 +1268,15 @@ class ViewContactActivity : ContactActivity() {
         }
 
         val baseSizePx = if (style.textSizePx > 0f) style.textSizePx else getTextSize()
-        val primary = getProperPrimaryColor()
-
-        // The section heading: bold, underlined accent, like every heading of ours.
-        ItemContactCallDayBinding.inflate(layoutInflater, holder, false).apply {
-            contactCallDayDivider.beGone()
-            contactCallDayText.text = getString(R.string.contact_call_history)
-            contactCallDayText.setTextColor(primary)
-            contactCallDayText.setTextSize(TypedValue.COMPLEX_UNIT_PX, getTextSize() * CALL_HISTORY_HEADING_SCALE)
-            contactCallDayUnderline.setBackgroundColor(primary)
-            holder.addView(root)
-        }
+        // The call-history tile: the same frame and caption as every other tile of the card.
+        val tileColor = themeColor(ThemeSlot.CARD_CALLS)
+        holder.background = tileGround(tileColor)
+        holder.clipToOutline = true
+        holder.setPadding(0, dp(TILE_PAD_V_DP), 0, dp(TILE_PAD_V_DP))
+        tileMargins(holder.layoutParams as ViewGroup.MarginLayoutParams)
+        holder.addView(captionView(getString(R.string.contact_call_history), tileColor).apply {
+            setPadding(dp(TILE_PAD_H_DP), 0, dp(TILE_PAD_H_DP), 0)
+        })
 
         val region = callLogRegion()
         val days = calls.map { it.timestamp.callDayKey() }
@@ -1097,231 +1448,6 @@ class ViewContactActivity : ContactActivity() {
         }
     }
 
-    private fun setupGroups() {
-        var groups = contact!!.groups.toMutableSet() as LinkedHashSet<Group>
-
-        if (mergeDuplicate) {
-            duplicateContacts.forEach {
-                groups.addAll(it.groups)
-            }
-        }
-
-        groups = groups.sortedBy { it.title }.toMutableSet() as LinkedHashSet<Group>
-        fullContact!!.groups = groups.toMutableList() as ArrayList<Group>
-        binding.contactGroupsHolder.removeAllViews()
-
-        if (groups.isNotEmpty() && showFields and SHOW_GROUPS_FIELD != 0) {
-            groups.forEach {
-                ItemViewGroupBinding.inflate(layoutInflater, binding.contactGroupsHolder, false).apply {
-                    val group = it
-                    binding.contactGroupsHolder.addView(root)
-                    contactGroup.text = group.title
-                    root.copyOnLongClick(group.title)
-                }
-            }
-            binding.contactGroupsImage.beVisible()
-            binding.contactGroupsHolder.beVisible()
-        } else {
-            binding.contactGroupsImage.beGone()
-            binding.contactGroupsHolder.beGone()
-        }
-    }
-
-    // Who can see this contact — System / Private / Private + visible — under its sources; a tap opens
-    // the same three-way menu as a long-press on the photo in the lists (dialogs/ChangeVisibilityDialog).
-    private fun addVisibilityRow() {
-        if (!config.showVisibilityRow) return
-        val shown = contact ?: return
-        ItemViewContactSourceBinding.inflate(layoutInflater, binding.contactSourcesHolder, false).apply {
-            binding.contactSourcesHolder.addView(root)
-            contactSource.text = getString(R.string.visibility_title)
-            contactSource.setOnClickListener {
-                ChangeVisibilityDialog(this@ViewContactActivity, shown) { moved ->
-                    if (moved) {
-                        // It now lives under another id in the other store — there is nothing here to reload.
-                        finish()
-                    } else {
-                        setupContactSources()
-                        refreshVisibleToOtherAppsItem()
-                    }
-                }
-            }
-            ensureBackgroundThread {
-                val members = ChangeVisibilityDialog.membersOf(this@ViewContactActivity, shown)
-                val label = when (ChangeVisibilityDialog.stateOfGroup(this@ViewContactActivity, members)) {
-                    ChangeVisibilityDialog.State.SYSTEM -> R.string.visibility_system
-                    ChangeVisibilityDialog.State.PRIVATE -> R.string.visibility_private
-                    ChangeVisibilityDialog.State.VISIBLE -> R.string.visibility_visible
-                    null -> R.string.visibility_mixed
-                }
-                runOnUiThread { contactSource.text = getString(R.string.visibility_row, getString(label)) }
-            }
-        }
-    }
-
-    private fun setupContactSources() {
-        binding.contactSourcesHolder.removeAllViews()
-        if (showFields and SHOW_CONTACT_SOURCE_FIELD != 0) {
-            var sources = HashMap<Contact, String>()
-            sources[contact!!] = getPublicContactSourceSync(contact!!.source, contactSources)
-
-            if (mergeDuplicate) {
-                duplicateContacts.forEach {
-                    sources[it] = getPublicContactSourceSync(it.source, contactSources)
-                }
-            }
-
-            if (sources.size > 1) {
-                sources = sources.toList().sortedBy { (key, value) -> value.lowercase(Locale.getDefault()) }.toMap() as LinkedHashMap<Contact, String>
-            }
-
-            for ((key, value) in sources) {
-                ItemViewContactSourceBinding.inflate(layoutInflater, binding.contactSourcesHolder, false).apply {
-                    contactSource.text = if (value == "") getString(R.string.phone_storage) else value
-                    contactSource.copyOnLongClick(value)
-                    binding.contactSourcesHolder.addView(root)
-
-                    contactSource.setOnClickListener {
-                        launchEditContact(key, true)
-                    }
-
-                    if (value.lowercase(Locale.getDefault()) == WHATSAPP) {
-                        contactSourceImage.setImageDrawable(getPackageDrawable(WHATSAPP_PACKAGE))
-                        contactSourceImage.beVisible()
-                        contactSourceImage.setOnClickListener {
-                            showSocialActions(key.id)
-                        }
-                    }
-
-                    if (value.lowercase(Locale.getDefault()) == SIGNAL) {
-                        contactSourceImage.setImageDrawable(getPackageDrawable(SIGNAL_PACKAGE))
-                        contactSourceImage.beVisible()
-                        contactSourceImage.setOnClickListener {
-                            showSocialActions(key.id)
-                        }
-                    }
-
-                    if (value.lowercase(Locale.getDefault()) == VIBER) {
-                        contactSourceImage.setImageDrawable(getPackageDrawable(VIBER_PACKAGE))
-                        contactSourceImage.beVisible()
-                        contactSourceImage.setOnClickListener {
-                            showSocialActions(key.id)
-                        }
-                    }
-
-                    if (value.lowercase(Locale.getDefault()) == TELEGRAM) {
-                        contactSourceImage.setImageDrawable(getPackageDrawable(TELEGRAM_PACKAGE))
-                        contactSourceImage.beVisible()
-                        contactSourceImage.setOnClickListener {
-                            showSocialActions(key.id)
-                        }
-                    }
-
-                    if (value.lowercase(Locale.getDefault()) == THREEMA) {
-                        contactSourceImage.setImageDrawable(getPackageDrawable(THREEMA_PACKAGE))
-                        contactSourceImage.beVisible()
-                        contactSourceImage.setOnClickListener {
-                            showSocialActions(key.id)
-                        }
-                    }
-                }
-            }
-
-            addVisibilityRow()
-
-            binding.contactSourceImage.beVisible()
-            binding.contactSourcesHolder.beVisible()
-        } else {
-            binding.contactSourceImage.beGone()
-            binding.contactSourcesHolder.beGone()
-        }
-    }
-
-    private fun setupNotes() {
-        val notes = contact!!.notes
-        if (notes.isNotEmpty() && showFields and SHOW_NOTES_FIELD != 0) {
-            binding.contactNotes.text = notes
-            binding.contactNotesImage.beVisible()
-            binding.contactNotes.beVisible()
-            binding.contactNotes.copyOnLongClick(notes)
-        } else {
-            binding.contactNotesImage.beGone()
-            binding.contactNotes.beGone()
-        }
-    }
-
-    private fun setupRingtone() {
-        if (showFields and SHOW_RINGTONE_FIELD != 0) {
-            binding.contactRingtoneImage.beVisible()
-            binding.contactRingtone.beVisible()
-
-            val ringtone = contact!!.ringtone
-            if (ringtone?.isEmpty() == true) {
-                binding.contactRingtone.text = getString(org.fossify.commons.R.string.no_sound)
-            } else if (ringtone?.isNotEmpty() == true && ringtone != getDefaultRingtoneUri().toString()) {
-                if (ringtone == SILENT) {
-                    binding.contactRingtone.text = getString(org.fossify.commons.R.string.no_sound)
-                } else {
-                    systemRingtoneSelected(Uri.parse(ringtone))
-                }
-            } else {
-                binding.contactRingtoneImage.beGone()
-                binding.contactRingtone.beGone()
-                return
-            }
-
-            binding.contactRingtone.copyOnLongClick(binding.contactRingtone.text.toString())
-
-            binding.contactRingtone.setOnClickListener {
-                val ringtonePickerIntent = getRingtonePickerIntent()
-                try {
-                    startActivityForResult(ringtonePickerIntent, INTENT_SELECT_RINGTONE)
-                } catch (e: Exception) {
-                    val currentRingtone = contact!!.ringtone ?: getDefaultAlarmSound(RingtoneManager.TYPE_RINGTONE).uri
-                    SelectAlarmSoundDialog(this@ViewContactActivity,
-                        currentRingtone,
-                        AudioManager.STREAM_RING,
-                        PICK_RINGTONE_INTENT_ID,
-                        RingtoneManager.TYPE_RINGTONE,
-                        true,
-                        onAlarmPicked = {
-                            binding.contactRingtone.text = it?.title
-                            ringtoneUpdated(it?.uri)
-                        },
-                        onAlarmSoundDeleted = {}
-                    )
-                }
-            }
-        } else {
-            binding.contactRingtoneImage.beGone()
-            binding.contactRingtone.beGone()
-        }
-    }
-
-    private fun setupOrganization() {
-        val organization = contact!!.organization
-        if (organization.isNotEmpty() && showFields and SHOW_ORGANIZATION_FIELD != 0) {
-            binding.contactOrganizationCompany.text = organization.company
-            binding.contactOrganizationJobPosition.text = organization.jobPosition
-            binding.contactOrganizationImage.beGoneIf(organization.isEmpty())
-            binding.contactOrganizationCompany.beGoneIf(organization.company.isEmpty())
-            binding.contactOrganizationJobPosition.beGoneIf(organization.jobPosition.isEmpty())
-            binding.contactOrganizationCompany.copyOnLongClick(binding.contactOrganizationCompany.value)
-            binding.contactOrganizationJobPosition.copyOnLongClick(binding.contactOrganizationJobPosition.value)
-
-            if (organization.company.isEmpty() && organization.jobPosition.isNotEmpty()) {
-                (binding.contactOrganizationImage.layoutParams as RelativeLayout.LayoutParams).addRule(
-                    RelativeLayout.ALIGN_TOP,
-                    binding.contactOrganizationJobPosition.id
-                )
-            }
-        } else {
-            binding.contactOrganizationImage.beGone()
-            binding.contactOrganizationCompany.beGone()
-            binding.contactOrganizationJobPosition.beGone()
-        }
-    }
-
     private fun showSocialActions(contactId: Int) {
         ensureBackgroundThread {
             val actions = getSocialActions(contactId)
@@ -1355,13 +1481,13 @@ class ViewContactActivity : ContactActivity() {
     }
 
     override fun customRingtoneSelected(ringtonePath: String) {
-        binding.contactRingtone.text = ringtonePath.getFilenameFromPath()
+        ringtoneView?.text = ringtonePath.getFilenameFromPath()
         ringtoneUpdated(ringtonePath)
     }
 
     override fun systemRingtoneSelected(uri: Uri?) {
         val contactRingtone = RingtoneManager.getRingtone(this, uri)
-        binding.contactRingtone.text = contactRingtone.getTitle(this)
+        ringtoneView?.text = contactRingtone.getTitle(this)
         ringtoneUpdated(uri?.toString() ?: "")
     }
 
@@ -1387,7 +1513,7 @@ class ViewContactActivity : ContactActivity() {
     }
 
     private fun deleteContactWithMergeLogic() {
-        val addition = if (binding.contactSourcesHolder.childCount > 1 && mergeDuplicate) {
+        val addition = if (sourceCount > 1 && mergeDuplicate) {
             "\n\n${getString(R.string.delete_from_all_sources)}"
         } else {
             ""
@@ -1403,14 +1529,13 @@ class ViewContactActivity : ContactActivity() {
         }
     }
 
-    // Fork: haloed like every other icon drawn over the photo (see applyPhotoOverlayIcons).
     private fun getStarDrawable(on: Boolean): Drawable? {
         val star = if (on) {
             org.fossify.commons.R.drawable.ic_star_vector
         } else {
             org.fossify.commons.R.drawable.ic_star_outline_vector
         }
-        return photoOverlayIcon(resources.getDrawable(star), themeColor(ThemeSlot.PHOTO_ACTION_ICON))
+        return resources.getColoredDrawableWithColor(star, themeColor(ThemeSlot.CARD_NAME))
     }
 
     private fun hideBigContactPhoto() {

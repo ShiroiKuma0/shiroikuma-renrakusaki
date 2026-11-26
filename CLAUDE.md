@@ -117,7 +117,7 @@ colors") whenever the installed app id is not `org.fossify.*` — always the cas
 
 - **Source:** the `shiroikuma-commons` fork (`~/git/shiroikuma-commons`, branch `custom`), which strips
   Commons' anti-tamper "fake version" / sideloading checks out entirely.
-- **Delivery:** published to the local Maven repo, consumed as `commons = "7.1.3-sk1"` in
+- **Delivery:** published to the local Maven repo, consumed as `commons = "7.1.3-sk2"` in
   `gradle/libs.versions.toml` (`mavenLocal()` is already a repository in `settings.gradle.kts`).
 - Because Commons itself no longer nags, this app carries **no** in-app workaround — no `getPackageName`
   spoof, no `SIDELOADING_FALSE`, no `res/raw/keep.xml`.
@@ -173,8 +173,9 @@ default). **Keep the names in sync with Rindenwa.**
   means the order was accepted, not that anything rang. `message` is Rindenwa's line to show, empty on
   `not ready` / `not allowed` / `unknown method: callback` (an older Rindenwa) — ours then (`rinErrorText`).
   Offered by a long-press on a 臨N badge whose effective account has the flag
-  (`ViewContactActivity.showRinBadgeMenu`): pills *Callback*, *Call*, *Set 臨電話 account ›*. Any other 臨N
-  keeps the long-press that opens the account picker directly.
+  (`ViewContactActivity.showRinBadgeMenu`): pills *Callback*, *Call*, *Set 臨電話 account ›* (the last only
+  on the default-account pill). Any other default-account 臨N keeps the long-press that opens the account
+  picker directly.
 - All of them cross processes: never on the main thread. The last account list is cached (`Config.rinAccountsCache`).
 
 A **call route** is a string: `sim1`, `sim2`, `rin` (the 臨 default), `rin:N`, `off`. The 臨 default for a
@@ -190,9 +191,31 @@ Call routes; -1 = as selected in 臨電話).
   call — **denwa itself does not know a 臨 default** and picks the SIM its own way. Picked from the
   selection menu's SIM icon (`dialogs/DefaultRouteDialog.kt`, `pickDefaultRoute`); the photo badge in the
   lists shows it: SIM 1 bottom-start, SIM 2 bottom-end, 臨N bottom-centre in its account's colours.
-- **Contact screen:** each number carries badges 1 (red), 2 (blue) and 臨N (yellow ground, blue text) —
-  `ViewContactActivity.setupRouteBadges`; a tap dials by that route. Switch and colours: UI settings →
+- **Contact screen:** each number's tile carries call pills (see *The contact card* below) — the route's
+  mark 1 (red), 2 (blue) or 臨N in a pill; a tap dials by that route. Switch and mark colours: UI settings →
   *Call routes* (`Config.routeBadges`, `ThemeSlot.ROUTE_*`).
+
+## The contact card — tiles (from `+137`)
+
+白い熊, 2026-11-23: the contact screen is a card of **tiles**, built in code by `ViewContactActivity`
+(`activity_view_contact.xml` only holds the containers; the old `item_view_*` row layouts are gone).
+
+- A tile (`tile()`) is an outlined, faintly tinted box in the colour of its kind, with an upper-case
+  caption and a large faint icon; a line in it (`Tile.line`) is a value, its label beneath, an optional end
+  view, tap and long-press-to-copy. Kinds and colours are `ThemeSlot.CARD_*` (UI page → *Contact card*):
+  name/photo and call history accent, phone heavy green, messaging light blue, mail/address/web heavy blue,
+  company orange, notes/events/groups/other data rose, storage dim gold — the family palette, **no violet and
+  no magenta** (白い熊 is slightly colour-blind); `CARD_VALUE` / `CARD_LABEL` for the text.
+- Order: head row (photo tile — the **whole** photo, `fitCenter`, never cropped; beside it the name tile
+  with reading, favorite star and the visibility chip, and the company tile), then **one full-width tile
+  per phone number**, then the other kinds two to a row from 520 dp of width (one below), then the
+  call-history tile. `setupContactDetails` rebuilds all of it whenever duplicates or sources arrive.
+- **Pills under every number** are `Config.phonePills` — five slots, each a call route (`sim1`, `sim2`,
+  `rin`, `rin:N`), `sms` (*Write*) or `off`; default SIM 1, SIM 2, 臨 default, Write. Set on the UI page →
+  *Contact card* → *Pill 1…5* (so three 臨 pills are possible). The pill of the contact's default route has
+  the thick frame. A 臨 pill's long-press: callback menu when its account can, else (default-account pill
+  only) the contact's own account picker.
+- Also there: `Config.cardWatermarks` (the faint icons) and `Config.cardTileFill` (tint strength, 0–30 %).
 
 ## Swipe to call — shared with denwa through commons
 
@@ -220,6 +243,24 @@ added later (from a callback) must be given its parent explicitly.** The chip in
 jumps on a tap and reorders by a long-press drag; *Reset section order* is in Maintenance. A row's icon is
 a `RowIcon` (drawable + menu icon role), set as the label's start drawable; each builder has a default by
 row type, and a call site names another where the row's meaning is clearer.
+
+From `+138` the page meets the black-yellow skill's later rules as well:
+
+- **Every section has an icon and a colour of its kind**, kept beside its title in `buildRows` (`section(…)`,
+  `group(…)`, `roles(…)`) and drawn alike on heading and chip (`sectionIcon`): the seven roles
+  `ThemeSlot.SECTION_ICON_BASE / _CONTROLS / _WORDS / _FRAME / _REACH / _WARNING / _FLASH` (Foundation →
+  *Section icons of this page*). **The built order is the default order and keeps two neighbours of one
+  colour apart** — place a new section accordingly; rose (`_FLASH`) is used once, on Toasts.
+- **“App language” is the first section** (`language`; moved first once in a stored order,
+  `Config.uiLanguageMovedFirst`). `extensions/AppLanguage.kt`: the tag is `Config.appLanguage` (travels in the
+  export) beside the AppCompat per-app locale, re-asserted in `App.onCreate` because EMUI drops the latter
+  across a sideload update; the picker is drawn in code in the settled look. **The offered languages are
+  `res/xml/locales_config.xml`, hand-written** (`generateLocaleConfig` is off): Japanese and English only (from `+140`;
+  the fork's own screens exist in no other language). The picker reads that file.
+- **A row's icon is sized by its label** (`extensions/RowIcons.kt`, `setLabelIcon`: 1.25 × the text size,
+  floor 18 dp, centred on the first line; the gutter is reported to the line beneath).
+- **Every string has its Japanese** — compare the key sets of `values/strings.xml` and
+  `values-ja/strings.xml` before a build is called done.
 
 Switches and the + button are drawn by commons (sk17) under `pillDialogButtons`: the outlined switch and
 the outlined floating button, coloured from their own commons roles (see *Colours* below). A confirmation
@@ -265,6 +306,11 @@ swapped in through our copies of AppCompat 1.7.1's `abc_popup_menu_item_layout.x
 gives each item id its role (icon colour: `ThemeSlot.MENU_ICON_*`, `MENU_WARNING`; UI settings → *Menus*),
 whether it opens something (›) and an icon when the menu resource has none. **A new menu item needs a
 line there.** `androidx/appcompat/view/menu/ForkMenuAccess.kt` exists only to read `MenuItemImpl.mMenu`.
+
+**Blocked numbers** (from `+140`): ⋮ → *Blocked numbers ›* opens 白い熊 電話's screen with the action
+`shiroikuma.denwa.action.MANAGE_BLOCKED_NUMBERS` (extensions/Activity.kt) — only the default dialer may read
+the blocked list, so we keep none. The row is shown only when denwa answers the action. **Keep the action
+name in sync with denwa.**
 
 ## Call history on the contact screen — denwa's look, served by denwa
 
@@ -376,6 +422,20 @@ Auto, the system call log) know the name. The private record stays the one that 
   (extensions/Context.kt) instead of `ContactsHelper.getContacts()`; it drops copies and, if duplicate
   merging kept the copy over the original, puts the original back. `getDuplicateContacts()` skips copies
   too. **New code that lists contacts must use `getOwnContacts()`.**
+- **Another app's own entries are not contacts** (from `+139`; `helpers/ForeignEntries`): Molly / Signal,
+  WhatsApp, Telegram … write a raw contact of their own (their account, name and number) beside each contact
+  they recognise. `getOwnContacts()` drops them — recognised by a contacts sync adapter that takes no uploads,
+  or a known account type — so they are in no list, no visibility state, no move and no storage status. On
+  2026-11-26 Molly's entry made a visible contact “Mixed”, and choosing Private then moved it into private
+  storage as a second contact. Because commons' own same-name merge could keep such an entry and lose the
+  row, `getOwnContacts()` loads unmerged and merges itself (`mergedByName`).
+- **“Private + visible for N min”** (from `+139`; `helpers/TemporaryVisibility`): the copy with an end, the
+  fourth choice of `ChangeVisibilityDialog`. Ends per private id in `Config.temporaryVisibility`
+  (device-local, not exported); removed by an alarm (`receivers/TemporaryVisibilityReceiver`) and, because
+  EMUI may hold an alarm back, by `sweep` at every app start and list load. Minutes:
+  `Config.temporaryVisibilityMinutes` (UI page → Private contacts → *Temporary visibility: minutes*).
+  Making the contact private or visible for good forgets the end. The dialog and the card's chip say that
+  the visible state is a copy in system storage.
 - **vCard round trip:** export writes `X-SHIROIKUMA-VISIBLE:1` on a visible private contact; importing
   such a card into private storage recreates its copy.
 

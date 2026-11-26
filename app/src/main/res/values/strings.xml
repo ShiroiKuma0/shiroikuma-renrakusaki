@@ -222,8 +222,8 @@
     <string name="faq_1_title">I want to change what fields are visible at contacts. Can I do it?</string>
     <string name="faq_1_text">Yes, all you have to do is go in Settings -> Manage shown contact fields. There you can select what fields should be visible. Some of them are even disabled by default, so you might find some new ones there.</string>
     <!-- 白い熊 連絡先 UI: configurable contacts-list rows -->
-    <string name="theme_app_language">Application language</string>
-    <string name="language_system_default">System default (phone locale)</string>
+    <string name="theme_app_language">App language</string>
+    <string name="language_system_default">System default</string>
     <string name="ui_settings_title">白い熊 連絡先 UI</string>
     <string name="swipe_to_call">Swipe to call</string>
     <string name="swipe_to_call_enable">Swipe a contact to call</string>
@@ -352,6 +352,8 @@
     <string name="visible_copies_account_phone">Phone (%s)</string>
     <string name="visible_copies_photo">Copies include the photo</string>
     <string name="visible_copies_photo_desc">A private contact made visible gets a copy with its name and numbers in a system account, so other apps and the car know it. Off: the copy has no photo.</string>
+    <string name="temporary_visibility_minutes">Temporary visibility: minutes</string>
+    <string name="temporary_visibility_minutes_desc">How long “Private + visible for … min” keeps a contact’s copy in system storage. The copy is removed by an alarm, and at the latest when 連絡先 is next opened.</string>
     <plurals name="contacts_now_visible">
         <item quantity="one">%d contact is now visible to other apps</item>
         <item quantity="other">%d contacts are now visible to other apps</item>
@@ -369,7 +371,8 @@
     <string name="visibility_title">Who can see this contact</string>
     <string name="visibility_system">System — every app</string>
     <string name="visibility_private">Private — this app and the allowed apps only</string>
-    <string name="visibility_visible">Private, visible to other apps</string>
+    <string name="visibility_visible">Private + visible — a copy in system storage, which every app with the Contacts permission reads</string>
+    <string name="visibility_temporary">Private + visible for %d min — the copy then removes itself</string>
     <string name="visibility_row">Visibility: %s</string>
     <string name="visibility_changed">Visibility changed</string>
     <string name="long_press_photo_visibility">Long-press a photo to change visibility</string>
@@ -477,8 +480,8 @@
     <string name="rin_callback_ordered">Callback ordered — %s will ring.</string>
     <string name="rin_error_no_callback">This 白い熊 臨電話 cannot order a callback — it needs build +026 or later</string>
     <string name="call_routes">Call routes</string>
-    <string name="route_badges_enable">Route badges on the contact screen</string>
-    <string name="route_badges_desc">Each number of a contact carries badges — 1 and 2 for the SIMs, 臨 with the account number for 白い熊 臨電話. One tap dials the number by that route; a long-press on 臨 picks the contact’s own 臨 account — or, when that account can set up a callback (Odorik), opens a menu: Callback, Call, and the account picker. A route whose app is not installed has no badge</string>
+    <string name="route_badges_enable">Call pills on the contact screen</string>
+    <string name="route_badges_desc">Each number of a contact carries call pills — 1 and 2 for the SIMs, 臨 with the account number for 白い熊 臨電話. One tap dials the number by that route. A long-press on a 臨 pill opens a menu when its account can set up a callback (Odorik): Callback, Call, and — on the default-account pill — the account picker; on any other default-account pill it picks the contact’s own 臨 account. Which pills there are: Contact card. A route whose app is not installed has no pill</string>
     <string name="route_sim1_color">Badge 1</string>
     <string name="route_sim2_color">Badge 2</string>
     <string name="route_sim_text_color">Text of badges 1 and 2</string>
@@ -522,4 +525,42 @@
     <string name="reset_all_colours_confirm">Put every colour back on its default?</string>
     <string name="role_reset_hint">Long-press a colour to put it back on its default.</string>
     <string name="system_bar_role_note">The status and navigation bars show the screen through them until a colour is set here.</string>
+    <string name="contact_card">Contact card</string>
+    <string name="card_phone">Phone</string>
+    <string name="card_events">Events</string>
+    <string name="card_im">Messaging</string>
+    <string name="card_write">Write</string>
+    <string name="card_rindenwa">臨電話</string>
+    <string name="card_visibility_system">System — every app</string>
+    <string name="card_visibility_private">Private</string>
+    <string name="card_visibility_visible">Private + system copy</string>
+    <string name="card_visibility_temporary">Private + system copy until %s</string>
+    <string name="card_visibility_mixed">Mixed</string>
+    <string name="card_pills_note">Each phone number on the contact card is a tile of its own with up to five pills under the number. Choose here what each pill does: call through SIM 1, SIM 2, the 臨電話 default account or one named 臨電話 account, write a message, or nothing. The same pills are drawn for every number. The pill of the contact’s default route has the thick frame; a route whose app is not installed has no pill.</string>
+    <string name="card_pill_n">Pill %d</string>
+    <string name="card_pill_message">Write a message</string>
+    <string name="card_watermarks">Large faint icon in each tile</string>
+    <string name="card_watermarks_desc">The icon of a tile’s kind, drawn large and faint in its corner.</string>
+    <string name="card_tile_fill">Tile tint strength</string>
+    <string name="card_color_name">Name and photo tiles</string>
+    <string name="card_color_phone">Phone tiles</string>
+    <string name="card_color_message">Messaging tile and the Write pill’s icon</string>
+    <string name="card_color_web">E-mail, address and website tiles</string>
+    <string name="card_color_org">Company tile</string>
+    <string name="card_color_note">Notes, events, groups and other-data tiles</string>
+    <string name="card_color_storage">Storage tile and visibility chip</string>
+    <string name="card_color_calls">Call-history tile</string>
+    <string name="card_color_value">Values</string>
+    <string name="card_color_label">Labels under the values</string>
+    <!-- UI page: App language, section icons (+138) -->
+    <string name="app_language_row">Language: %s</string>
+    <string name="app_language_desc">The language of this app only — the system language stays as it is. The list holds Japanese, English and the languages the app is mostly translated into.</string>
+    <string name="theme_sub_section_icons">Section icons of this page</string>
+    <string name="theme_section_base">The base: what the app is, and its settings</string>
+    <string name="theme_section_controls">Controls: what you operate</string>
+    <string name="theme_section_words">Words, written and read</string>
+    <string name="theme_section_frame">The frame and its boxes</string>
+    <string name="theme_section_reach">The app reaches out: asks, offers, hands over</string>
+    <string name="theme_section_warning">Warning: resets and wipes</string>
+    <string name="theme_section_flash">A brief flash</string>
 </resources>

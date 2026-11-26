@@ -23,7 +23,7 @@ import java.io.FileOutputStream
  * photoUri is the aggregate's, which may belong to another entry or point at nothing).
  */
 object ContactMover {
-    class Result(val ok: Boolean, val moved: Boolean)
+    class Result(val ok: Boolean, val moved: Boolean, val localId: Int = 0)
 
     /** System → Private (+ visible). The private copy is undone when the system entry will not go. Blocking. */
     fun toPrivate(context: Context, member: Contact, visible: Boolean): Result {
@@ -44,7 +44,7 @@ object ContactMover {
         if (visible) {
             SystemMirror.setVisible(context, listOf(localId), true)
         }
-        return Result(true, moved = true)
+        return Result(true, moved = true, localId = localId)
     }
 
     /** Private (+ visible) → System, into the account the visible copies use. Blocking. */

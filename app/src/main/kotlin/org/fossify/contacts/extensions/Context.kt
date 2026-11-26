@@ -21,7 +21,9 @@ import org.fossify.contacts.BuildConfig
 import org.fossify.contacts.R
 import org.fossify.contacts.helpers.AUTOMATIC_BACKUP_REQUEST_CODE
 import org.fossify.contacts.helpers.Config
+import org.fossify.contacts.helpers.ForeignEntries
 import org.fossify.contacts.helpers.SystemMirror
+import org.fossify.contacts.helpers.TemporaryVisibility
 import org.fossify.contacts.helpers.VcfExporter
 import org.fossify.contacts.helpers.getNextAutoBackupTime
 import org.fossify.contacts.helpers.getPreviousAutoBackupTime
@@ -31,6 +33,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
+import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -50,15 +53,36 @@ fun Context.getOwnContacts(
     showOnlyContactsWithNumbers: Boolean = baseConfig.showOnlyContactsWithNumbers,
     callback: (ArrayList<Contact>) -> Unit,
 ) {
-    ContactsHelper(this).getContacts(getAll, gettingDuplicates, ignoredContactSources, showOnlyContactsWithNumbers) { contacts ->
+    // Commons merges same-name entries itself — and may then keep an entry that is dropped below, losing the
+    // row. So when it would merge, everything is loaded unmerged and the merge is done here, afterwards.
+    val mergeHere = !getAll && ignoredContactSources.isEmpty() && baseConfig.mergeDuplicateContacts
+    ContactsHelper(this).getContacts(getAll || mergeHere, gettingDuplicates, ignoredContactSources, showOnlyContactsWithNumbers) { contacts ->
         ensureBackgroundThread {
-            val filtered = SystemMirror.withoutMirrors(this, contacts)
+            // a temporary visible copy whose time is up goes first (helpers/TemporaryVisibility)
+            TemporaryVisibility.sweep(this)
+            // another app's own entries (Molly, WhatsApp, …) are not contacts of ours (helpers/ForeignEntries)
+            val foreign = ForeignEntries.rawIds(this)
+            val own = if (foreign.isEmpty()) contacts else contacts.filterTo(ArrayList()) { it.isPrivate() || it.id !in foreign }
+            var filtered = SystemMirror.withoutMirrors(this, own)
+            if (mergeHere) filtered = mergedByName(filtered)
             // A copy whose private original was deleted (from anywhere: this list, the contact screen, a
             // move to another source) is removed here — the one place every load passes through.
             SystemMirror.removeOrphans(this)
             android.os.Handler(android.os.Looper.getMainLooper()).post { callback(filtered) }
         }
     }
+}
+
+// Commons' own merge of same-name entries (ContactsHelper.getContacts): among the shown sources, one row per
+// display name, keeping the entry with the most in it.
+private fun Context.mergedByName(contacts: ArrayList<Contact>): ArrayList<Contact> {
+    val shown = getVisibleContactSources()
+    val merged = ArrayList<Contact>(contacts.size)
+    contacts.filter { it.source in shown }.groupBy { it.getNameToDisplay().lowercase(Locale.getDefault()) }.values.forEach { same ->
+        merged.add(if (same.size == 1) same.first() else same.maxByOrNull { it.getStringToCompare().length }!!)
+    }
+    merged.sort()
+    return merged
 }
 
 fun Context.getPackageDrawable(packageName: String): Drawable {

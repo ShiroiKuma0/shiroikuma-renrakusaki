@@ -90,6 +90,8 @@ object SystemMirror {
         localIds.forEach { id ->
             val ok = if (visible) sync(context, id, existing[id]) else remove(context, existing[id])
             if (ok) changed++
+            // a copy that is gone has no end any more (helpers/TemporaryVisibility)
+            if (ok && !visible) TemporaryVisibility.forget(context, listOf(id))
         }
         // Re-read, so cachedMirroredIds — what the list badges draw from — reflects the change at once.
         mirrors(context)

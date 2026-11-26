@@ -194,7 +194,7 @@
 
     <!-- 白い熊 連絡先 UI: 設定可能な連絡先リストの行 -->
     <string name="theme_app_language">アプリの言語</string>
-    <string name="language_system_default">端末の言語に従う</string>
+    <string name="language_system_default">システムの既定</string>
     <string name="ui_settings_title">白い熊 連絡先 UI</string>
     <string name="swipe_to_call">スワイプで発信</string>
     <string name="swipe_to_call_enable">連絡先をスワイプして発信</string>
@@ -318,6 +318,8 @@
     <string name="visible_copies_account_phone">端末（%s）</string>
     <string name="visible_copies_photo">コピーに写真を含める</string>
     <string name="visible_copies_photo_desc">表示にした非公開の連絡先は、名前と電話番号のコピーがシステムアカウントに作られ、他のアプリや車から見えます。オフ：コピーに写真を含めません。</string>
+    <string name="temporary_visibility_minutes">一時的な表示：分</string>
+    <string name="temporary_visibility_minutes_desc">「非公開・…分間だけ表示」で連絡先のコピーをシステムストレージに置いておく時間です。コピーはアラームで削除され、遅くとも次に連絡先を開いたときに消えます。</string>
     <plurals name="contacts_now_visible">
         <item quantity="other">%d件の連絡先が他のアプリに表示されるようになりました</item>
     </plurals>
@@ -333,7 +335,8 @@
     <string name="visibility_title">この連絡先を見られるのは</string>
     <string name="visibility_system">システム — すべてのアプリ</string>
     <string name="visibility_private">非公開 — このアプリと許可したアプリのみ</string>
-    <string name="visibility_visible">非公開・他のアプリに表示</string>
+    <string name="visibility_visible">非公開・他のアプリに表示 — システムストレージにコピーを置きます（連絡先の権限を持つすべてのアプリが読めます）</string>
+    <string name="visibility_temporary">非公開・%d分間だけ表示 — コピーはその後自動で消えます</string>
     <string name="visibility_row">公開状態：%s</string>
     <string name="visibility_changed">公開状態を変更しました</string>
     <string name="long_press_photo_visibility">写真の長押しで公開状態を変更</string>
@@ -441,8 +444,8 @@
     <string name="rin_callback_ordered">コールバックを依頼しました — %s が鳴ります。</string>
     <string name="rin_error_no_callback">この白い熊 臨電話はコールバックを依頼できません — ビルド +026 以降が必要です</string>
     <string name="call_routes">発信経路</string>
-    <string name="route_badges_enable">連絡先画面の経路バッジ</string>
-    <string name="route_badges_desc">連絡先の各番号にバッジを表示します — SIMは 1 と 2、白い熊 臨電話は 臨 とアカウント番号です。タップするとその経路で発信し、臨 を長押しするとその連絡先の臨アカウントを選べます — そのアカウントがコールバックに対応している場合（Odorik）は、コールバック・発信・アカウント選択のメニューが開きます。アプリが入っていない経路のバッジは表示されません</string>
+    <string name="route_badges_enable">連絡先画面の発信ピル</string>
+    <string name="route_badges_desc">連絡先の各番号に発信ピルを表示します — SIMは 1 と 2、白い熊 臨電話は 臨 とアカウント番号です。タップするとその経路で発信します。臨 のピルを長押しすると、そのアカウントがコールバックに対応している場合（Odorik）はメニューが開きます：コールバック、発信、そして既定アカウントのピルではアカウントの選択。それ以外の既定アカウントのピルでは、連絡先ごとの臨アカウントを選びます。どのピルを並べるかは「連絡先カード」で決めます。アプリが入っていない経路のピルは表示されません</string>
     <string name="route_sim1_color">バッジ 1</string>
     <string name="route_sim2_color">バッジ 2</string>
     <string name="route_sim_text_color">バッジ 1・2 の文字</string>
@@ -464,4 +467,68 @@
     <string name="menu_icon_view">アイコン: 表示・開く・設定</string>
     <string name="menu_icon_block">アイコン: ブロック・非表示・消音</string>
     <string name="menu_warning">削除（行全体）</string>
+    <!-- 連絡先カード、UIページの言語とセクションアイコン、これまで未訳だった文字列（+138） -->
+    <string name="set_default_sim">連絡先の既定の発信経路</string>
+    <string name="sim_slot_1">SIM 1</string>
+    <string name="sim_slot_2">SIM 2</string>
+    <string name="pobox">私書箱</string>
+    <string name="structured_addresses">住所を項目に分けて入力（編集画面）</string>
+    <string name="route_rin_default_short">既定のアカウント</string>
+    <string name="swipe_tiles_enable">タイルもスワイプ</string>
+    <string name="swipe_tiles_desc">タイル — お気に入りのグリッドや、複数列にした連絡先リストのマス — でも同じスワイプが使えます。経路も同じ 2 つです。タイルは自分のマスの中で動きます。オフ：スワイプできるのは横幅いっぱいの行だけで、タイルの上を横になぞるとタブが切り替わります</string>
+    <string name="ui_reset_section_order">セクションの並び順を元に戻す</string>
+    <string name="ui_reset_section_order_desc">このページのセクションを最初の並び順に戻します。ページ上部のチップを長押ししてドラッグすると、セクションを好きな位置へ動かせます</string>
+    <string name="theme_switch_off">オフのスイッチ</string>
+    <string name="contact_call_history_section">発着信履歴</string>
+    <string name="theme_photo_shade">写真の上のアイコンの後ろの影</string>
+    <string name="theme_photo_scrim">拡大した写真の背景</string>
+    <string name="photo_badge_sim1_color">リストの写真の SIM 1 バッジ</string>
+    <string name="photo_badge_sim2_color">リストの写真の SIM 2 バッジ</string>
+    <string name="photo_badge_text_color">SIM バッジの数字</string>
+    <string name="photo_badge_halo_color">SIM バッジの数字の縁取り</string>
+    <string name="theme_detail_incoming">着信の矢印</string>
+    <string name="theme_detail_outgoing">発信の矢印</string>
+    <string name="theme_detail_missed">不在着信の矢印</string>
+    <string name="reset_all_colours">すべての色を元に戻す</string>
+    <string name="reset_all_colours_desc">このページのすべての色を既定に戻します：黒い背景、黄色の文字と枠、そしてアイコンやバッジの決まった色です。</string>
+    <string name="reset_all_colours_confirm">すべての色を既定に戻しますか？</string>
+    <string name="role_reset_hint">色を長押しすると既定に戻ります。</string>
+    <string name="system_bar_role_note">ステータスバーとナビゲーションバーは、ここで色を決めるまで画面が透けて見えます。</string>
+    <string name="contact_card">連絡先カード</string>
+    <string name="card_phone">電話</string>
+    <string name="card_events">予定・記念日</string>
+    <string name="card_im">メッセージアプリ</string>
+    <string name="card_write">書く</string>
+    <string name="card_rindenwa">臨電話</string>
+    <string name="card_visibility_system">システム — すべてのアプリ</string>
+    <string name="card_visibility_private">非公開</string>
+    <string name="card_visibility_visible">非公開・システムにコピー</string>
+    <string name="card_visibility_temporary">非公開・システムにコピー（%sまで）</string>
+    <string name="card_visibility_mixed">混在</string>
+    <string name="card_pills_note">連絡先カードでは、電話番号ごとにタイルが 1 枚あり、番号の下にピルを 5 つまで並べられます。それぞれのピルの働きをここで選びます：SIM 1 で発信、SIM 2 で発信、臨電話の既定アカウントまたは指定したアカウントで発信、メッセージを書く、なし。どの番号にも同じピルが並びます。連絡先の既定の発信経路にあたるピルは枠が太くなります。アプリが入っていない経路のピルは表示されません。</string>
+    <string name="card_pill_n">ピル %d</string>
+    <string name="card_pill_message">メッセージを書く</string>
+    <string name="card_watermarks">各タイルに大きな薄いアイコン</string>
+    <string name="card_watermarks_desc">タイルの種類を表すアイコンを、隅に大きく薄く描きます。</string>
+    <string name="card_tile_fill">タイルの色の濃さ</string>
+    <string name="card_color_name">名前と写真のタイル</string>
+    <string name="card_color_phone">電話のタイル</string>
+    <string name="card_color_message">メッセージアプリのタイルと「書く」ピルのアイコン</string>
+    <string name="card_color_web">メール・住所・ウェブサイトのタイル</string>
+    <string name="card_color_org">会社のタイル</string>
+    <string name="card_color_note">メモ・予定・グループ・その他のデータのタイル</string>
+    <string name="card_color_storage">保存先のタイルと公開状態のチップ</string>
+    <string name="card_color_calls">発着信履歴のタイル</string>
+    <string name="card_color_value">値</string>
+    <string name="card_color_label">値の下のラベル</string>
+    <string name="app_language_row">言語: %s</string>
+    <string name="app_language_desc">このアプリだけの言語です。システムの言語は変わりません。一覧にあるのは、日本語、英語、そしてアプリの大部分が翻訳されている言語です。</string>
+    <string name="theme_sub_section_icons">このページのセクションアイコン</string>
+    <string name="theme_section_base">基本：アプリそのものと設定</string>
+    <string name="theme_section_controls">操作部品：自分で動かすもの</string>
+    <string name="theme_section_words">言葉：書くもの、読むもの</string>
+    <string name="theme_section_frame">枠組みとその箱</string>
+    <string name="theme_section_reach">アプリからの働きかけ：尋ねる、差し出す、受け渡す</string>
+    <string name="theme_section_warning">警告：リセットと消去</string>
+    <string name="theme_section_flash">一瞬の表示</string>
 </resources>

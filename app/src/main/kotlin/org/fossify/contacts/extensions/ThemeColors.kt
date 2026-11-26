@@ -34,6 +34,7 @@ enum class ThemeGroup(@StringRes val labelRes: Int) {
     TABS(R.string.theme_group_tabs),
     TOPBAR(R.string.theme_group_topbar),
     PHOTO_ICONS(R.string.theme_group_photo_icons),
+    CARD(R.string.contact_card),
     SECTIONS(R.string.theme_sections_group),
     ROWS(R.string.theme_group_rows),
     LISTS(R.string.theme_group_lists),
@@ -64,6 +65,15 @@ enum class ThemeSlot(
     // A switch that is off: its outline and dot, a darker opaque yellow (on is the accent). Commons draws the
     // switches (sk17), so the override is mirrored into BaseConfig.switchOffColor.
     SWITCH_OFF("theme_switch_off", ThemeGroup.FOUNDATION, R.string.theme_switch_off, role = UiRole.SWITCH_OFF_OUTLINE),
+    // The icon of each section of the UI page, on its heading and its chip: coloured by what kind of thing
+    // the section is (black-yellow theme, "The seven colours — each with one meaning").
+    SECTION_ICON_BASE("theme_section_base", ThemeGroup.FOUNDATION, R.string.theme_section_base, R.string.theme_sub_section_icons),
+    SECTION_ICON_CONTROLS("theme_section_controls", ThemeGroup.FOUNDATION, R.string.theme_section_controls, R.string.theme_sub_section_icons),
+    SECTION_ICON_WORDS("theme_section_words", ThemeGroup.FOUNDATION, R.string.theme_section_words, R.string.theme_sub_section_icons),
+    SECTION_ICON_FRAME("theme_section_frame", ThemeGroup.FOUNDATION, R.string.theme_section_frame, R.string.theme_sub_section_icons),
+    SECTION_ICON_REACH("theme_section_reach", ThemeGroup.FOUNDATION, R.string.theme_section_reach, R.string.theme_sub_section_icons),
+    SECTION_ICON_WARNING("theme_section_warning", ThemeGroup.FOUNDATION, R.string.theme_section_warning, R.string.theme_sub_section_icons),
+    SECTION_ICON_FLASH("theme_section_flash", ThemeGroup.FOUNDATION, R.string.theme_section_flash, R.string.theme_sub_section_icons),
 
     // Search bar
     SEARCH_FILL("theme_search_fill", ThemeGroup.SEARCH, R.string.theme_search_fill, role = UiRole.SEARCH_GROUND),
@@ -94,6 +104,19 @@ enum class ThemeSlot(
     // enlarged photo. Both keep their alpha: the photo must show through.
     PHOTO_SHADE("theme_photo_shade", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_shade),
     PHOTO_SCRIM("theme_photo_scrim", ThemeGroup.PHOTO_ICONS, R.string.theme_photo_scrim),
+
+    // The contact card: each tile wears the colour of its kind — frame, caption, faint icon and tint.
+    CARD_NAME("theme_card_name", ThemeGroup.CARD, R.string.card_color_name),
+    CARD_PHONE("theme_card_phone", ThemeGroup.CARD, R.string.card_color_phone),
+    CARD_MESSAGE("theme_card_message", ThemeGroup.CARD, R.string.card_color_message),
+    CARD_WEB("theme_card_web", ThemeGroup.CARD, R.string.card_color_web),
+    CARD_ORG("theme_card_org", ThemeGroup.CARD, R.string.card_color_org),
+    CARD_NOTE("theme_card_note", ThemeGroup.CARD, R.string.card_color_note),
+    CARD_STORAGE("theme_card_storage", ThemeGroup.CARD, R.string.card_color_storage),
+    CARD_CALLS("theme_card_calls", ThemeGroup.CARD, R.string.card_color_calls),
+    // …while what a tile says stays in two colours: the value, and what the value is.
+    CARD_VALUE("theme_card_value", ThemeGroup.CARD, R.string.card_color_value),
+    CARD_LABEL("theme_card_label", ThemeGroup.CARD, R.string.card_color_label),
 
     // Swipe to call: the band revealed behind a swiped row, per SIM, and the 1/2 glyph + "Dialing…" on it
     SWIPE_SIM1("theme_swipe_sim1", ThemeGroup.SWIPE_CALL, R.string.swipe_sim1_color),
@@ -242,13 +265,14 @@ private const val SIM1_RED = 0xFFFF0000.toInt()
 private const val SIM2_BLUE = 0xFF0000FF.toInt()
 // The SIM 2 card on a list photo: a lighter blue, since the card is a small glyph on a photo.
 private const val SIM2_CARD_BLUE = 0xFF2962FF.toInt()
-// Menu icon roles (白い熊, 2026-11-17). The message blue is lighter than the SIM blue: a thin icon in pure
-// blue on black cannot be made out.
-private const val MENU_GREEN = 0xFF00FF00.toInt()
-private const val MENU_BLUE = 0xFF4D94FF.toInt()
-private const val MENU_CYAN = 0xFF00FFFF.toInt()
-private const val MENU_ORANGE = 0xFFFF8800.toInt()
-private const val MENU_MAGENTA = 0xFFFF00FF.toInt()
+// The family palette for colours that tell things apart (白い熊, 2026-11-23): no violet and no magenta, a
+// heavy green, two blues far apart. Menu icons, the UI page's section icons and the contact card's tiles all
+// take their defaults from it, so one colour means one family of things.
+private const val HEAVY_GREEN = 0xFF00A550.toInt()
+private const val HEAVY_BLUE = 0xFF0066FF.toInt()
+private const val LIGHT_BLUE = 0xFF00B0FF.toInt()
+private const val ORANGE = 0xFFFF8000.toInt()
+private const val ROSE = 0xFFFF3D7F.toInt()
 private const val MENU_RED = 0xFFFF0000.toInt()
 // A call's direction on a detail line: incoming blue, outgoing green, missed red (soft, they sit in text).
 private const val CALL_INCOMING_BLUE = 0xFF64B5F6.toInt()
@@ -296,13 +320,30 @@ private fun Context.themeDefault(slot: ThemeSlot): Int = when (slot) {
     ThemeSlot.DETAIL_INCOMING -> CALL_INCOMING_BLUE
     ThemeSlot.DETAIL_OUTGOING -> CALL_OUTGOING_GREEN
     ThemeSlot.DETAIL_MISSED -> CALL_MISSED_RED
-    ThemeSlot.MENU_ICON_CALL -> MENU_GREEN
-    ThemeSlot.MENU_ICON_MESSAGE -> MENU_BLUE
-    ThemeSlot.MENU_ICON_CONTACT -> MENU_CYAN
-    ThemeSlot.MENU_ICON_SHARE -> MENU_ORANGE
+    ThemeSlot.MENU_ICON_CALL -> HEAVY_GREEN
+    ThemeSlot.MENU_ICON_MESSAGE -> HEAVY_BLUE
+    ThemeSlot.MENU_ICON_CONTACT -> LIGHT_BLUE
+    ThemeSlot.MENU_ICON_SHARE -> ORANGE
     ThemeSlot.MENU_ICON_VIEW -> themeColor(ThemeSlot.PRIMARY)
-    ThemeSlot.MENU_ICON_BLOCK -> MENU_MAGENTA
+    ThemeSlot.MENU_ICON_BLOCK -> ROSE
     ThemeSlot.MENU_WARNING -> MENU_RED
+    ThemeSlot.SECTION_ICON_BASE -> themeColor(ThemeSlot.PRIMARY)
+    ThemeSlot.SECTION_ICON_CONTROLS -> HEAVY_GREEN
+    ThemeSlot.SECTION_ICON_WORDS -> LIGHT_BLUE
+    ThemeSlot.SECTION_ICON_FRAME -> HEAVY_BLUE
+    ThemeSlot.SECTION_ICON_REACH -> ORANGE
+    ThemeSlot.SECTION_ICON_WARNING -> MENU_RED
+    ThemeSlot.SECTION_ICON_FLASH -> ROSE
+
+    ThemeSlot.CARD_NAME, ThemeSlot.CARD_CALLS -> themeColor(ThemeSlot.PRIMARY)
+    ThemeSlot.CARD_PHONE -> HEAVY_GREEN
+    ThemeSlot.CARD_MESSAGE -> LIGHT_BLUE
+    ThemeSlot.CARD_WEB -> HEAVY_BLUE
+    ThemeSlot.CARD_ORG -> ORANGE
+    ThemeSlot.CARD_NOTE -> ROSE
+    ThemeSlot.CARD_STORAGE -> SETTINGS_NOTE_DIM_GOLD
+    ThemeSlot.CARD_VALUE -> themeColor(ThemeSlot.TEXT)
+    ThemeSlot.CARD_LABEL -> themeColor(ThemeSlot.TEXT_SECONDARY)
 
     ThemeSlot.SEARCH_ACTION_ICON -> themeColor(ThemeSlot.PRIMARY)
     ThemeSlot.COLUMN_BUTTONS -> themeColor(ThemeSlot.PRIMARY)

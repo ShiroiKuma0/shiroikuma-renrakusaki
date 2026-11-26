@@ -39,6 +39,8 @@ import org.fossify.commons.models.RadioItem
 import org.fossify.commons.models.Release
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.contacts.BuildConfig
+import org.fossify.contacts.extensions.canOpenBlockedNumbers
+import org.fossify.contacts.extensions.openBlockedNumbers
 import org.fossify.contacts.extensions.getOwnContacts
 import org.fossify.contacts.R
 import org.fossify.contacts.adapters.ViewPagerAdapter
@@ -208,6 +210,9 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
 
     override fun onResume() {
         super.onResume()
+        // This activity lives on while 白い熊 電話 is installed or updated beside it (we never finish): a row that
+        // depends on the other app — Blocked numbers — is decided again at every return.
+        refreshMenuItems()
         keepPhoneCleanIfWanted()
         refreshRinAccounts()
         if (storedShowPhoneNumbers != config.showPhoneNumbers) {
@@ -315,6 +320,8 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
             findItem(R.id.change_view_type).isVisible = currentFragment == findViewById(R.id.favorites_fragment)
             findItem(R.id.column_count).isVisible = currentFragment == findViewById(R.id.favorites_fragment) && config.viewType == VIEW_TYPE_GRID
             findItem(R.id.more_apps_from_us).isVisible = resources.getBoolean(org.fossify.commons.R.bool.is_google_play_build)
+            // the list is 白い熊 電話's to keep: the row is there only when that app offers its screen
+            findItem(R.id.blocked_numbers).isVisible = canOpenBlockedNumbers()
             findItem(R.id.open_groups).isVisible = TAB_GROUPS in pagerTabs && currentFragment != findViewById(R.id.groups_fragment)
             val onContactsTab = currentFragment == findViewById(R.id.contacts_fragment)
             columnButtonIds.forEach { findItem(it).isVisible = onContactsTab }
@@ -360,6 +367,7 @@ class MainActivity : SimpleActivity(), RefreshContactsListener {
                 R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
                 R.id.change_view_type -> changeViewType()
                 R.id.column_count -> changeColumnCount()
+                R.id.blocked_numbers -> openBlockedNumbers()
                 R.id.settings -> launchSettings()
                 R.id.about -> launchAbout()
                 else -> return@setOnMenuItemClickListener false

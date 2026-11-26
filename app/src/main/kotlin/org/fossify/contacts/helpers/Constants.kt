@@ -268,6 +268,17 @@ const val SWIPE_LEFT_ROUTE = "swipe_left_route"
 const val SWIPE_RIGHT_ROUTE = "swipe_right_route"
 // The 1 / 2 / 臨N badges on each number of the contact screen.
 const val ROUTE_BADGES = "route_badges"
+// The contact card (+137): what each pill under a phone number does — a call route, PILL_ACTION_SMS, or
+// ROUTE_OFF for no pill — comma-joined, PHONE_PILL_COUNT entries.
+const val PHONE_PILLS = "contact_phone_pills"
+const val PHONE_PILL_COUNT = 5
+const val PILL_ACTION_SMS = "sms"
+const val DEFAULT_PHONE_PILLS = "$ROUTE_SIM1,$ROUTE_SIM2,$ROUTE_RIN,$PILL_ACTION_SMS,$ROUTE_OFF"
+// How strongly a tile of the card is tinted with its kind's colour (percent), and its large faint icon.
+const val CARD_TILE_FILL = "card_tile_fill"
+const val DEFAULT_CARD_TILE_FILL = 7
+const val MAX_CARD_TILE_FILL = 30
+const val CARD_WATERMARKS = "card_watermarks"
 // The Groups page: no tab of its own in the shared four-tab bar, reached from ⋮ or by paging past Contacts.
 const val SHOW_GROUPS_PAGE = "show_groups_page"
 
@@ -275,6 +286,10 @@ const val SHOW_GROUPS_PAGE = "show_groups_page"
 // own local account) and whether a copy carries the photo.
 const val MIRROR_ACCOUNT = "mirror_account"
 const val MIRROR_PHOTO = "mirror_photo"
+const val TEMPORARY_VISIBILITY = "temporary_visibility" // private id:end (epoch ms), comma-joined; device-local
+const val TEMPORARY_VISIBILITY_MINUTES = "temporary_visibility_minutes"
+const val DEFAULT_TEMPORARY_VISIBILITY_MINUTES = 10
+val TEMPORARY_VISIBILITY_MINUTE_CHOICES = listOf(5, 10, 15, 30, 60)
 const val SHOW_VISIBILITY_BADGES = "show_visibility_badges"
 
 // Swipe a contact row to call its default number: left with SIM 1, right with SIM 2 (denwa's swipe).
@@ -284,6 +299,11 @@ const val SWIPE_TILES = "swipe_tiles"
 // The UI settings page: the order of its sections (keys, comma-joined) and which of them are unfolded.
 const val UI_SECTION_ORDER = "ui_section_order"
 const val UI_SECTIONS_OPEN = "ui_sections_open"
+// The app's own language (UI page → App language): a BCP 47 tag, empty = follow the system; absent = never
+// stored. Kept beside the AppCompat per-app locale because EMUI drops that across a sideload update.
+const val APP_LANGUAGE = "app_language"
+// "App language" was moved to the top of a stored section order, once (+138).
+const val UI_LANGUAGE_MOVED_FIRST = "ui_language_moved_first"
 const val CONTACT_CALL_HISTORY = "contact_call_history"
 const val CONTACT_CALL_HISTORY_COUNT = "contact_call_history_count"
 const val LONG_PRESS_PHOTO_VISIBILITY = "long_press_photo_visibility"

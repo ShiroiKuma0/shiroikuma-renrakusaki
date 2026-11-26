@@ -109,10 +109,8 @@ android {
         includeInApk = false
     }
 
-    androidResources {
-        @Suppress("UnstableApiUsage")
-        generateLocaleConfig = true
-    }
+    // Fork (+138): the locale declaration is hand-written (res/xml/locales_config.xml, the short list the
+    // App language picker offers), so none is generated.
 
     tasks.withType<KotlinCompile> {
         compilerOptions.jvmTarget.set(

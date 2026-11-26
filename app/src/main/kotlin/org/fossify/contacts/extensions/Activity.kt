@@ -274,6 +274,28 @@ fun Activity.launchDialerApp(tab: Int, extras: Intent.() -> Unit = {}) {
     }
 }
 
+// Blocked numbers. Android lets only the default dialer (and the default SMS app) read or write the blocked
+// list, so the screen is 白い熊 電話's: it offers it under this action, and we open it there. **Keep the action
+// name in sync with denwa.** An older denwa does not answer it, and the menu row is then left out.
+private const val DENWA_BLOCKED_NUMBERS_ACTION = "shiroikuma.denwa.action.MANAGE_BLOCKED_NUMBERS"
+
+private fun Activity.blockedNumbersIntent(): Intent? {
+    val dialerPackage = getInstalledDialerAppPackage() ?: return null
+    val intent = Intent(DENWA_BLOCKED_NUMBERS_ACTION).setPackage(dialerPackage)
+    return intent.takeIf { packageManager.resolveActivity(it, 0) != null }
+}
+
+fun Activity.canOpenBlockedNumbers() = blockedNumbersIntent() != null
+
+fun Activity.openBlockedNumbers() {
+    val intent = blockedNumbersIntent() ?: return
+    try {
+        startActivity(intent)
+    } catch (e: Exception) {
+        showErrorToast(e)
+    }
+}
+
 /**
  * Denwa's Recents narrowed to [numbers] (the contact screen's 発着信履歴: its pill, and a tap on one call).
  * A denwa without the filter extras simply opens Recents whole.

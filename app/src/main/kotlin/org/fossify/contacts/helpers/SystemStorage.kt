@@ -33,13 +33,17 @@ object SystemStorage {
     /** Count everything outside private storage. Blocking. */
     fun status(context: Context): Status {
         val mirrors = SystemMirror.mirrors(context).values.toHashSet()
+        val foreignTypes = ForeignEntries.accountTypes()
         val byAccount = LinkedHashMap<String, Int>()
         var pending = 0
         try {
             context.contentResolver.query(
-                RawContacts.CONTENT_URI, arrayOf(RawContacts._ID, RawContacts.ACCOUNT_NAME, RawContacts.DELETED), null, null, null
+                RawContacts.CONTENT_URI,
+                arrayOf(RawContacts._ID, RawContacts.ACCOUNT_NAME, RawContacts.DELETED, RawContacts.ACCOUNT_TYPE), null, null, null
             )?.use { c ->
                 while (c.moveToNext()) {
+                    // another app's own entries (helpers/ForeignEntries) are not ours to count or to clean
+                    if (c.getString(3) in foreignTypes) continue
                     if (c.getInt(2) != 0) {
                         pending++
                         continue
@@ -111,7 +115,10 @@ object SystemStorage {
     /** Remove raw contacts left marked deleted (a SIM account's deletes wait forever on Huawei). Blocking. */
     fun purgeDeleted(context: Context): Int = try {
         val uri = RawContacts.CONTENT_URI.buildUpon().appendQueryParameter(ContactsContract.CALLER_IS_SYNCADAPTER, "true").build()
-        context.contentResolver.delete(uri, "${RawContacts.DELETED} = 1", null)
+        // not another app's entries: its own sync removes those
+        val foreign = ForeignEntries.accountTypes().toTypedArray()
+        val notForeign = "(${RawContacts.ACCOUNT_TYPE} IS NULL OR ${RawContacts.ACCOUNT_TYPE} NOT IN (${foreign.joinToString(",") { "?" }}))"
+        context.contentResolver.delete(uri, "${RawContacts.DELETED} = 1 AND $notForeign", foreign)
     } catch (e: Exception) {
         0
     }

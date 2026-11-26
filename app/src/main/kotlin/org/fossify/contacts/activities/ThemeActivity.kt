@@ -31,8 +31,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.documentfile.provider.DocumentFile
 import androidx.core.widget.doAfterTextChanged
-import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.LocaleListCompat
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.chip.ChipGroup
@@ -77,7 +75,11 @@ import org.fossify.contacts.dialogs.AlphaColorPickerDialog
 import org.fossify.contacts.dialogs.ExportContactsDialog
 import org.fossify.contacts.dialogs.FontPickerDialog
 import org.fossify.contacts.dialogs.pickRinAccount
+import org.fossify.contacts.helpers.MAX_CARD_TILE_FILL
+import org.fossify.contacts.helpers.PHONE_PILL_COUNT
+import org.fossify.contacts.helpers.PILL_ACTION_SMS
 import org.fossify.contacts.helpers.ROUTE_OFF
+import org.fossify.contacts.helpers.TEMPORARY_VISIBILITY_MINUTE_CHOICES
 import org.fossify.contacts.helpers.ROUTE_RIN
 import org.fossify.contacts.helpers.ROUTE_RIN_PREFIX
 import org.fossify.contacts.helpers.ROUTE_SIM1
@@ -113,7 +115,10 @@ import org.fossify.contacts.helpers.applyDetailPattern
 import org.fossify.contacts.helpers.MAX_CONTACTS_LIST_THUMBNAIL_DP
 import org.fossify.contacts.helpers.MIN_CONTACTS_LIST_THUMBNAIL_DP
 import org.fossify.contacts.helpers.RowFieldEntry
+import org.fossify.contacts.extensions.appLanguageLabel
 import org.fossify.contacts.extensions.applyTopBarColors
+import org.fossify.contacts.extensions.setLabelIcon
+import org.fossify.contacts.extensions.showAppLanguagePicker
 import org.fossify.contacts.extensions.config
 import org.fossify.contacts.extensions.fontDisplayName
 import org.fossify.contacts.extensions.importFont
@@ -153,27 +158,30 @@ private const val INDEX_PAD_H_DP = 10
 private const val INDEX_PAD_V_DP = 5
 private const val INDEX_DRAGGED_ALPHA = 0.3f
 
-// A row's icon, before its label.
-private const val ROW_ICON_DP = 20
-private const val ROW_ICON_GAP_DP = 10
+private const val INDEX_ICON_GAP_DP = 5
+// A section's icon, on its heading and its chip: 1.25 × the label's text size, as a row's icon is.
+private const val ICON_PER_TEXT = 1.25f
+private const val SECTION_ICON_GAP_DP = 12
+// A row's icon at the page's ordinary text size — where a note without a label of its own starts.
+private const val ROW_ICON_FLOOR_DP = 18f
+private const val ROW_ICON_GAP_PER_ICON = 0.5f
 private val CONTACT_CALL_HISTORY_COUNTS = listOf(3, 5, 10, 20, 50)
 
 // How many hex characters of the automation token stay visible at each end.
 private const val TOKEN_ABBREVIATION_EDGE = 8
 
-// Every translation the app ships (mirrors the res/values-* locale dirs, plus English), as BCP-47 tags.
-// Offered by the "Application language" picker; display names render in each language itself.
-private val APP_LANGUAGE_TAGS = listOf(
-    "ar", "az", "be", "bg", "bn", "bn-BD", "bqi", "br", "bs", "ca", "ckb", "cr", "cs", "cy", "da", "de",
-    "el", "en", "en-GB", "en-IN", "eo", "es", "es-419", "es-US", "et", "eu", "fa", "fi", "fil", "fr",
-    "ga", "gl", "he", "hi-IN", "hr", "hu", "ia", "id", "is", "it", "ja", "kab", "kn", "ko-KR", "kr",
-    "lt", "ltg", "lv", "mk", "ml", "ms", "my", "nb-NO", "ne", "nl", "nn", "oc", "or", "pa", "pa-PK",
-    "pl", "pt", "pt-BR", "pt-PT", "ro", "ru", "sat", "si", "sk", "sl", "sr", "sv", "ta", "te", "th",
-    "tr", "uk", "ur", "vi", "zgh", "zh-CN", "zh-HK", "zh-TW",
+/**
+ * A top-level section of the page: its stored [key], its heading, its (shorter) chip label, its [icon] in the
+ * colour [role] of what kind of thing the section is — the same on heading and chip — and what builds its rows.
+ */
+private class UiSection(
+    val key: String,
+    val title: String,
+    val icon: Int,
+    val role: ThemeSlot,
+    val chip: String = title,
+    val fill: () -> Unit,
 )
-
-/** A top-level section of the page: its stored [key], its heading, its (shorter) chip label, and what builds its rows. */
-private class UiSection(val key: String, val title: String, val chip: String = title, val fill: () -> Unit)
 
 /**
  * The icon a row of the page carries, coloured by what the row does (black-yellow theme: “Every row has an
@@ -202,6 +210,7 @@ private enum class RowIcon(val res: Int, val role: ThemeSlot) {
     MOVE(CR.drawable.ic_move_vector, ThemeSlot.MENU_ICON_CONTACT),
     SHOWN(CR.drawable.ic_unhide_vector, ThemeSlot.MENU_ICON_VIEW),
     PRIVATE(CR.drawable.ic_hide_vector, ThemeSlot.MENU_ICON_BLOCK),
+    LANGUAGE(R.drawable.ic_globe_vector, ThemeSlot.MENU_ICON_VIEW),
 }
 
 private const val ROW_PAD_DP = 2f
@@ -304,32 +313,56 @@ class ThemeActivity : SimpleActivity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        // Your data first (backup, who sees private contacts, housekeeping), then the language, then the
-        // look section by section. The keys are stored: never rename one.
+        // The sections in their default order: the language first, then your data (backup, who sees private
+        // contacts, housekeeping), then the look. Each carries its icon and the colour of what kind of thing it
+        // is (ThemeSlot.SECTION_ICON_*), and no two neighbours share a colour. The keys are stored: never
+        // rename one.
         val built = ArrayList<UiSection>()
-        built.add(UiSection("exim", getString(R.string.eim_title)) { addExportImportSection(primaryColor, stepPx) })
-        built.add(UiSection("private", getString(R.string.private_contacts_section)) { addPrivateContactsSection(primaryColor, stepPx) })
-        built.add(UiSection("maintenance", getString(R.string.maintenance_section)) { addMaintenanceSection(primaryColor, stepPx) })
-        built.add(UiSection("language", getString(R.string.theme_app_language)) { addLanguageSection(primaryColor, stepPx) })
-        built.add(UiSection("buttons", getString(R.string.buttons_section)) { addButtonsSection(primaryColor, stepPx) })
-        // The roles of what the commons draws, each in the section of its item (the keys are stored too).
-        fun roleSection(section: UiRoleSection) = built.add(
-            UiSection("roles_" + section.name.lowercase(Locale.ROOT), getString(section.labelRes)) { addRoleRows(section, stepPx) }
-        )
-        listOf(UiRoleSection.TEXT, UiRoleSection.FIELDS, UiRoleSection.DIALOGS, UiRoleSection.SWITCHES, UiRoleSection.MARKS)
-            .forEach(::roleSection)
-        ThemeGroup.entries.forEach { group ->
-            built.add(UiSection("theme_" + group.name.lowercase(Locale.ROOT), getString(group.labelRes)) { addGroup(group, primaryColor, stepPx) })
-            if (group == ThemeGroup.SWIPE_CALL) {
-                built.add(
-                    UiSection(
-                        "call_history", getString(R.string.contact_call_history_settings), getString(R.string.contact_call_history_section),
-                    ) { addContactCallHistorySection(primaryColor, stepPx) }
-                )
-            }
+        fun section(key: String, title: Int, icon: Int, role: ThemeSlot, chip: Int = title, fill: () -> Unit) =
+            built.add(UiSection(key, getString(title), icon, role, getString(chip), fill))
+        fun group(group: ThemeGroup, icon: Int, role: ThemeSlot) =
+            section("theme_" + group.name.lowercase(Locale.ROOT), group.labelRes, icon, role) { addGroup(group, primaryColor, stepPx) }
+        // The roles of what the commons draws, each in the section of its item.
+        fun roles(roleSection: UiRoleSection, icon: Int, role: ThemeSlot) =
+            section("roles_" + roleSection.name.lowercase(Locale.ROOT), roleSection.labelRes, icon, role) { addRoleRows(roleSection, stepPx) }
+        val base = ThemeSlot.SECTION_ICON_BASE
+        val controls = ThemeSlot.SECTION_ICON_CONTROLS
+        val words = ThemeSlot.SECTION_ICON_WORDS
+        val frame = ThemeSlot.SECTION_ICON_FRAME
+        val reach = ThemeSlot.SECTION_ICON_REACH
+
+        section("language", R.string.theme_app_language, R.drawable.ic_globe_vector, words) { addLanguageSection(stepPx) }
+        section("exim", R.string.eim_title, CR.drawable.ic_share_vector, reach) { addExportImportSection(primaryColor, stepPx) }
+        section("private", R.string.private_contacts_section, CR.drawable.ic_lock_vector, base) { addPrivateContactsSection(primaryColor, stepPx) }
+        section("maintenance", R.string.maintenance_section, CR.drawable.ic_reset_vector, ThemeSlot.SECTION_ICON_WARNING) {
+            addMaintenanceSection(primaryColor, stepPx)
         }
-        roleSection(UiRoleSection.BARS)
-        roleSection(UiRoleSection.TOASTS)
+        group(ThemeGroup.FOUNDATION, R.drawable.ic_palette_vector, base)
+        section("buttons", R.string.buttons_section, CR.drawable.ic_check_circle_vector, controls) { addButtonsSection(primaryColor, stepPx) }
+        roles(UiRoleSection.TEXT, R.drawable.ic_text_fields_vector, words)
+        roles(UiRoleSection.SWITCHES, R.drawable.ic_tune_vector, controls)
+        roles(UiRoleSection.FIELDS, CR.drawable.ic_rename_vector, words)
+        roles(UiRoleSection.MARKS, CR.drawable.ic_check_vector, controls)
+        roles(UiRoleSection.DIALOGS, CR.drawable.ic_info_outline_vector, reach)
+        group(ThemeGroup.SEARCH, CR.drawable.ic_search_vector, words)
+        group(ThemeGroup.MENUS, CR.drawable.ic_three_dots_vector, reach)
+        group(ThemeGroup.TOPBAR, CR.drawable.ic_move_to_top_vector, frame)
+        group(ThemeGroup.CARD, R.drawable.ic_account_box_vector, base)
+        group(ThemeGroup.TABS, CR.drawable.ic_apps_vector, frame)
+        group(ThemeGroup.PHOTO_ICONS, CR.drawable.ic_person_vector, base)
+        group(ThemeGroup.SECTIONS, CR.drawable.ic_sort_vector, frame)
+        group(ThemeGroup.ROWS, CR.drawable.ic_people_vector, base)
+        group(ThemeGroup.LISTS, CR.drawable.ic_article_outline_vector, frame)
+        section(
+            "call_history", R.string.contact_call_history_settings, CR.drawable.ic_clock_vector, base, R.string.contact_call_history_section,
+        ) { addContactCallHistorySection(primaryColor, stepPx) }
+        group(ThemeGroup.SWIPE_CALL, CR.drawable.ic_move_vector, controls)
+        group(ThemeGroup.ROUTES, CR.drawable.ic_phone_vector, reach)
+        roles(UiRoleSection.BARS, CR.drawable.ic_drag_handle_vector, frame)
+        roles(UiRoleSection.TOASTS, CR.drawable.ic_info_vector, ThemeSlot.SECTION_ICON_FLASH)
+        // a group added to ThemeGroup later still gets its section, until it is given its place above
+        ThemeGroup.entries.filter { g -> built.none { it.key == "theme_" + g.name.lowercase(Locale.ROOT) } }
+            .forEach { group(it, CR.drawable.ic_settings_cog_vector, base) }
         sections = orderedSections(built)
 
         addSectionIndex(primaryColor)
@@ -339,6 +372,13 @@ class ThemeActivity : SimpleActivity() {
     /** The stored order applied to [built]: stored keys first, then sections a later build added, at their built place. */
     private fun orderedSections(built: List<UiSection>): List<UiSection> {
         val byKey = built.associateBy { it.key }
+        // "App language" leads the page from +138. It is put first once in an order stored before that, where
+        // nothing but the old default had placed it; wherever 白い熊 drags it afterwards, it stays.
+        if (!config.uiLanguageMovedFirst) {
+            val keys = config.uiSectionOrder.split(',').filter { it.isNotEmpty() }
+            if ("language" in keys) config.uiSectionOrder = (listOf("language") + (keys - "language")).joinToString(",")
+            config.uiLanguageMovedFirst = true
+        }
         val stored = config.uiSectionOrder.split(',').mapNotNull { byKey[it] }.distinct()
         return stored + built.filter { it !in stored }
     }
@@ -365,6 +405,10 @@ class ThemeActivity : SimpleActivity() {
                 val v = (INDEX_PAD_V_DP * density).toInt()
                 setPadding(h, v, h, v)
                 this.background = pillDrawable(accent, background, main = false)
+                // the section's own icon in its colour; the chip stays as wide as icon + label
+                gravity = Gravity.CENTER_VERTICAL
+                setCompoundDrawablesRelative(sectionIcon(section, textSize), null, null, null)
+                compoundDrawablePadding = (INDEX_ICON_GAP_DP * density).toInt()
                 setOnClickListener { jumpToSection(section.key) }
                 setOnLongClickListener { chip ->
                     chip.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
@@ -452,6 +496,12 @@ class ThemeActivity : SimpleActivity() {
             val v = (SECTION_HEADER_PAD_DP * density).toInt()
             setPaddingRelative(margin, v, margin, v)
             background = rippleDrawable()
+            addView(
+                ImageView(this@ThemeActivity).apply { setImageDrawable(sectionIcon(section, label.textSize)) },
+                LinearLayout.LayoutParams(sectionIconSize(label.textSize), sectionIconSize(label.textSize)).apply {
+                    marginEnd = (SECTION_ICON_GAP_DP * density).toInt()
+                },
+            )
             addView(labelColumn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             addView(View(this@ThemeActivity), LinearLayout.LayoutParams(0, 0, 1f))
             addView(chevron)
@@ -468,6 +518,14 @@ class ThemeActivity : SimpleActivity() {
         sectionChevrons[section.key] = chevron
         showSectionState(section.key, section.key in config.uiSectionsOpen)
     }
+
+    private fun sectionIconSize(labelTextSizePx: Float) = (labelTextSizePx * ICON_PER_TEXT).toInt()
+
+    /** The section's icon, sized by its label and in the colour of its kind — the same on its heading and on its chip. */
+    private fun sectionIcon(section: UiSection, labelTextSizePx: Float) =
+        resources.getColoredDrawableWithColor(section.icon, themeColor(section.role)).apply {
+            setBounds(0, 0, sectionIconSize(labelTextSizePx), sectionIconSize(labelTextSizePx))
+        }
 
     private fun setSectionOpen(key: String, open: Boolean) {
         val stored = config.uiSectionsOpen
@@ -809,40 +867,13 @@ class ThemeActivity : SimpleActivity() {
         }
     }
 
-    // App-wide display language, independent of the phone locale. Backed by the AndroidX per-app
-    // locales API: Android 13+ persists it in the system; below, the manifest's
-    // AppLocalesMetadataHolderService (autoStoreLocales) restores it on launch.
-    private fun addLanguageSection(primaryColor: Int, stepPx: Int) {
-        val current = AppCompatDelegate.getApplicationLocales()
-        val currentName = current[0]?.let { it.getDisplayName(it).replaceFirstChar { c -> c.uppercase() } }
-            ?: getString(R.string.language_system_default)
-        addValueRow(getString(R.string.theme_app_language), currentName, stepPx) {
-            openLanguagePicker()
-        }
-    }
-
-    private fun openLanguagePicker() {
-        val items = ArrayList<RadioItem>()
-        items.add(RadioItem(0, getString(R.string.language_system_default), ""))
-        APP_LANGUAGE_TAGS
-            .map { tag -> Locale.forLanguageTag(tag) }
-            .sortedBy { it.getDisplayName(it).lowercase(Locale.getDefault()) }
-            .forEachIndexed { index, locale ->
-                val name = locale.getDisplayName(locale).replaceFirstChar { it.uppercase() }
-                items.add(RadioItem(index + 1, name, locale.toLanguageTag()))
-            }
-
-        val currentTag = AppCompatDelegate.getApplicationLocales().toLanguageTags()
-        val checkedId = items.firstOrNull { (it.value as String).equals(currentTag, ignoreCase = true) }?.id
-            ?: items.firstOrNull { (it.value as String).equals(currentTag.substringBefore('-'), ignoreCase = true) }?.id
-            ?: 0
-
-        RadioGroupDialog(this, items, checkedId) { value ->
-            val tag = value as String
-            AppCompatDelegate.setApplicationLocales(
-                if (tag.isEmpty()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(tag)
-            )
-        }
+    // The app's own language, independent of the phone's (extensions/AppLanguage.kt): one pill that names the
+    // current language and opens the picker.
+    private fun addLanguageSection(stepPx: Int) {
+        addActionRow(
+            getString(R.string.app_language_row, appLanguageLabel()), getString(R.string.app_language_desc), stepPx,
+            main = true, icon = RowIcon.LANGUAGE,
+        ) { showAppLanguagePicker() }
     }
 
     // ---- Buttons: dialog buttons as pills (commons sk12) ----
@@ -1069,6 +1100,18 @@ class ThemeActivity : SimpleActivity() {
             config.mirrorPhoto = it
             ensureBackgroundThread { SystemMirror.refreshAll(applicationContext) }
         }
+        lateinit var minutesRow: ItemThemeValueBinding
+        minutesRow = addValueRow(
+            getString(R.string.temporary_visibility_minutes), config.temporaryVisibilityMinutes.toString(), stepPx * 2, icon = RowIcon.SHOWN,
+        ) {
+            val choices = TEMPORARY_VISIBILITY_MINUTE_CHOICES
+            val items = ArrayList(choices.mapIndexed { index, minutes -> RadioItem(index, minutes.toString(), minutes) })
+            RadioGroupDialog(this, items, choices.indexOf(config.temporaryVisibilityMinutes)) { value ->
+                config.temporaryVisibilityMinutes = value as Int
+                minutesRow.themeValueValue.text = value.toString()
+            }
+        }
+        addNote(getString(R.string.temporary_visibility_minutes_desc), stepPx * 2)
     }
 
     private fun accountLabel(name: String?, type: String?): String = when {
@@ -1159,6 +1202,10 @@ class ThemeActivity : SimpleActivity() {
             addRoutesSection(primaryColor, stepPx)
             return
         }
+        if (group == ThemeGroup.CARD) {
+            addCardSection(stepPx)
+            return
+        }
 
 
         var sawAny = false
@@ -1218,8 +1265,31 @@ class ThemeActivity : SimpleActivity() {
         return if (account < 0) getString(R.string.rin_account_as_selected) else rinBadge(account)
     }
 
-    // What a swipe side dials through: SIM 1, SIM 2, the 臨 default, one 臨 account, or nothing.
+    // "Contact card": what the pills under each phone number do, then the look of the tiles.
+    private fun addCardSection(stepPx: Int) {
+        addNote(getString(R.string.card_pills_note), stepPx)
+        for (index in 0 until PHONE_PILL_COUNT) {
+            addRouteRow(getString(R.string.card_pill_n, index + 1), stepPx, listOf(PILL_ACTION_SMS), { config.phonePills[index] }) { action ->
+                config.phonePills = config.phonePills.toMutableList().also { it[index] = action }
+            }
+        }
+        addSwitchRow(
+            title = getString(R.string.card_watermarks),
+            checked = config.cardWatermarks,
+            indent = stepPx,
+            description = getString(R.string.card_watermarks_desc),
+        ) {
+            config.cardWatermarks = it
+        }
+        addSlider(getString(R.string.card_tile_fill), config.cardTileFill, MAX_CARD_TILE_FILL, stepPx) {
+            config.cardTileFill = it
+        }
+        ThemeSlot.entries.filter { it.group == ThemeGroup.CARD }.forEach { addColorRow(it, stepPx) }
+    }
+
+    // What a swipe side or a card pill does: SIM 1, SIM 2, the 臨 default, one 臨 account, a message, or nothing.
     private fun routeLabel(route: String): String = when {
+        route == PILL_ACTION_SMS -> getString(R.string.card_pill_message)
         route == ROUTE_SIM1 -> getString(R.string.sim_slot_1)
         route == ROUTE_SIM2 -> getString(R.string.sim_slot_2)
         route == ROUTE_RIN -> getString(R.string.route_rin_default)
@@ -1230,9 +1300,13 @@ class ThemeActivity : SimpleActivity() {
         else -> getString(R.string.route_off)
     }
 
-    private fun addSwipeRouteRow(titleRes: Int, stepPx: Int, get: () -> String, set: (String) -> Unit) {
+    private fun addSwipeRouteRow(titleRes: Int, stepPx: Int, get: () -> String, set: (String) -> Unit) =
+        addRouteRow(getString(titleRes), stepPx, emptyList(), get, set)
+
+    // A row that picks a call route; [others] are further actions offered after the routes.
+    private fun addRouteRow(title: String, stepPx: Int, others: List<String>, get: () -> String, set: (String) -> Unit) {
         var row: ItemThemeValueBinding? = null
-        row = addValueRow(getString(titleRes), routeLabel(get()), stepPx, icon = RowIcon.CALL) {
+        row = addValueRow(title, routeLabel(get()), stepPx, icon = RowIcon.CALL) {
             val appContext = applicationContext
             ensureBackgroundThread {
                 if (Rindenwa.isInstalled(appContext)) Rindenwa.refreshAccounts(appContext)
@@ -1245,7 +1319,8 @@ class ThemeActivity : SimpleActivity() {
                         Rindenwa.cachedAccounts(this).filter { it.number >= 0 }.sortedBy { it.number }
                             .forEach { routes.add(ROUTE_RIN_PREFIX + it.number) }
                     }
-                    if (get() !in routes && get() != ROUTE_OFF) routes.add(get())
+                    if (get() !in routes && get() !in others && get() != ROUTE_OFF) routes.add(get())
+                    routes.addAll(others)
                     routes.add(ROUTE_OFF)
                     val items = ArrayList(routes.mapIndexed { index, route -> RadioItem(index, routeLabel(route)) })
                     RadioGroupDialog(this, items, routes.indexOf(get())) { chosen ->
@@ -1545,8 +1620,9 @@ class ThemeActivity : SimpleActivity() {
         b.themeSwitchLabel.text = title
         b.themeSwitchLabel.setTextColor(if (explained) getProperPrimaryColor() else getProperTextColor())
         if (explained) b.themeSwitchLabel.setTypeface(b.themeSwitchLabel.typeface, Typeface.BOLD)
-        b.themeSwitchLabel.setRowIcon(icon)
-        b.themeSwitchDesc.setPaddingRelative(rowIconInset(), b.themeSwitchDesc.paddingTop, 0, 0)
+        b.themeSwitchLabel.setRowIcon(icon) { gutter ->
+            b.themeSwitchDesc.setPaddingRelative(gutter, b.themeSwitchDesc.paddingTop, 0, 0)
+        }
         b.themeSwitchDesc.text = description.orEmpty()
         b.themeSwitchDesc.setTextColor(note)
         b.themeSwitchDesc.beVisibleIf(description != null)
@@ -1640,10 +1716,10 @@ class ThemeActivity : SimpleActivity() {
         b.themeActionTitle.text = title
         b.themeActionTitle.setTextColor(accent)
         b.themeActionTitle.setTypeface(null, if (main) Typeface.BOLD else Typeface.NORMAL)
-        b.themeActionTitle.setRowIcon(icon)
-        b.themeActionDesc.setPaddingRelative(
-            b.themeActionDesc.paddingStart + rowIconInset(), b.themeActionDesc.paddingTop, 0, 0,
-        )
+        val descStart = b.themeActionDesc.paddingStart
+        b.themeActionTitle.setRowIcon(icon) { gutter ->
+            b.themeActionDesc.setPaddingRelative(descStart + gutter, b.themeActionDesc.paddingTop, 0, 0)
+        }
         b.themeActionChevron.setTextColor(accent)
         b.themeActionChevron.beVisibleIf(opens)
         b.themeActionPill.background = pillDrawable(accent, getProperBackgroundColor(), main)
@@ -1814,18 +1890,17 @@ class ThemeActivity : SimpleActivity() {
      * text — 40dp per row, which on a page this long is screens of whitespace — so the vertical padding
      * is replaced with [ROW_PADDING_VERTICAL_DP] while the horizontal padding and the indent are kept.
      */
-    // The row's icon, before its label and in the colour of what the row does.
-    private fun TextView.setRowIcon(icon: RowIcon) {
-        val density = resources.displayMetrics.density
-        val size = (ROW_ICON_DP * density).toInt()
-        val drawable = resources.getColoredDrawableWithColor(icon.res, themeColor(icon.role))
-        drawable.setBounds(0, 0, size, size)
-        setCompoundDrawablesRelative(drawable, null, null, null)
-        compoundDrawablePadding = (ROW_ICON_GAP_DP * density).toInt()
-    }
+    // The row's icon, before its label and in the colour of what the row does: sized by the label and centred on
+    // its first line (extensions/RowIcons.kt). [onGutter] hears how wide icon + gap are, for a line beneath the label.
+    private fun TextView.setRowIcon(icon: RowIcon, onGutter: ((Int) -> Unit)? = null) =
+        setLabelIcon(icon.res, themeColor(icon.role), onGutter)
 
-    // How far a line beneath a label is moved in, so that it starts under the label's text and not under its icon.
-    private fun rowIconInset() = ((ROW_ICON_DP + ROW_ICON_GAP_DP) * resources.displayMetrics.density).toInt()
+    // Where a note that has no label of its own starts: under the text of the ordinary rows around it.
+    private fun rowIconInset(): Int {
+        val text = resources.getDimension(org.fossify.commons.R.dimen.normal_text_size)
+        val size = maxOf(text * ICON_PER_TEXT, ROW_ICON_FLOOR_DP * resources.displayMetrics.density)
+        return (size * (1 + ROW_ICON_GAP_PER_ICON)).toInt()
+    }
 
     private fun indentRow(view: android.view.View, indent: Int) {
         val vertical = (ROW_PADDING_VERTICAL_DP * resources.displayMetrics.density).toInt()

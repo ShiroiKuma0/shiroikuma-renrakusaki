@@ -56,6 +56,7 @@ object MenuPills {
         R.id.dialpad to Row(Role.CALL, opens = true),
         R.id.change_view_type to Row(Role.VIEW, opens = true),
         R.id.column_count to Row(Role.VIEW, opens = true),
+        R.id.blocked_numbers to Row(Role.BLOCK, opens = true, icon = CR.drawable.ic_block_vector),
         R.id.settings to Row(Role.VIEW, opens = true),
         R.id.about to Row(Role.VIEW, opens = true),
         R.id.more_apps_from_us to Row(Role.VIEW, opens = true, icon = CR.drawable.ic_apps_vector),

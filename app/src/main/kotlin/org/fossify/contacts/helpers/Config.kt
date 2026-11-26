@@ -300,6 +300,22 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(ROUTE_BADGES, true)
         set(value) = prefs.edit().putBoolean(ROUTE_BADGES, value).apply()
 
+    // The pills under each phone number on the contact card, in order (see PHONE_PILLS).
+    var phonePills: List<String>
+        get() {
+            val stored = (prefs.getString(PHONE_PILLS, null) ?: DEFAULT_PHONE_PILLS).split(',')
+            return List(PHONE_PILL_COUNT) { index -> stored.getOrNull(index)?.ifEmpty { ROUTE_OFF } ?: ROUTE_OFF }
+        }
+        set(value) = prefs.edit().putString(PHONE_PILLS, value.joinToString(",")).apply()
+
+    var cardTileFill: Int
+        get() = prefs.getInt(CARD_TILE_FILL, DEFAULT_CARD_TILE_FILL).coerceIn(0, MAX_CARD_TILE_FILL)
+        set(value) = prefs.edit().putInt(CARD_TILE_FILL, value).apply()
+
+    var cardWatermarks: Boolean
+        get() = prefs.getBoolean(CARD_WATERMARKS, true)
+        set(value) = prefs.edit().putBoolean(CARD_WATERMARKS, value).apply()
+
     var showGroupsPage: Boolean
         get() = prefs.getBoolean(SHOW_GROUPS_PAGE, true)
         set(value) = prefs.edit().putBoolean(SHOW_GROUPS_PAGE, value).apply()
@@ -325,6 +341,14 @@ class Config(context: Context) : BaseConfig(context) {
     var uiSectionOrder: String
         get() = prefs.getString(UI_SECTION_ORDER, "") ?: ""
         set(value) = prefs.edit().putString(UI_SECTION_ORDER, value).apply()
+
+    var appLanguage: String?
+        get() = prefs.getString(APP_LANGUAGE, null)
+        set(value) = prefs.edit().putString(APP_LANGUAGE, value).apply()
+
+    var uiLanguageMovedFirst: Boolean
+        get() = prefs.getBoolean(UI_LANGUAGE_MOVED_FIRST, false)
+        set(value) = prefs.edit().putBoolean(UI_LANGUAGE_MOVED_FIRST, value).apply()
 
     var uiSectionsOpen: Set<String>
         get() = prefs.getStringSet(UI_SECTIONS_OPEN, null)?.toSet() ?: emptySet()
@@ -375,6 +399,19 @@ class Config(context: Context) : BaseConfig(context) {
     var mirrorPhoto: Boolean
         get() = prefs.getBoolean(MIRROR_PHOTO, true)
         set(value) = prefs.edit().putBoolean(MIRROR_PHOTO, value).apply()
+
+    // helpers/TemporaryVisibility: when each temporary visible copy ends — private contact id → epoch ms.
+    var temporaryVisibility: Map<Int, Long>
+        get() = prefs.getString(TEMPORARY_VISIBILITY, "").orEmpty().split(',').mapNotNull { pair ->
+            val id = pair.substringBefore(':').toIntOrNull() ?: return@mapNotNull null
+            val end = pair.substringAfter(':', "").toLongOrNull() ?: return@mapNotNull null
+            id to end
+        }.toMap()
+        set(value) = prefs.edit().putString(TEMPORARY_VISIBILITY, value.entries.joinToString(",") { "${it.key}:${it.value}" }).apply()
+
+    var temporaryVisibilityMinutes: Int
+        get() = prefs.getInt(TEMPORARY_VISIBILITY_MINUTES, DEFAULT_TEMPORARY_VISIBILITY_MINUTES)
+        set(value) = prefs.edit().putInt(TEMPORARY_VISIBILITY_MINUTES, value).apply()
 
     fun isPrivateDataAppAllowed(packageName: String?): Boolean {
         if (packageName.isNullOrEmpty()) return false

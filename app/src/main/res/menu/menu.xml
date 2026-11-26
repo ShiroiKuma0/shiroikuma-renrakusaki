@@ -70,6 +70,10 @@
         android:title="@string/column_count"
         app:showAsAction="never" />
     <item
+        android:id="@+id/blocked_numbers"
+        android:title="@string/blocked_numbers"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/settings"
         android:icon="@drawable/ic_settings_cog_vector"
         android:title="@string/settings"

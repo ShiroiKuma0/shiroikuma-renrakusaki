@@ -91,6 +91,7 @@
         android:appCategory="social"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_launcher_name"
+        android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
@@ -294,6 +295,11 @@
 
         <receiver
             android:name=".receivers.AutomaticBackupReceiver"
+            android:exported="false" />
+
+        <!-- Fork: the end of a temporary visible copy (helpers/TemporaryVisibility). -->
+        <receiver
+            android:name=".receivers.TemporaryVisibilityReceiver"
             android:exported="false" />
 
         <!-- Fork: token-gated on-demand backup trigger for the automation fork 自由作業盤;
