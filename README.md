@@ -6,11 +6,11 @@
 
 **A black-and-yellow, deeply customizable contacts app — your list, your layout, your colors.**
 
-A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: private contacts that stay private yet can be made visible to other apps one by one, every Android contact field shown, editable and backed up, a duplicate cleaner, Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, one bottom bar shared with the Phone and SIP-phone forks, calling through a SIP account from badges on every number, swipe a contact — a row or a tile — to call it by the route you gave that side, a settings page that folds and reorders, pill menus, tap-to-dial on the Favorites grid while the car is connected, a default call route per contact (a SIM or a SIP account), category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
+A fork of [Fossify Contacts](https://github.com/FossifyOrg/Contacts) with **major additions**: private contacts that stay private yet can be made visible to other apps one by one, every Android contact field shown, editable and backed up, a duplicate cleaner, Japanese-aware gojūon sorting with letter sections, a 詳 detail mode showing each contact's last call & message, a granular black/`#FFFF00` theming system, a fully configurable multi-column contacts list, one bottom bar shared with the Phone and SIP-phone forks, calling through a SIP account from badges on every number, swipe a contact — a row or a tile — to call it by the route you gave that side, a contact card of tiles with one-touch call pills under every number, a settings page that folds and reorders, pill menus, tap-to-dial on the Favorites grid while the car is connected, a default call route per contact (a SIM or a SIP account), category export/import, and a headless backup the companion task runner drives — including a data door that lets this app be restored, contacts and all, onto a wiped phone.
 
 Installs **side-by-side** with Fossify Contacts (app id `shiroikuma.renrakusaki`) — keep both.
 
-**📥 Latest release: [`1.6.0+136`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
+**📥 Latest release: [`1.6.0+141`](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-renrakusaki/releases)
 
 </div>
 
@@ -21,9 +21,16 @@ A private contact lives in this app alone: no other app with contacts access —
 
 When a private contact *should* be known elsewhere — so WhatsApp finds them, or the car shows the caller's name — switch it to **visible to other apps**: the app keeps a stripped copy (name, reading, numbers, photo) in the phone's own local account, rewrites it on every save, and removes it again when you switch back. The private record stays the only one you edit, and this app never shows the copy twice.
 
+Need it only for a moment — to start a chat in a messenger? Choose **Private + visible for 10 minutes**: the copy is written, the other app finds the contact, and the copy removes itself. And the entries such messengers write back beside a contact are recognised as theirs: they never show up as contacts, and nothing moves them.
+
 Every contact photo carries a **badge**: a crossed-out lock for a system contact every app can read, an eye for a private one made visible, none for private only. **Long-press a photo** — or tap the "Visibility" line on the contact screen — to switch between **System / Private / Private + visible**; a move between system and private carries the whole contact across, so nothing asks for confirmation because nothing can be lost.
 
 **Keep the phone itself empty.** UI settings → Maintenance shows, live, what is still outside private storage — contacts in the phone's accounts, entries on each SIM card. One pill moves **everything** private, SIM cards included (Huawei never writes a deletion through to the card, so the app clears the cards itself). New contacts are private by default, and an optional switch moves anything that reappears — say, a contact another app added — every time the app opens.
+
+---
+
+## 🪪 The contact card — tiles, with one-touch calls on every number
+A contact opens as a card of **tiles**: the whole photo beside the name, then one tile per phone number, then mail, addresses, notes and the rest, each kind in its own colour. Under **every number** sit its call pills — SIM 1, SIM 2, a SIP account, *Write* — and which five actions those are is yours to set, so one tap calls any number by any route.
 
 ---
 

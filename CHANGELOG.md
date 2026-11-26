@@ -7,6 +7,62 @@ release and layers our customizations on top; versions are `<upstream version>+<
 upstream release it is built on; **upstream's own changelog follows below, verbatim** — their text is
 never edited or reordered, so a rebase merges this file cleanly instead of conflicting every sync.
 
+## [1.6.0+141] — 2026-11-26
+
+Since `1.6.0+136`, still on **Fossify Contacts 1.6.0**; Commons moves from **7.1.3-sk1** to **7.1.3-sk2**.
+
+### The contact card — tiles
+- The contact screen is a card of **tiles**, built in code: an outlined, faintly tinted box per kind of
+  information, in the colour of its kind, with an upper-case caption and a large faint icon.
+- Head row: the photo tile (the whole photo, never cropped) beside the name tile — reading, favourite
+  star, the visibility chip — and the company tile.
+- **One full-width tile per phone number**, each with its own **call pills**: five slots, every one a
+  call route (SIM 1, SIM 2, the SIP default, a named SIP account), *Write*, or off — set on the UI page
+  → *Contact card* → *Pill 1…5*, so three SIP pills are possible. The pill of the contact's default
+  route has the thick frame; a SIP pill's long-press offers a callback where the account can.
+- The other kinds go two to a row from 520 dp of width, then the call-history tile.
+- Tile colours are roles (UI page → *Contact card*): phone heavy green, messaging light blue, mail /
+  address / web heavy blue, company orange, notes and events rose, storage dim gold — no violet and no
+  magenta. Also settable: the faint icons and the strength of the tint.
+
+### The UI page
+- **Every section has an icon in a colour of its kind**, alike on its heading and its chip — seven
+  section-icon roles (Foundation → *Section icons of this page*); in the default order no two
+  neighbours share a colour.
+- **“App language” is the first section and the first chip.** Its picker is drawn in the family look:
+  the current language alone in a pill, each language in its own name with its country beneath and the
+  tag at the right. The choice is kept in the app's own settings as well, re-asserted at every start
+  (EMUI drops the per-app language across a sideload update), and travels in the settings export.
+- The offered languages are **Japanese and English** — the two in which every screen of the fork
+  exists.
+- A row's icon is sized by its label (1.25 × the text, at least 18 dp) and sits on its first line.
+- Menu icon defaults moved off violet and magenta: call heavy green, message heavy blue, contact light
+  blue, share orange, block rose. A colour set by hand is untouched.
+
+### Japanese
+- Every string of the app has its Japanese: 52 missing ones translated, three reworded.
+- Commons 7.1.3-sk2 brings the Japanese for the 16 strings Commons 7 added without one.
+
+### Private contacts
+- **Private + visible for N minutes.** A fourth choice in the visibility dialog: the copy in system
+  storage with an end — long enough to start a chat in a messenger — after which it removes itself (by
+  an alarm, and at the latest when the app is next opened). The chip then reads “… until 18:15”.
+  Minutes: UI page → *Private contacts* → *Temporary visibility: minutes* (5 – 60, default 10).
+- The dialog and the chip now say what the visible state is: **a copy in system storage**, which every
+  app with the Contacts permission reads.
+- **Another app's own entries are no longer taken for contacts.** A messenger that may read contacts
+  (Molly / Signal, WhatsApp, Telegram, Threema, Viber, MeeTime) writes an entry of its own beside each
+  contact it recognises. Such an entry made a visible private contact show as “Mixed”, and choosing
+  *Private* then moved it into private storage as a second contact. They are now left out of the lists,
+  the visibility state, every move, the *System storage* status and its purge.
+- The list merges same-name entries itself (the rule is the Commons' own), so an entry that is dropped
+  can no longer take the row with it.
+
+### Menus
+- ⋮ → **Blocked numbers ›** opens the blocked-numbers screen of 白い熊 電話 (from its `1.11.1+130`):
+  Android lets only the default dialer keep that list. The row is shown only when that app offers the
+  screen, and the menu rows are decided again at every return to the main screen.
+
 ## [1.6.0+136] — 2026-11-22
 
 Since `1.6.0+135`, still on **Fossify Contacts 1.6.0**; Commons moves from **6.1.6-sk19** to **7.1.3-sk1**.
